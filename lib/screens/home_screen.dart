@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/bike_data.dart';
+import '../services/heart_rate_sensor_service.dart';
 import '../widgets/metric_tile.dart';
 import '../widgets/power_bar.dart';
 
@@ -65,6 +66,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _ftp = 200;
   final BikeData _data = BikeData();
   final List<_RideSample> _samples = [];
+  final HeartRateSensorService _heartRateSensorService =
+      HeartRateSensorService.instance;
 
   final FlutterBackgroundService _backgroundService = FlutterBackgroundService();
 
@@ -86,6 +89,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_isMobileTrackingPlatform) {
       _configureBackgroundService();
     }
+    unawaited(_heartRateSensorService.initialize());
+    _heartRateSensorService.state.addListener(_syncHeartRateData);
     _startLocationStream();
   }
 
@@ -102,11 +107,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _positionSubscription?.cancel();
     _recordingTimer?.cancel();
+    _heartRateSensorService.state.removeListener(_syncHeartRateData);
     if (_isRunning && _isMobileTrackingPlatform) {
       WakelockPlus.disable();
     }
     if (_serviceConfigured) {
       _backgroundService.invoke('stopService');
+    }
+
+    void _syncHeartRateData() {
+      if (!mounted) return;
+      final heartRate = _heartRateSensorService.state.value.heartRate;
+      if (_data.heartRate == heartRate) return;
+      setState(() {
+        _data.heartRate = heartRate;
+      });
     }
     super.dispose();
   }
