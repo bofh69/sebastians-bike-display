@@ -92,8 +92,13 @@ class HeartRateSensorService {
   StreamSubscription<List<int>>? _batterySubscription;
   bool _initialized = false;
   bool _connectingToSavedDevice = false;
+  Future<void>? _initializationFuture;
 
-  Future<void> initialize() async {
+  Future<void> initialize() {
+    return _initializationFuture ??= _initialize();
+  }
+
+  Future<void> _initialize() async {
     if (_initialized) return;
     _initialized = true;
 
@@ -130,8 +135,9 @@ class HeartRateSensorService {
       subscription = FlutterBluePlus.onScanResults.listen((results) {
         for (final result in results) {
           final device = result.device;
-          final name = _bestDeviceName(device.platformName, device.advName);
-          if (name == null) continue;
+          final name =
+              _bestDeviceName(device.platformName, result.advertisementData.advName) ??
+              device.remoteId.str;
           discovered[device.remoteId.str] = HeartRateDiscoveredDevice(
             device: device,
             name: name,
@@ -148,6 +154,14 @@ class HeartRateSensorService {
       );
       await FlutterBluePlus.isScanning.where((value) => value == false).first;
       return state.value.scanResults;
+    } on _HeartRateSensorException catch (error) {
+      _setState(
+        state.value.copyWith(
+          errorMessage: error.message,
+          scanResults: const <HeartRateDiscoveredDevice>[],
+        ),
+      );
+      return const <HeartRateDiscoveredDevice>[];
     } on PlatformException catch (error) {
       _setState(
         state.value.copyWith(
@@ -230,6 +244,10 @@ class HeartRateSensorService {
     _device = device;
     _batteryCharacteristic = null;
     _connectionSubscription = device.connectionState.listen((connectionState) {
+      if (connectionState == BluetoothConnectionState.disconnected &&
+          state.value.isConnecting) {
+        return;
+      }
       final isConnected = connectionState == BluetoothConnectionState.connected;
       _setState(
         state.value.copyWith(
@@ -260,11 +278,21 @@ class HeartRateSensorService {
 
     try {
       await _ensureBluetoothReady();
+      if (FlutterBluePlus.isScanningNow) {
+        await FlutterBluePlus.stopScan();
+      }
       if (autoConnect) {
-        await device.connect(autoConnect: true);
+        await device.connect(autoConnect: true, mtu: null);
       } else {
         await device.connect();
       }
+    } on _HeartRateSensorException catch (error) {
+      _setState(
+        state.value.copyWith(
+          isConnecting: false,
+          errorMessage: error.message,
+        ),
+      );
     } on PlatformException catch (error) {
       _setState(
         state.value.copyWith(
@@ -411,7 +439,7 @@ class HeartRateSensorService {
 
   void _updateBatteryLevel(List<int> value) {
     if (value.isEmpty) return;
-    _setState(state.value.copyWith(batteryLevel: value.first.clamp(0, 100)));
+    _setState(state.value.copyWith(batteryLevel: value.first.clamp(0, 100) as int));
   }
 
   int? _parseHeartRate(List<int> value) {

@@ -114,16 +114,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_serviceConfigured) {
       _backgroundService.invoke('stopService');
     }
-
-    void _syncHeartRateData() {
-      if (!mounted) return;
-      final heartRate = _heartRateSensorService.state.value.heartRate;
-      if (_data.heartRate == heartRate) return;
-      setState(() {
-        _data.heartRate = heartRate;
-      });
-    }
     super.dispose();
+  }
+
+  void _syncHeartRateData() {
+    if (!mounted) return;
+    final heartRate = _heartRateSensorService.state.value.heartRate;
+    if (_data.heartRate == heartRate) return;
+    setState(() {
+      _data.heartRate = heartRate;
+    });
   }
 
   Future<void> _loadPreferences() async {

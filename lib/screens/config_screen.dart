@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,8 +22,11 @@ class _ConfigScreenState extends State<ConfigScreen> {
   void initState() {
     super.initState();
     _loadPrefs();
-    unawaited(_heartRateSensorService.initialize());
-    _heartRateSensorService.state.addListener(_onHeartRateSensorUpdated);
+    unawaited(
+      _heartRateSensorService.initialize().then((_) {
+        return _heartRateSensorService.refreshBatteryLevel();
+      }),
+    );
   }
 
   Future<void> _loadPrefs() async {
@@ -44,7 +49,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
 
   @override
   void dispose() {
-    _heartRateSensorService.state.removeListener(_onHeartRateSensorUpdated);
     _ftpController.dispose();
     super.dispose();
   }
@@ -186,12 +190,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('BLE scanning not yet implemented')),
     );
-  }
-
-  void _onHeartRateSensorUpdated() {
-    if (!mounted) return;
-    setState(() {});
-    unawaited(_heartRateSensorService.refreshBatteryLevel());
   }
 
   String _buildHeartRateSubtitle(HeartRateSensorState state) {
