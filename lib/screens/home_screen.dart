@@ -102,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _positionSubscription?.cancel();
     _recordingTimer?.cancel();
-    if (_isRunning) {
+    if (_isRunning && _isMobileTrackingPlatform) {
       WakelockPlus.disable();
     }
     if (_serviceConfigured) {
@@ -261,8 +261,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       await _configureBackgroundService();
       await _backgroundService.startService();
       _backgroundService.invoke('setAsForeground');
+      await WakelockPlus.enable();
     }
-    await WakelockPlus.enable();
 
     setState(() {
       _isRunning = true;
@@ -283,7 +283,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _endRide() async {
     _recordingTimer?.cancel();
     _recordingTimer = null;
-    await WakelockPlus.disable();
+    if (_isMobileTrackingPlatform) {
+      await WakelockPlus.disable();
+    }
     if (_serviceConfigured) {
       _backgroundService.invoke('stopService');
     }
