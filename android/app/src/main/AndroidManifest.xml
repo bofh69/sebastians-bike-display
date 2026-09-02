@@ -17,7 +17,7 @@
         android:icon="@mipmap/ic_launcher">
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
-            android:exported="false"
+            android:exported="true"
             android:foregroundServiceType="location"/>
         <activity
             android:name=".MainActivity"
