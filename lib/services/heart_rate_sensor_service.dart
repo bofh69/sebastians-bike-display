@@ -439,7 +439,12 @@ class HeartRateSensorService {
 
   void _updateBatteryLevel(List<int> value) {
     if (value.isEmpty) return;
-    _setState(state.value.copyWith(batteryLevel: value.first.clamp(0, 100) as int));
+    final batteryLevel = value.first;
+    _setState(
+      state.value.copyWith(
+        batteryLevel: batteryLevel < 0 ? 0 : (batteryLevel > 100 ? 100 : batteryLevel),
+      ),
+    );
   }
 
   int? _parseHeartRate(List<int> value) {
