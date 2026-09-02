@@ -31,11 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.2
-  flutter_blue_plus: ^1.31.15
-  geolocator: ^11.0.0
   shared_preferences: ^2.2.3
-  permission_handler: ^11.3.1
-  flutter_background_service: ^5.0.5
 
 dev_dependencies:
   flutter_test:
