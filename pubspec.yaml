@@ -32,6 +32,11 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.2
   shared_preferences: ^2.2.3
+  geolocator: ^11.1.0
+  flutter_background_service: ^5.1.0
+  wakelock_plus: ^1.2.8
+  path_provider: ^2.1.2
+  fit_sdk: ^0.3.0
 
 dev_dependencies:
   flutter_test:
