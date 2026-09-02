@@ -76,9 +76,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Position? _latestPosition;
 
   bool get _isMobileTrackingPlatform =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.android ||
-          defaultTargetPlatform == TargetPlatform.iOS);
+      !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
 
   @override
   void initState() {
