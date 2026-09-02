@@ -3,6 +3,7 @@ import 'dart:io' as io;
 import 'dart:ui';
 
 import 'package:fit_sdk/fit_sdk.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
@@ -74,12 +75,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   DateTime? _lastAcceptedTimestamp;
   Position? _latestPosition;
 
+  bool get _isMobileTrackingPlatform =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadPreferences();
-    _configureBackgroundService();
+    if (_isMobileTrackingPlatform) {
+      _configureBackgroundService();
+    }
     _startLocationStream();
   }
 
@@ -99,7 +107,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_isRunning) {
       WakelockPlus.disable();
     }
-    _backgroundService.invoke('stopService');
+    if (_serviceConfigured) {
+      _backgroundService.invoke('stopService');
+    }
     super.dispose();
   }
 
@@ -132,6 +142,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _startLocationStream() async {
+    if (!_isMobileTrackingPlatform) return;
     final hasPermission = await _ensureLocationPermission();
     if (!hasPermission) return;
 
@@ -147,6 +158,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<bool> _ensureLocationPermission() async {
+    if (!_isMobileTrackingPlatform) return true;
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return false;
 
@@ -247,9 +259,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    await _configureBackgroundService();
-    await _backgroundService.startService();
-    _backgroundService.invoke('setAsForeground');
+    if (_isMobileTrackingPlatform) {
+      await _configureBackgroundService();
+      await _backgroundService.startService();
+      _backgroundService.invoke('setAsForeground');
+    }
     await WakelockPlus.enable();
 
     setState(() {
@@ -272,7 +286,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _recordingTimer?.cancel();
     _recordingTimer = null;
     await WakelockPlus.disable();
-    _backgroundService.invoke('stopService');
+    if (_serviceConfigured) {
+      _backgroundService.invoke('stopService');
+    }
 
     setState(() {
       _isRunning = false;
