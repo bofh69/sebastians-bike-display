@@ -13,6 +13,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/bike_data.dart';
 import '../services/heart_rate_sensor_service.dart';
+import '../services/power_cadence_sensor_service.dart';
 import '../widgets/metric_tile.dart';
 import '../widgets/power_bar.dart';
 
@@ -68,6 +69,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final List<_RideSample> _samples = [];
   final HeartRateSensorService _heartRateSensorService =
       HeartRateSensorService.instance;
+  final PowerCadenceSensorService _powerCadenceSensorService =
+      PowerCadenceSensorService.instance;
 
   final FlutterBackgroundService _backgroundService = FlutterBackgroundService();
 
@@ -91,6 +94,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     unawaited(_heartRateSensorService.initialize());
     _heartRateSensorService.state.addListener(_syncHeartRateData);
+    unawaited(_powerCadenceSensorService.initialize());
+    _powerCadenceSensorService.state.addListener(_syncPowerCadenceData);
     _startLocationStream();
   }
 
@@ -108,6 +113,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _positionSubscription?.cancel();
     _recordingTimer?.cancel();
     _heartRateSensorService.state.removeListener(_syncHeartRateData);
+    _powerCadenceSensorService.state.removeListener(_syncPowerCadenceData);
     if (_isRunning && _isMobileTrackingPlatform) {
       WakelockPlus.disable();
     }
@@ -123,6 +129,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_data.heartRate == heartRate) return;
     setState(() {
       _data.heartRate = heartRate;
+    });
+  }
+
+  void _syncPowerCadenceData() {
+    if (!mounted) return;
+    final powerState = _powerCadenceSensorService.state.value;
+    final power = powerState.power;
+    final cadence = powerState.cadence;
+    if (_data.power3s == power && _data.cadence == cadence) return;
+    setState(() {
+      _data.power3s = power;
+      _data.cadence = cadence;
     });
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/heart_rate_sensor_service.dart';
+import '../services/power_cadence_sensor_service.dart';
 
 class ConfigScreen extends StatefulWidget {
   const ConfigScreen({super.key});
@@ -14,9 +15,10 @@ class ConfigScreen extends StatefulWidget {
 
 class _ConfigScreenState extends State<ConfigScreen> {
   final _ftpController = TextEditingController();
-  String? _powerDeviceName;
   final HeartRateSensorService _heartRateSensorService =
       HeartRateSensorService.instance;
+  final PowerCadenceSensorService _powerCadenceSensorService =
+      PowerCadenceSensorService.instance;
 
   @override
   void initState() {
@@ -27,13 +29,17 @@ class _ConfigScreenState extends State<ConfigScreen> {
         return _heartRateSensorService.refreshBatteryLevel();
       }),
     );
+    unawaited(
+      _powerCadenceSensorService.initialize().then((_) {
+        return _powerCadenceSensorService.refreshBatteryLevel();
+      }),
+    );
   }
 
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _ftpController.text = (prefs.getInt('ftp') ?? 200).toString();
-      _powerDeviceName = prefs.getString('power_device');
     });
   }
 
@@ -93,14 +99,20 @@ class _ConfigScreenState extends State<ConfigScreen> {
                 );
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.speed),
-              title: const Text('Cadence / Power Sensor'),
-              subtitle: Text(_powerDeviceName ?? 'Not paired'),
-              trailing: TextButton(
-                onPressed: _pairPowerDevice,
-                child: const Text('Pair'),
-              ),
+            ValueListenableBuilder<PowerCadenceSensorState>(
+              valueListenable: _powerCadenceSensorService.state,
+              builder: (context, powerState, _) {
+                return ListTile(
+                  leading: const Icon(Icons.speed),
+                  title: const Text('Cadence / Power Sensor'),
+                  subtitle: Text(_buildPowerCadenceSubtitle(powerState)),
+                  isThreeLine: powerState.deviceName != null,
+                  trailing: TextButton(
+                    onPressed: _pairPowerDevice,
+                    child: Text(powerState.deviceName == null ? 'Pair' : 'Change'),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -186,13 +198,91 @@ class _ConfigScreenState extends State<ConfigScreen> {
   }
 
   Future<void> _pairPowerDevice() async {
+    final navigator = Navigator.of(context, rootNavigator: true);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 16),
+            Expanded(child: Text('Scanning for cadence/power sensors...')),
+          ],
+        ),
+      ),
+    );
+
+    final devices = await _powerCadenceSensorService.scanForDevices();
+    if (navigator.canPop()) {
+      navigator.pop();
+    }
     if (!mounted) return;
+
+    final errorMessage = _powerCadenceSensorService.state.value.errorMessage;
+    if (errorMessage != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errorMessage)));
+      return;
+    }
+
+    if (devices.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No cadence/power sensors found.')),
+      );
+      return;
+    }
+
+    final selectedDevice = await showDialog<PowerCadenceDiscoveredDevice>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Select cadence/power sensor'),
+        children: [
+          for (final device in devices)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(context).pop(device),
+              child: Text(device.name),
+            ),
+        ],
+      ),
+    );
+    if (selectedDevice == null || !mounted) return;
+
+    await _powerCadenceSensorService.pairDevice(selectedDevice);
+    if (!mounted) return;
+    final updatedState = _powerCadenceSensorService.state.value;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('BLE scanning not yet implemented')),
+      SnackBar(
+        content: Text(
+          updatedState.errorMessage ??
+              'Paired with ${selectedDevice.name}. Connecting to sensor...',
+        ),
+      ),
     );
   }
 
   String _buildHeartRateSubtitle(HeartRateSensorState state) {
+    if (state.deviceName == null) {
+      return 'Not paired';
+    }
+
+    final batteryText =
+        state.batteryLevel == null ? 'Battery: Unknown' : 'Battery: ${state.batteryLevel}%';
+    final status = state.isConnected
+        ? 'Connected'
+        : state.isConnecting
+        ? 'Connecting…'
+        : 'Disconnected';
+
+    return '${state.deviceName}\n$status\n$batteryText';
+  }
+
+  String _buildPowerCadenceSubtitle(PowerCadenceSensorState state) {
     if (state.deviceName == null) {
       return 'Not paired';
     }
