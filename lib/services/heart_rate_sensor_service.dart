@@ -1,17 +1,16 @@
 import 'dart:async';
-import 'dart:io' as io;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const String _heartRateDeviceIdPrefKey = 'hr_device_id';
 const String _heartRateDeviceNamePrefKey = 'hr_device';
-final Guid _heartRateServiceGuid = Guid('180D');
-final Guid _heartRateMeasurementGuid = Guid('2A37');
-final Guid _batteryServiceGuid = Guid('180F');
-final Guid _batteryLevelGuid = Guid('2A19');
+final Uuid _heartRateServiceUuid = Uuid.parse('180D');
+final Uuid _heartRateMeasurementUuid = Uuid.parse('2A37');
+final Uuid _batteryServiceUuid = Uuid.parse('180F');
+final Uuid _batteryLevelUuid = Uuid.parse('2A19');
 
 class HeartRateDiscoveredDevice {
   const HeartRateDiscoveredDevice({
@@ -19,10 +18,10 @@ class HeartRateDiscoveredDevice {
     required this.name,
   });
 
-  final BluetoothDevice device;
+  final DiscoveredDevice device;
   final String name;
 
-  String get id => device.remoteId.str;
+  String get id => device.id;
 }
 
 class HeartRateSensorState {
@@ -83,11 +82,12 @@ class HeartRateSensorService {
 
   final ValueNotifier<HeartRateSensorState> state =
       ValueNotifier(const HeartRateSensorState());
+  final FlutterReactiveBle _ble = FlutterReactiveBle();
 
   SharedPreferences? _prefs;
-  BluetoothDevice? _device;
-  BluetoothCharacteristic? _batteryCharacteristic;
-  StreamSubscription<BluetoothConnectionState>? _connectionSubscription;
+  String? _deviceId;
+  StreamSubscription<DiscoveredDevice>? _scanSubscription;
+  StreamSubscription<ConnectionStateUpdate>? _connectionSubscription;
   StreamSubscription<List<int>>? _heartRateSubscription;
   StreamSubscription<List<int>>? _batterySubscription;
   bool _initialized = false;
@@ -128,32 +128,41 @@ class HeartRateSensorService {
     );
 
     final discovered = <String, HeartRateDiscoveredDevice>{};
-    StreamSubscription<List<ScanResult>>? subscription;
+    final completer = Completer<List<HeartRateDiscoveredDevice>>();
 
     try {
       await _ensureBluetoothReady();
-      subscription = FlutterBluePlus.onScanResults.listen((results) {
-        for (final result in results) {
-          final device = result.device;
-          final name =
-              _bestDeviceName(device.platformName, result.advertisementData.advName) ??
-              device.remoteId.str;
-          discovered[device.remoteId.str] = HeartRateDiscoveredDevice(
-            device: device,
-            name: name,
-          );
-        }
-        _setState(
-          state.value.copyWith(scanResults: discovered.values.toList(growable: false)),
-        );
-      });
-
-      await FlutterBluePlus.startScan(
-        withServices: <Guid>[_heartRateServiceGuid],
-        timeout: const Duration(seconds: 8),
+      await _scanSubscription?.cancel();
+      _scanSubscription = _ble
+          .scanForDevices(
+            withServices: <Uuid>[_heartRateServiceUuid],
+            scanMode: ScanMode.lowLatency,
+          )
+          .listen((device) {
+            final name = _bestDeviceName(device.name) ?? device.id;
+            discovered[device.id] = HeartRateDiscoveredDevice(
+              device: device,
+              name: name,
+            );
+            _setState(
+              state.value.copyWith(
+                scanResults: discovered.values.toList(growable: false),
+              ),
+            );
+          }, onError: (Object error) {
+            if (completer.isCompleted) return;
+            completer.completeError(error);
+          });
+      unawaited(
+        Future<void>.delayed(const Duration(seconds: 8)).then((_) async {
+          await _scanSubscription?.cancel();
+          _scanSubscription = null;
+          if (!completer.isCompleted) {
+            completer.complete(state.value.scanResults);
+          }
+        }),
       );
-      await FlutterBluePlus.isScanning.where((value) => value == false).first;
-      return state.value.scanResults;
+      return await completer.future;
     } on _HeartRateSensorException catch (error) {
       _setState(
         state.value.copyWith(
@@ -178,6 +187,14 @@ class HeartRateSensorService {
         ),
       );
       return const <HeartRateDiscoveredDevice>[];
+    } on Exception catch (error) {
+      _setState(
+        state.value.copyWith(
+          errorMessage: _errorMessage(error, fallback: 'Bluetooth scan failed.'),
+          scanResults: const <HeartRateDiscoveredDevice>[],
+        ),
+      );
+      return const <HeartRateDiscoveredDevice>[];
     } catch (_) {
       _setState(
         state.value.copyWith(
@@ -187,7 +204,8 @@ class HeartRateSensorService {
       );
       return const <HeartRateDiscoveredDevice>[];
     } finally {
-      await subscription?.cancel();
+      await _scanSubscription?.cancel();
+      _scanSubscription = null;
       _setState(state.value.copyWith(isScanning: false));
     }
   }
@@ -205,19 +223,27 @@ class HeartRateSensorService {
     );
 
     await _disconnectCurrentDevice();
-    await _connectToDevice(discoveredDevice.device, autoConnect: true);
+    await _connectToDeviceId(discoveredDevice.id, reconnecting: false);
   }
 
   Future<void> refreshBatteryLevel() async {
-    final batteryCharacteristic = _batteryCharacteristic;
-    if (batteryCharacteristic == null || !state.value.isConnected) return;
+    final deviceId = _deviceId;
+    if (deviceId == null || !state.value.isConnected) return;
     try {
-      final batteryValue = await batteryCharacteristic.read();
+      final batteryValue = await _ble.readCharacteristic(
+        QualifiedCharacteristic(
+          serviceId: _batteryServiceUuid,
+          characteristicId: _batteryLevelUuid,
+          deviceId: deviceId,
+        ),
+      );
       _updateBatteryLevel(batteryValue);
-    } on PlatformException {
-      // Ignore transient read failures.
     } on MissingPluginException {
       // Ignore when plugins are unavailable during tests.
+    } on PlatformException {
+      // Ignore transient read failures.
+    } on Exception {
+      // Ignore transient read failures.
     }
   }
 
@@ -228,44 +254,18 @@ class HeartRateSensorService {
 
     _connectingToSavedDevice = true;
     try {
-      await _connectToDevice(BluetoothDevice.fromId(savedDeviceId), autoConnect: true);
+      await _connectToDeviceId(savedDeviceId, reconnecting: true);
     } finally {
       _connectingToSavedDevice = false;
     }
   }
 
-  Future<void> _connectToDevice(
-    BluetoothDevice device, {
-    required bool autoConnect,
+  Future<void> _connectToDeviceId(
+    String deviceId, {
+    required bool reconnecting,
   }) async {
     await _cancelCharacteristicSubscriptions();
     await _connectionSubscription?.cancel();
-
-    _device = device;
-    _batteryCharacteristic = null;
-    _connectionSubscription = device.connectionState.listen((connectionState) {
-      if (connectionState == BluetoothConnectionState.disconnected &&
-          state.value.isConnecting) {
-        return;
-      }
-      final isConnected = connectionState == BluetoothConnectionState.connected;
-      _setState(
-        state.value.copyWith(
-          isConnected: isConnected,
-          isConnecting: false,
-          batteryLevel: isConnected ? state.value.batteryLevel : null,
-          heartRate: isConnected ? state.value.heartRate : null,
-        ),
-      );
-      if (isConnected) {
-        unawaited(_discoverServices(device));
-      } else {
-        _batteryCharacteristic = null;
-        unawaited(_cancelCharacteristicSubscriptions());
-        _setState(state.value.copyWith(batteryLevel: null, heartRate: null));
-      }
-    });
-
     _setState(
       state.value.copyWith(
         isConnecting: true,
@@ -278,90 +278,94 @@ class HeartRateSensorService {
 
     try {
       await _ensureBluetoothReady();
-      if (FlutterBluePlus.isScanningNow) {
-        await FlutterBluePlus.stopScan();
-      }
-      if (autoConnect) {
-        await device.connect(autoConnect: true, mtu: null);
-      } else {
-        await device.connect();
-      }
+      _deviceId = deviceId;
+      _connectionSubscription = (reconnecting
+              ? _ble.connectToAdvertisingDevice(
+                  id: deviceId,
+                  withServices: <Uuid>[_heartRateServiceUuid],
+                  prescanDuration: const Duration(seconds: 5),
+                  servicesWithCharacteristicsToDiscover: <Uuid, List<Uuid>>{
+                    _heartRateServiceUuid: <Uuid>[_heartRateMeasurementUuid],
+                    _batteryServiceUuid: <Uuid>[_batteryLevelUuid],
+                  },
+                  connectionTimeout: const Duration(seconds: 10),
+                )
+              : _ble.connectToDevice(
+                  id: deviceId,
+                  servicesWithCharacteristicsToDiscover: <Uuid, List<Uuid>>{
+                    _heartRateServiceUuid: <Uuid>[_heartRateMeasurementUuid],
+                    _batteryServiceUuid: <Uuid>[_batteryLevelUuid],
+                  },
+                  connectionTimeout: const Duration(seconds: 10),
+                ))
+          .listen((update) {
+        final isConnected =
+            update.connectionState == DeviceConnectionState.connected;
+        final isConnecting =
+            update.connectionState == DeviceConnectionState.connecting;
+        _setState(
+          state.value.copyWith(
+            isConnected: isConnected,
+            isConnecting: isConnecting,
+            batteryLevel: isConnected ? state.value.batteryLevel : null,
+            heartRate: isConnected ? state.value.heartRate : null,
+          ),
+        );
+        if (isConnected) {
+          unawaited(_startCharacteristicSubscriptions(deviceId));
+        } else if (update.connectionState == DeviceConnectionState.disconnected) {
+          unawaited(_cancelCharacteristicSubscriptions());
+          _setState(state.value.copyWith(batteryLevel: null, heartRate: null));
+        }
+      }, onError: (Object error) {
+        _setState(
+          state.value.copyWith(
+            isConnecting: false,
+            isConnected: false,
+            errorMessage: _errorMessage(
+              error,
+              fallback: 'Failed to connect to heart rate monitor.',
+            ),
+          ),
+        );
+      });
     } on _HeartRateSensorException catch (error) {
       _setState(
         state.value.copyWith(
           isConnecting: false,
+          isConnected: false,
           errorMessage: error.message,
         ),
       );
-    } on PlatformException catch (error) {
-      _setState(
-        state.value.copyWith(
-          isConnecting: false,
-          errorMessage: error.message ?? 'Failed to connect to heart rate monitor.',
-        ),
-      );
-    } on MissingPluginException {
-      _setState(
-        state.value.copyWith(
-          isConnecting: false,
-          errorMessage: 'Bluetooth is unavailable on this device.',
-        ),
-      );
-    } catch (_) {
-      _setState(
-        state.value.copyWith(
-          isConnecting: false,
-          errorMessage: 'Failed to connect to heart rate monitor.',
-        ),
-      );
+      _deviceId = null;
     }
   }
 
-  Future<void> _discoverServices(BluetoothDevice device) async {
+  Future<void> _startCharacteristicSubscriptions(String deviceId) async {
     try {
-      final services = await device.discoverServices();
-      BluetoothCharacteristic? heartRateCharacteristic;
-      BluetoothCharacteristic? batteryCharacteristic;
-
-      for (final service in services) {
-        if (service.uuid == _heartRateServiceGuid) {
-          for (final characteristic in service.characteristics) {
-            if (characteristic.uuid == _heartRateMeasurementGuid) {
-              heartRateCharacteristic = characteristic;
-            }
-          }
-        } else if (service.uuid == _batteryServiceGuid) {
-          for (final characteristic in service.characteristics) {
-            if (characteristic.uuid == _batteryLevelGuid) {
-              batteryCharacteristic = characteristic;
-            }
-          }
-        }
-      }
-
       await _cancelCharacteristicSubscriptions();
-
-      if (heartRateCharacteristic != null) {
-        _heartRateSubscription = heartRateCharacteristic.onValueReceived.listen(
-          _updateHeartRate,
-        );
-        await heartRateCharacteristic.setNotifyValue(true);
-      }
-
-      if (batteryCharacteristic != null) {
-        _batteryCharacteristic = batteryCharacteristic;
-        _batterySubscription = batteryCharacteristic.onValueReceived.listen(
-          _updateBatteryLevel,
-        );
-        if (batteryCharacteristic.properties.notify ||
-            batteryCharacteristic.properties.indicate) {
-          await batteryCharacteristic.setNotifyValue(true);
-        }
-        if (batteryCharacteristic.properties.read) {
-          final batteryValue = await batteryCharacteristic.read();
-          _updateBatteryLevel(batteryValue);
-        }
-      }
+      _heartRateSubscription = _ble
+          .subscribeToCharacteristic(
+            QualifiedCharacteristic(
+              serviceId: _heartRateServiceUuid,
+              characteristicId: _heartRateMeasurementUuid,
+              deviceId: deviceId,
+            ),
+          )
+          .listen(_updateHeartRate);
+      _batterySubscription = _ble
+          .subscribeToCharacteristic(
+            QualifiedCharacteristic(
+              serviceId: _batteryServiceUuid,
+              characteristicId: _batteryLevelUuid,
+              deviceId: deviceId,
+            ),
+          )
+          .listen(
+            _updateBatteryLevel,
+            onError: (_) {},
+          );
+      await refreshBatteryLevel();
     } on PlatformException catch (error) {
       _setState(
         state.value.copyWith(
@@ -372,6 +376,15 @@ class HeartRateSensorService {
     } on MissingPluginException {
       _setState(
         state.value.copyWith(errorMessage: 'Bluetooth is unavailable on this device.'),
+      );
+    } on Exception catch (error) {
+      _setState(
+        state.value.copyWith(
+          errorMessage: _errorMessage(
+            error,
+            fallback: 'Failed to read heart rate monitor services.',
+          ),
+        ),
       );
     } catch (_) {
       _setState(
@@ -384,44 +397,31 @@ class HeartRateSensorService {
 
   Future<void> _ensureBluetoothReady() async {
     try {
-      if (await FlutterBluePlus.isSupported == false) {
-        throw const _HeartRateSensorException('Bluetooth LE is not supported.');
+      await _ble.initialize();
+      var status = _ble.status;
+      if (status == BleStatus.unknown) {
+        status = await _ble.statusStream.firstWhere(
+          (value) => value != BleStatus.unknown,
+        );
       }
 
-      if (!kIsWeb && io.Platform.isAndroid) {
-        final adapterState = FlutterBluePlus.adapterStateNow;
-        if (adapterState != BluetoothAdapterState.on) {
-          await FlutterBluePlus.turnOn();
-        }
+      if (status == BleStatus.ready) {
+        return;
       }
 
-      final adapterState = FlutterBluePlus.adapterStateNow;
-      if (adapterState != BluetoothAdapterState.on &&
-          adapterState != BluetoothAdapterState.unknown) {
-        throw const _HeartRateSensorException('Turn on Bluetooth to continue.');
-      }
+      throw _HeartRateSensorException(_statusMessage(status));
     } on MissingPluginException {
       throw const _HeartRateSensorException('Bluetooth is unavailable on this device.');
     }
   }
 
   Future<void> _disconnectCurrentDevice() async {
+    await _scanSubscription?.cancel();
+    _scanSubscription = null;
     await _cancelCharacteristicSubscriptions();
     await _connectionSubscription?.cancel();
     _connectionSubscription = null;
-
-    final device = _device;
-    _device = null;
-    _batteryCharacteristic = null;
-
-    if (device == null) return;
-    try {
-      await device.disconnect();
-    } on PlatformException {
-      // Ignore disconnect failures when replacing the device.
-    } on MissingPluginException {
-      // Ignore when plugins are unavailable during tests.
-    }
+    _deviceId = null;
   }
 
   Future<void> _cancelCharacteristicSubscriptions() async {
@@ -460,22 +460,36 @@ class HeartRateSensorService {
     return value[1];
   }
 
-  String? _bestDeviceName(String? platformName, String? advName) {
-    final trimmedPlatformName = platformName?.trim();
-    if (trimmedPlatformName != null && trimmedPlatformName.isNotEmpty) {
-      return trimmedPlatformName;
-    }
-
-    final trimmedAdvName = advName?.trim();
-    if (trimmedAdvName != null && trimmedAdvName.isNotEmpty) {
-      return trimmedAdvName;
-    }
-
-    return null;
+  String? _bestDeviceName(String? name) {
+    final trimmedName = name?.trim();
+    return trimmedName == null || trimmedName.isEmpty ? null : trimmedName;
   }
 
   void _setState(HeartRateSensorState nextState) {
     state.value = nextState;
+  }
+
+  String _statusMessage(BleStatus status) {
+    switch (status) {
+      case BleStatus.unsupported:
+        return 'Bluetooth LE is not supported.';
+      case BleStatus.unauthorized:
+        return 'Bluetooth permission is required.';
+      case BleStatus.poweredOff:
+        return 'Turn on Bluetooth to continue.';
+      case BleStatus.locationServicesDisabled:
+        return 'Enable location services to scan for sensors.';
+      case BleStatus.ready:
+      case BleStatus.unknown:
+        return 'Bluetooth is unavailable on this device.';
+    }
+  }
+
+  String _errorMessage(Object error, {required String fallback}) {
+    if (error is PlatformException) {
+      return error.message ?? fallback;
+    }
+    return fallback;
   }
 }
 
