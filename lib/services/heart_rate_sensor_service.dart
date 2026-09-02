@@ -82,9 +82,9 @@ class HeartRateSensorService {
 
   final ValueNotifier<HeartRateSensorState> state =
       ValueNotifier(const HeartRateSensorState());
-  final FlutterReactiveBle _ble = FlutterReactiveBle();
 
   SharedPreferences? _prefs;
+  FlutterReactiveBle? _ble;
   String? _deviceId;
   StreamSubscription<DiscoveredDevice>? _scanSubscription;
   StreamSubscription<ConnectionStateUpdate>? _connectionSubscription;
@@ -93,6 +93,8 @@ class HeartRateSensorService {
   bool _initialized = false;
   bool _connectingToSavedDevice = false;
   Future<void>? _initializationFuture;
+
+  FlutterReactiveBle get _bleInstance => _ble ??= FlutterReactiveBle();
 
   Future<void> initialize() {
     return _initializationFuture ??= _initialize();
@@ -133,7 +135,7 @@ class HeartRateSensorService {
     try {
       await _ensureBluetoothReady();
       await _scanSubscription?.cancel();
-      _scanSubscription = _ble
+      _scanSubscription = _bleInstance
           .scanForDevices(
             withServices: <Uuid>[_heartRateServiceUuid],
             scanMode: ScanMode.lowLatency,
@@ -230,7 +232,7 @@ class HeartRateSensorService {
     final deviceId = _deviceId;
     if (deviceId == null || !state.value.isConnected) return;
     try {
-      final batteryValue = await _ble.readCharacteristic(
+      final batteryValue = await _bleInstance.readCharacteristic(
         QualifiedCharacteristic(
           serviceId: _batteryServiceUuid,
           characteristicId: _batteryLevelUuid,
@@ -280,7 +282,7 @@ class HeartRateSensorService {
       await _ensureBluetoothReady();
       _deviceId = deviceId;
       _connectionSubscription = (reconnecting
-              ? _ble.connectToAdvertisingDevice(
+              ? _bleInstance.connectToAdvertisingDevice(
                   id: deviceId,
                   withServices: <Uuid>[_heartRateServiceUuid],
                   prescanDuration: const Duration(seconds: 5),
@@ -290,7 +292,7 @@ class HeartRateSensorService {
                   },
                   connectionTimeout: const Duration(seconds: 10),
                 )
-              : _ble.connectToDevice(
+              : _bleInstance.connectToDevice(
                   id: deviceId,
                   servicesWithCharacteristicsToDiscover: <Uuid, List<Uuid>>{
                     _heartRateServiceUuid: <Uuid>[_heartRateMeasurementUuid],
@@ -344,7 +346,7 @@ class HeartRateSensorService {
   Future<void> _startCharacteristicSubscriptions(String deviceId) async {
     try {
       await _cancelCharacteristicSubscriptions();
-      _heartRateSubscription = _ble
+      _heartRateSubscription = _bleInstance
           .subscribeToCharacteristic(
             QualifiedCharacteristic(
               serviceId: _heartRateServiceUuid,
@@ -353,7 +355,7 @@ class HeartRateSensorService {
             ),
           )
           .listen(_updateHeartRate);
-      _batterySubscription = _ble
+      _batterySubscription = _bleInstance
           .subscribeToCharacteristic(
             QualifiedCharacteristic(
               serviceId: _batteryServiceUuid,
@@ -397,10 +399,10 @@ class HeartRateSensorService {
 
   Future<void> _ensureBluetoothReady() async {
     try {
-      await _ble.initialize();
-      var status = _ble.status;
+      await _bleInstance.initialize();
+      var status = _bleInstance.status;
       if (status == BleStatus.unknown) {
-        status = await _ble.statusStream.firstWhere(
+        status = await _bleInstance.statusStream.firstWhere(
           (value) => value != BleStatus.unknown,
         );
       }
@@ -410,6 +412,8 @@ class HeartRateSensorService {
       }
 
       throw _HeartRateSensorException(_statusMessage(status));
+    } on UnimplementedError {
+      throw const _HeartRateSensorException('Bluetooth is unavailable on this device.');
     } on MissingPluginException {
       throw const _HeartRateSensorException('Bluetooth is unavailable on this device.');
     }
