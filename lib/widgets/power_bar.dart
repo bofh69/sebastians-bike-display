@@ -32,7 +32,7 @@ class PowerBar extends StatelessWidget {
             Color(0xFFFB8C00),
             Color(0xFFC62828),
           ];
-    final zoneFlex = const [55, 20, 15, 15, 15, 30, 50];
+    const zoneFlex = [55, 20, 15, 15, 15, 30, 50];
     final powerFraction =
         power == null || ftp <= 0 ? 0.0 : (power! / (ftp * 2.0)).clamp(0.0, 1.0);
 

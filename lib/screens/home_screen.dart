@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:io' as io;
+import 'dart:ui';
 
 import 'package:fit_sdk/fit_sdk.dart';
 import 'package:flutter/material.dart';
@@ -160,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _handlePosition(Position position) {
     if (position.accuracy > 35) return;
 
-    final now = position.timestamp ?? DateTime.now();
+    final now = position.timestamp;
     final previousPosition = _lastAcceptedPosition;
     final previousTimestamp = _lastAcceptedTimestamp;
     _latestPosition = position;
@@ -375,7 +376,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     final docsDir = await getApplicationDocumentsDirectory();
     final fileName = 'ride_${start.toIso8601String().replaceAll(':', '-')}.fit';
-    final file = File('${docsDir.path}/$fileName');
+    final file = io.File('${docsDir.path}/$fileName');
     await file.writeAsBytes(fitBytes, flush: true);
     return file.path;
   }
