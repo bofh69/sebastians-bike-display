@@ -140,8 +140,9 @@ void main() {
     expect(coordinator.takeNextTurnAt(base), heartRateReconnectKey);
     expect(
       coordinator.takeNextTurnAt(
-        base.add(aggressiveSavedSensorReconnectInterval) -
-            const Duration(seconds: 1),
+        base.add(
+          aggressiveSavedSensorReconnectInterval - const Duration(seconds: 1),
+        ),
       ),
       isNull,
     );
@@ -157,8 +158,10 @@ void main() {
     );
     expect(
       coordinator.takeNextTurnAt(
-        base.add(aggressiveSavedSensorReconnectWindow) +
-            backedOffSavedSensorReconnectInterval,
+        base.add(
+          aggressiveSavedSensorReconnectWindow +
+              backedOffSavedSensorReconnectInterval,
+        ),
       ),
       heartRateReconnectKey,
     );
