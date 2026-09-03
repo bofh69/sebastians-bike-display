@@ -1,4 +1,4 @@
-# simple-bike-display
+# Sebastian's Bike Display
 
 A simple bike computer app showing important stats and recording
 the ride.

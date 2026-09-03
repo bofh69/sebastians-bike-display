@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_constants.dart';
 import 'screens/home_screen.dart';
 import 'screens/config_screen.dart';
 
@@ -12,7 +13,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Simple Bike Display',
+      title: kAppDisplayName,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
