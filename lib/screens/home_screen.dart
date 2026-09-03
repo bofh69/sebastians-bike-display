@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' as io;
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:fit_sdk/fit_sdk.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:path_provider/path_provider.dart';
@@ -43,6 +46,7 @@ class _RideSample {
   final double? power;
   final double? heartRate;
   final double distanceMeters;
+  final double speedMps;
 
   const _RideSample({
     required this.timestamp,
@@ -51,6 +55,7 @@ class _RideSample {
     required this.power,
     required this.heartRate,
     required this.distanceMeters,
+    required this.speedMps,
   });
 }
 
@@ -62,6 +67,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  static const MethodChannel _fileExportChannel = MethodChannel(
+    'simple_bike_display/file_export',
+  );
   bool _isRunning = false;
   bool _serviceConfigured = false;
   Future<void>? _backgroundServiceConfigurationFuture;
@@ -225,12 +233,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _handlePosition(Position position) {
-    if (position.accuracy > 35) return;
+    final wasReliableGpsForSpeed = _hasReliableGpsForSpeed;
+    _latestPosition = position;
+    if (position.accuracy > 35) {
+      if (wasReliableGpsForSpeed && mounted) {
+        setState(() {});
+      }
+      return;
+    }
 
     final now = position.timestamp;
     final previousPosition = _lastAcceptedPosition;
     final previousTimestamp = _lastAcceptedTimestamp;
-    _latestPosition = position;
 
     if (previousPosition == null || previousTimestamp == null) {
       _lastAcceptedPosition = position;
@@ -299,6 +313,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         power: _data.power3s,
         heartRate: _data.heartRate,
         distanceMeters: (_data.distance ?? 0) * 1000,
+        speedMps: (_data.speed ?? 0) / 3.6,
       ),
     );
   }
@@ -427,7 +442,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final record = Mesg.fromMesgNum(MesgNum.record)
         ..setFieldValue(253, _fitTimestamp(sample.timestamp))
         ..setFieldValue(5, sample.distanceMeters)
-        ..setFieldValue(6, (_data.speed ?? 0) / 3.6);
+        ..setFieldValue(6, sample.speedMps);
 
       if (sample.latitude != null) {
         record.setFieldValue(0, (sample.latitude! * 11930464.7111).round());
@@ -481,22 +496,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     final fitBytes = encoder.close();
 
-    final outputDir = await _resolveFitOutputDirectory();
-    await outputDir.create(recursive: true);
     final fileName = 'ride_${start.toIso8601String().replaceAll(':', '-')}.fit';
-    final file = io.File('${outputDir.path}/$fileName');
-    await file.writeAsBytes(fitBytes, flush: true);
-    return file.path;
+    return _writeExportFile(
+      fileName: fileName,
+      mimeType: 'application/octet-stream',
+      bytes: fitBytes,
+    );
   }
 
   Future<String?> _writeGpxFile() async {
     if (_samples.isEmpty) return null;
 
-    final outputDir = await _resolveFitOutputDirectory();
-    await outputDir.create(recursive: true);
     final start = _samples.first.timestamp;
     final fileName = 'ride_${start.toIso8601String().replaceAll(':', '-')}.gpx';
-    final file = io.File('${outputDir.path}/$fileName');
 
     final buffer = StringBuffer()
       ..writeln('<?xml version="1.0" encoding="UTF-8"?>')
@@ -511,30 +523,46 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         continue;
       }
       buffer.writeln(
-        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}"><time>${sample.timestamp.toUtc().toIso8601String()}</time></trkpt>',
+        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}"><time>${sample.timestamp.toUtc().toIso8601String()}</time><cmt>speed_kmh=${(sample.speedMps * 3.6).toStringAsFixed(1)} distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}</cmt></trkpt>',
       );
     }
 
     buffer.writeln('</trkseg></trk></gpx>');
 
-    await file.writeAsString(buffer.toString(), flush: true);
-    return file.path;
+    return _writeExportFile(
+      fileName: fileName,
+      mimeType: 'application/gpx+xml',
+      bytes: Uint8List.fromList(utf8.encode(buffer.toString())),
+    );
   }
 
-  Future<io.Directory> _resolveFitOutputDirectory() async {
+  Future<String> _writeExportFile({
+    required String fileName,
+    required String mimeType,
+    required List<int> bytes,
+  }) async {
     if (!kIsWeb && io.Platform.isAndroid) {
-      final downloadDirs = await getExternalStorageDirectories(
-        type: StorageDirectory.downloads,
-      );
-      if (downloadDirs != null && downloadDirs.isNotEmpty) {
-        return downloadDirs.first;
-      }
-      final externalDir = await getExternalStorageDirectory();
-      if (externalDir != null) {
-        return externalDir;
+      try {
+        final uriOrPath = await _fileExportChannel.invokeMethod<String>(
+          'saveToDownloads',
+          <String, Object>{
+            'fileName': fileName,
+            'mimeType': mimeType,
+            'bytes': Uint8List.fromList(bytes),
+          },
+        );
+        if (uriOrPath != null && uriOrPath.isNotEmpty) {
+          return uriOrPath;
+        }
+      } catch (_) {
+        // Fall back to app document directory.
       }
     }
-    return getApplicationDocumentsDirectory();
+    final docsDir = await getApplicationDocumentsDirectory();
+    await docsDir.create(recursive: true);
+    final file = io.File('${docsDir.path}/$fileName');
+    await file.writeAsBytes(bytes, flush: true);
+    return file.path;
   }
 
   String _formatDuration(Duration? d) {
