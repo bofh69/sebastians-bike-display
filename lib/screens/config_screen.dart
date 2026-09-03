@@ -227,7 +227,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _savePrefs,
+                onPressed: () => _savePrefs(),
                 child: const Text('Save'),
               ),
             ),

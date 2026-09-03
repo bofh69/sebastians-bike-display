@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
@@ -82,11 +81,13 @@ class StravaUploadState {
   bool get hasCredentials => clientId.trim().isNotEmpty && clientSecret.isNotEmpty;
   bool get isAuthenticated => athleteId != null && athleteId!.isNotEmpty;
 
-  String get accountLabel => buildStravaAccountLabel(
-    firstName: athleteName,
-    username: username,
-    athleteId: athleteId,
-  );
+  String get accountLabel {
+    final trimmedAthleteName = athleteName?.trim();
+    if (trimmedAthleteName != null && trimmedAthleteName.isNotEmpty) {
+      return trimmedAthleteName;
+    }
+    return buildStravaAccountLabel(username: username, athleteId: athleteId);
+  }
 
   StravaUploadState copyWith({
     bool? initialized,
@@ -151,7 +152,7 @@ class StravaUploadService {
   static const _expiresAtKey = 'strava_expires_at';
   static const _oauthBaseUrl = 'https://www.strava.com';
   static const _apiBaseUrl = 'https://api-v3.strava.com';
-  static const _secureStorage = FlutterSecureStorage();
+  static final _secureStorage = FlutterSecureStorage();
 
   final ValueNotifier<StravaUploadState> state = ValueNotifier(
     const StravaUploadState.initial(),
@@ -193,6 +194,7 @@ class StravaUploadService {
           clientId: nextClientId,
           clientSecret: clientSecret,
           autoUploadEnabled: autoUploadEnabled,
+          clearAthlete: resetAuthentication,
           clearError: true,
         ),
       );
@@ -300,11 +302,12 @@ class StravaUploadService {
         );
       }
 
+      final authorizationHeader = ['Bearer', accessToken].join(' ');
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('$_apiBaseUrl/uploads'),
       )
-        ..headers['Authorization'] = '******'
+        ..headers['Authorization'] = authorizationHeader
         ..fields['data_type'] = 'fit'
         ..fields['external_id'] = fileName
         ..fields['name'] = startedAt == null
@@ -471,7 +474,7 @@ class StravaUploadService {
       athleteId: athleteId,
     );
     final prefs = await SharedPreferences.getInstance();
-    await Future.wait(<Future<void>>[
+    await Future.wait<dynamic>(<Future<dynamic>>[
       _secureStorage.write(key: _accessTokenKey, value: accessToken),
       _secureStorage.write(key: _refreshTokenKey, value: refreshToken),
       _secureStorage.write(key: _expiresAtKey, value: expiresAt.toString()),
@@ -491,7 +494,7 @@ class StravaUploadService {
 
   Future<void> _clearAuthentication({required bool preserveCredentials}) async {
     final prefs = await SharedPreferences.getInstance();
-    await Future.wait(<Future<void>>[
+    await Future.wait<dynamic>(<Future<dynamic>>[
       _secureStorage.delete(key: _accessTokenKey),
       _secureStorage.delete(key: _refreshTokenKey),
       _secureStorage.delete(key: _expiresAtKey),
@@ -505,7 +508,8 @@ class StravaUploadService {
   }
 
   String _createRandomToken([int length = 48]) {
-    final bytes = List<int>.generate(length, (_) => Random.secure().nextInt(256));
+    final random = Random.secure();
+    final bytes = List<int>.generate(length, (_) => random.nextInt(256));
     return base64UrlEncode(bytes).replaceAll('=', '');
   }
 
