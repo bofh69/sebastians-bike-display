@@ -36,6 +36,8 @@ class PowerCadenceSensorState {
     this.isConnected = false,
     this.power,
     this.cadence,
+    this.leftBalance,
+    this.rightBalance,
     this.batteryLevel,
     this.scanResults = const <PowerCadenceDiscoveredDevice>[],
     this.errorMessage,
@@ -48,6 +50,8 @@ class PowerCadenceSensorState {
   final bool isConnected;
   final double? power;
   final double? cadence;
+  final double? leftBalance;
+  final double? rightBalance;
   final int? batteryLevel;
   final List<PowerCadenceDiscoveredDevice> scanResults;
   final String? errorMessage;
@@ -60,6 +64,8 @@ class PowerCadenceSensorState {
     bool? isConnected,
     Object? power = _sentinel,
     Object? cadence = _sentinel,
+    Object? leftBalance = _sentinel,
+    Object? rightBalance = _sentinel,
     Object? batteryLevel = _sentinel,
     List<PowerCadenceDiscoveredDevice>? scanResults,
     Object? errorMessage = _sentinel,
@@ -73,6 +79,10 @@ class PowerCadenceSensorState {
       isConnected: isConnected ?? this.isConnected,
       power: identical(power, _sentinel) ? this.power : power as double?,
       cadence: identical(cadence, _sentinel) ? this.cadence : cadence as double?,
+      leftBalance:
+          identical(leftBalance, _sentinel) ? this.leftBalance : leftBalance as double?,
+      rightBalance:
+          identical(rightBalance, _sentinel) ? this.rightBalance : rightBalance as double?,
       batteryLevel:
           identical(batteryLevel, _sentinel) ? this.batteryLevel : batteryLevel as int?,
       scanResults: scanResults ?? this.scanResults,
@@ -291,6 +301,8 @@ class PowerCadenceSensorService {
         batteryLevel: null,
         power: null,
         cadence: null,
+        leftBalance: null,
+        rightBalance: null,
       ),
     );
 
@@ -315,6 +327,8 @@ class PowerCadenceSensorService {
                 batteryLevel: isConnected ? state.value.batteryLevel : null,
                 power: isConnected ? state.value.power : null,
                 cadence: isConnected ? state.value.cadence : null,
+                leftBalance: isConnected ? state.value.leftBalance : null,
+                rightBalance: isConnected ? state.value.rightBalance : null,
               ),
             );
             if (isConnected) {
@@ -323,7 +337,13 @@ class PowerCadenceSensorService {
                 DeviceConnectionState.disconnected) {
               unawaited(_cancelCharacteristicSubscriptions());
               _setState(
-                state.value.copyWith(batteryLevel: null, power: null, cadence: null),
+                state.value.copyWith(
+                  batteryLevel: null,
+                  power: null,
+                  cadence: null,
+                  leftBalance: null,
+                  rightBalance: null,
+                ),
               );
             }
           }, onError: (Object error) {
@@ -497,10 +517,24 @@ class PowerCadenceSensorService {
     final signedPower = rawPower >= 0x8000 ? rawPower - 0x10000 : rawPower;
     final power = signedPower < 0 ? 0.0 : signedPower.toDouble();
     var cadence = state.value.cadence;
+    var leftBalance = state.value.leftBalance;
+    var rightBalance = state.value.rightBalance;
     var hasCadenceUpdate = false;
 
     var offset = 4;
     if ((flags & 0x0001) != 0) {
+      if (value.length >= offset + 1) {
+        final pedalBalanceRaw = value[offset];
+        final pedalBalancePercent = (pedalBalanceRaw & 0x7F) / 2.0;
+        final isRightReferenced = (flags & 0x0002) != 0;
+        if (isRightReferenced) {
+          rightBalance = pedalBalancePercent.clamp(0, 100).toDouble();
+          leftBalance = (100 - pedalBalancePercent).clamp(0, 100).toDouble();
+        } else {
+          leftBalance = pedalBalancePercent.clamp(0, 100).toDouble();
+          rightBalance = (100 - pedalBalancePercent).clamp(0, 100).toDouble();
+        }
+      }
       offset += 1;
     }
     if ((flags & 0x0004) != 0) {
@@ -530,6 +564,8 @@ class PowerCadenceSensorService {
       state.value.copyWith(
         power: power,
         cadence: cadence,
+        leftBalance: leftBalance,
+        rightBalance: rightBalance,
       ),
     );
     _schedulePowerStaleTimer();
@@ -602,7 +638,13 @@ class PowerCadenceSensorService {
       if ((currentState.power ?? 0) == 0) {
         return;
       }
-      _setState(currentState.copyWith(power: 0.0));
+      _setState(
+        currentState.copyWith(
+          power: 0.0,
+          leftBalance: null,
+          rightBalance: null,
+        ),
+      );
     });
   }
 

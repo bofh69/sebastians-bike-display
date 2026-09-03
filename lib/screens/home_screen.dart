@@ -16,6 +16,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/bike_data.dart';
+import '../models/rolling_average.dart';
 import '../services/heart_rate_sensor_service.dart';
 import '../services/power_cadence_sensor_service.dart';
 import '../widgets/metric_tile.dart';
@@ -91,6 +92,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       HeartRateSensorService.instance;
   final PowerCadenceSensorService _powerCadenceSensorService =
       PowerCadenceSensorService.instance;
+  final RollingAverage _power3sAverage = RollingAverage(windowSize: 3);
+  final RollingAverage _power20MinAverage = RollingAverage(windowSize: 20 * 60);
+  double _currentPowerWatts = 0;
 
   final FlutterBackgroundService _backgroundService = FlutterBackgroundService();
 
@@ -160,10 +164,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final powerState = _powerCadenceSensorService.state.value;
     final power = powerState.power;
     final cadence = powerState.cadence;
-    if (_data.power3s == power && _data.cadence == cadence) return;
+    final leftBalance = powerState.leftBalance;
+    final rightBalance = powerState.rightBalance;
+    final normalizedPower = power ?? 0;
+    _currentPowerWatts = normalizedPower;
+    final displayedPower3s = _isRunning
+        ? _data.power3s
+        : (normalizedPower > 0 ? normalizedPower : 0);
+    if (_data.power3s == displayedPower3s &&
+        _data.cadence == cadence &&
+        _data.leftBalance == leftBalance &&
+        _data.rightBalance == rightBalance) {
+      return;
+    }
     setState(() {
-      _data.power3s = power;
+      _data.power3s = displayedPower3s;
       _data.cadence = cadence;
+      _data.leftBalance = leftBalance;
+      _data.rightBalance = rightBalance;
     });
   }
 
@@ -339,6 +357,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     setState(() {
       _data.duration = now.difference(startTime);
+      _data.power3s = _power3sAverage.add(_currentPowerWatts);
+      _data.power20min = _power20MinAverage.add(_currentPowerWatts);
     });
 
     _samples.add(
@@ -349,7 +369,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         altitudeMeters: _latestPosition?.altitude,
         accuracyMeters: _latestPosition?.accuracy,
         gpsConfidence: _gpsConfidenceFromAccuracy(_latestPosition?.accuracy),
-        power: _data.power3s,
+        power: _currentPowerWatts,
         cadence: _data.cadence,
         heartRate: _data.heartRate,
         distanceMeters: (_data.distance ?? 0) * 1000,
@@ -415,12 +435,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _data.duration = Duration.zero;
       _data.avgSpeed = 0;
       _data.speed = 0;
+      _data.power3s = 0;
+      _data.power20min = 0;
       _startTime = DateTime.now();
       _samples.clear();
       _lastAcceptedPosition = null;
       _lastAcceptedTimestamp = null;
       _lastAcceptedBearingDegrees = null;
       _smoothedSpeedMps = 0;
+      _power3sAverage.reset();
+      _power20MinAverage.reset();
     });
 
     _recordSample();
@@ -585,7 +609,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final hasAltitude = altitude != null && altitude.isFinite;
       final hasAccuracy = sample.accuracyMeters != null && sample.accuracyMeters!.isFinite;
       buffer.writeln(
-        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}">${hasAltitude ? '<ele>${altitude.toStringAsFixed(1)}</ele>' : ''}<time>${sample.timestamp.toUtc().toIso8601String()}</time><cmt>distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}</cmt><extensions><gpxtpx:TrackPointExtension>${sample.heartRate != null ? '<gpxtpx:hr>${sample.heartRate!.round()}</gpxtpx:hr>' : ''}${sample.cadence != null ? '<gpxtpx:cad>${sample.cadence!.round()}</gpxtpx:cad>' : ''}<gpxtpx:speed>${sample.speedMps.toStringAsFixed(2)}</gpxtpx:speed></gpxtpx:TrackPointExtension>${hasAccuracy ? '<sbd:gps_accuracy_m>${sample.accuracyMeters!.toStringAsFixed(1)}</sbd:gps_accuracy_m>' : ''}<sbd:gps_confidence>${sample.gpsConfidence.toStringAsFixed(2)}</sbd:gps_confidence></extensions></trkpt>',
+        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}">${hasAltitude ? '<ele>${altitude.toStringAsFixed(1)}</ele>' : ''}<time>${sample.timestamp.toUtc().toIso8601String()}</time><cmt>distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}</cmt><extensions><gpxtpx:TrackPointExtension>${sample.heartRate != null ? '<gpxtpx:hr>${sample.heartRate!.round()}</gpxtpx:hr>' : ''}${sample.cadence != null ? '<gpxtpx:cad>${sample.cadence!.round()}</gpxtpx:cad>' : ''}<gpxtpx:speed>${sample.speedMps.toStringAsFixed(2)}</gpxtpx:speed></gpxtpx:TrackPointExtension><sbd:power_w>${(sample.power ?? 0).toStringAsFixed(0)}</sbd:power_w>${hasAccuracy ? '<sbd:gps_accuracy_m>${sample.accuracyMeters!.toStringAsFixed(1)}</sbd:gps_accuracy_m>' : ''}<sbd:gps_confidence>${sample.gpsConfidence.toStringAsFixed(2)}</sbd:gps_confidence></extensions></trkpt>',
       );
     }
 
