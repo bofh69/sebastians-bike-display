@@ -147,7 +147,13 @@ class PowerCadenceSensorService {
       await _ensureBluetoothReady();
       await _scanSubscription?.cancel();
       _scanSubscription = _bleInstance
-          .scanForDevices(scanMode: ScanMode.lowLatency)
+          .scanForDevices(
+            withServices: <Uuid>[
+              _cyclingPowerServiceUuid,
+              _cyclingSpeedCadenceServiceUuid,
+            ],
+            scanMode: ScanMode.lowLatency,
+          )
           .listen((device) {
             if (!_isPowerCadenceDevice(device)) {
               return;
@@ -520,7 +526,7 @@ class PowerCadenceSensorService {
   }
 
   void _updateCyclingCadenceData(List<int> value) {
-    if (value.length < 1) return;
+    if (value.isEmpty) return;
 
     final flags = value[0];
     var offset = 1;
