@@ -139,7 +139,6 @@ class _SavedSensorReconnectEntry {
   _SavedSensorReconnectEntry({
     required this.attempt,
     required this.startedAt,
-    this.lastAttemptAt,
   });
 
   Future<void> Function() attempt;
