@@ -603,7 +603,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final start = _samples.first.timestamp;
     final end = _samples.last.timestamp;
-    final totalDistance = _samples.last.distanceMeters;
     final elapsedSeconds = end.difference(start).inSeconds.clamp(1, 1 << 30);
 
     final fileId = Mesg.fromMesgNum(MesgNum.fileId)
@@ -618,9 +617,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     for (final sample in _samples) {
       final record = Mesg.fromMesgNum(MesgNum.record)
-        ..setFieldValue(253, _fitTimestamp(sample.timestamp))
-        ..setFieldValue(5, sample.distanceMeters)
-        ..setFieldValue(6, sample.speedMps);
+        ..setFieldValue(253, _fitTimestamp(sample.timestamp));
 
       if (sample.latitude != null) {
         record.setFieldValue(0, (sample.latitude! * 11930464.7111).round());
@@ -654,8 +651,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ..setFieldValue(2, _fitTimestamp(start))
       ..setFieldValue(5, _fitSportCycling)
       ..setFieldValue(7, elapsedSeconds.toDouble())
-      ..setFieldValue(8, elapsedSeconds.toDouble())
-      ..setFieldValue(9, totalDistance);
+      ..setFieldValue(8, elapsedSeconds.toDouble());
     final sessionDef = MesgDefinition.fromMesg(session);
     encoder.writeMesgDefinition(sessionDef);
     encoder.writeMesg(session);
@@ -665,7 +661,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ..setFieldValue(2, _fitTimestamp(start))
       ..setFieldValue(7, elapsedSeconds.toDouble())
       ..setFieldValue(8, elapsedSeconds.toDouble())
-      ..setFieldValue(9, totalDistance)
       ..setFieldValue(25, _fitSportCycling);
     final lapDef = MesgDefinition.fromMesg(lap);
     encoder.writeMesgDefinition(lapDef);
