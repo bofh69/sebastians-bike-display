@@ -1,7 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_bike_display/main.dart';
+import 'package:simple_bike_display/screens/home_screen.dart';
 
 void main() {
+  test('formatPowerBalance preserves fractional balance values', () {
+    expect(formatPowerBalance(49.5, 50.5), '49.5/50.5');
+    expect(formatPowerBalance(50, 50), '50/50');
+    expect(formatPowerBalance(null, 50), 'N/A');
+  });
+
   testWidgets('Home screen shows Start button', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
     expect(find.text('Start'), findsOneWidget);

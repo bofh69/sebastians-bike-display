@@ -25,6 +25,18 @@ const int _fitEpochOffsetSeconds = 631065600;
 const int _fitSportCycling = 2;
 const int _fitActivityTypeManual = 0;
 
+String formatPowerBalance(double? leftBalance, double? rightBalance) {
+  if (leftBalance == null || rightBalance == null) return 'N/A';
+
+  String formatSide(double value) {
+    return value == value.roundToDouble()
+        ? value.toStringAsFixed(0)
+        : value.toStringAsFixed(1);
+  }
+
+  return '${formatSide(leftBalance)}/${formatSide(rightBalance)}';
+}
+
 @pragma('vm:entry-point')
 void rideBackgroundServiceStart(ServiceInstance service) {
   DartPluginRegistrant.ensureInitialized();
@@ -659,8 +671,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   String _formatBalance() {
-    if (_data.leftBalance == null || _data.rightBalance == null) return 'N/A';
-    return '${_data.leftBalance!.toStringAsFixed(0)}/${_data.rightBalance!.toStringAsFixed(0)}';
+    return formatPowerBalance(_data.leftBalance, _data.rightBalance);
   }
 
   bool get _hasReliableGpsForSpeed {
