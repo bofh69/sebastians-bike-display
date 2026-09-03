@@ -198,8 +198,10 @@ class _HomeScreenState extends State<HomeScreen> {
       rightBalance: rightBalance,
     )) {
       final now = DateTime.now();
-      leftBalance = _leftBalanceAverage.add(now, leftBalance);
-      rightBalance = _rightBalanceAverage.add(now, rightBalance);
+      final currentLeftBalance = leftBalance!;
+      final currentRightBalance = rightBalance!;
+      leftBalance = _leftBalanceAverage.add(now, currentLeftBalance);
+      rightBalance = _rightBalanceAverage.add(now, currentRightBalance);
     } else {
       leftBalance = _leftBalanceAverage.average;
       rightBalance = _rightBalanceAverage.average;

@@ -135,6 +135,7 @@ class PowerCadenceSensorService {
   bool _initialized = false;
   bool _connectingToSavedDevice = false;
   Future<void>? _initializationFuture;
+  bool _hasConnectedSinceLastRetryReset = false;
   int? _lastPowerCrankRevolutions;
   int? _lastPowerCrankEventTime;
   int? _lastCscCrankRevolutions;
@@ -167,6 +168,10 @@ class PowerCadenceSensorService {
 
   Future<List<PowerCadenceDiscoveredDevice>> scanForDevices() async {
     await initialize();
+    SavedSensorReconnectCoordinator.instance.reset(
+      powerCadenceReconnectKey,
+      _connectToSavedDevice,
+    );
     _setState(
       state.value.copyWith(
         isScanning: true,
@@ -364,6 +369,9 @@ class PowerCadenceSensorService {
                 update.connectionState == DeviceConnectionState.connected;
             final isConnecting =
                 update.connectionState == DeviceConnectionState.connecting;
+            if (isConnected) {
+              _hasConnectedSinceLastRetryReset = true;
+            }
             _setState(
               state.value.copyWith(
                 isConnected: isConnected,
@@ -389,6 +397,13 @@ class PowerCadenceSensorService {
                   rightBalance: null,
                 ),
               );
+              if (_hasConnectedSinceLastRetryReset) {
+                SavedSensorReconnectCoordinator.instance.reset(
+                  powerCadenceReconnectKey,
+                  _connectToSavedDevice,
+                );
+                _hasConnectedSinceLastRetryReset = false;
+              }
             }
           }, onError: (Object error) {
             _setState(
@@ -518,6 +533,7 @@ class PowerCadenceSensorService {
     await _connectionSubscription?.cancel();
     _connectionSubscription = null;
     _deviceId = null;
+    _hasConnectedSinceLastRetryReset = false;
     _lastPowerCrankRevolutions = null;
     _lastPowerCrankEventTime = null;
     _lastCscCrankRevolutions = null;

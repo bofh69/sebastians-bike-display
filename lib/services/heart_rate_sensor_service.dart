@@ -97,6 +97,7 @@ class HeartRateSensorService {
   bool _initialized = false;
   bool _connectingToSavedDevice = false;
   Future<void>? _initializationFuture;
+  bool _hasConnectedSinceLastRetryReset = false;
 
   FlutterReactiveBle get _bleInstance => _ble ??= FlutterReactiveBle();
 
@@ -125,6 +126,10 @@ class HeartRateSensorService {
 
   Future<List<HeartRateDiscoveredDevice>> scanForDevices() async {
     await initialize();
+    SavedSensorReconnectCoordinator.instance.reset(
+      heartRateReconnectKey,
+      _connectToSavedDevice,
+    );
     _setState(
       state.value.copyWith(
         isScanning: true,
@@ -311,6 +316,9 @@ class HeartRateSensorService {
             update.connectionState == DeviceConnectionState.connected;
         final isConnecting =
             update.connectionState == DeviceConnectionState.connecting;
+        if (isConnected) {
+          _hasConnectedSinceLastRetryReset = true;
+        }
         _setState(
           state.value.copyWith(
             isConnected: isConnected,
@@ -324,6 +332,13 @@ class HeartRateSensorService {
         } else if (update.connectionState == DeviceConnectionState.disconnected) {
           unawaited(_cancelCharacteristicSubscriptions());
           _setState(state.value.copyWith(batteryLevel: null, heartRate: null));
+          if (_hasConnectedSinceLastRetryReset) {
+            SavedSensorReconnectCoordinator.instance.reset(
+              heartRateReconnectKey,
+              _connectToSavedDevice,
+            );
+            _hasConnectedSinceLastRetryReset = false;
+          }
         }
       }, onError: (Object error) {
         _setState(
@@ -449,6 +464,7 @@ class HeartRateSensorService {
     await _connectionSubscription?.cancel();
     _connectionSubscription = null;
     _deviceId = null;
+    _hasConnectedSinceLastRetryReset = false;
   }
 
   Future<void> _cancelCharacteristicSubscriptions() async {

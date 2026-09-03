@@ -131,6 +131,47 @@ void main() {
     coordinator.unregister(powerCadenceReconnectKey);
   });
 
+  test('SavedSensorReconnectCoordinator backs off and eventually stops', () {
+    final coordinator = SavedSensorReconnectCoordinator(autoStartTimer: false);
+    final base = DateTime.now();
+
+    coordinator.register(heartRateReconnectKey, () async {});
+
+    expect(coordinator.takeNextTurnAt(base), heartRateReconnectKey);
+    expect(
+      coordinator.takeNextTurnAt(
+        base.add(aggressiveSavedSensorReconnectInterval) -
+            const Duration(seconds: 1),
+      ),
+      isNull,
+    );
+    expect(
+      coordinator.takeNextTurnAt(base.add(aggressiveSavedSensorReconnectInterval)),
+      heartRateReconnectKey,
+    );
+    expect(
+      coordinator.takeNextTurnAt(
+        base.add(aggressiveSavedSensorReconnectWindow + const Duration(seconds: 5)),
+      ),
+      isNull,
+    );
+    expect(
+      coordinator.takeNextTurnAt(
+        base.add(aggressiveSavedSensorReconnectWindow) +
+            backedOffSavedSensorReconnectInterval,
+      ),
+      heartRateReconnectKey,
+    );
+    expect(
+      coordinator.takeNextTurnAt(
+        base.add(savedSensorReconnectTimeout + const Duration(seconds: 1)),
+      ),
+      isNull,
+    );
+
+    coordinator.unregister(heartRateReconnectKey);
+  });
+
   testWidgets('Home screen shows Start button', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
     expect(find.text('Start'), findsOneWidget);
