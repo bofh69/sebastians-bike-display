@@ -1,4 +1,4 @@
-package com.example.simple_bike_display
+package com.diegeekdie.sebastians_bike_display
 
 import android.content.ContentValues
 import android.os.Build
@@ -11,7 +11,7 @@ import java.io.File
 import java.io.FileOutputStream
 
 class MainActivity : FlutterActivity() {
-    private val exportChannelName = "simple_bike_display/file_export"
+    private val exportChannelName = "sebastians_bike_display/file_export"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

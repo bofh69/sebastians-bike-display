@@ -15,6 +15,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import '../app_constants.dart';
 import '../models/bike_data.dart';
 import '../models/rolling_average.dart';
 import '../models/time_window_average.dart';
@@ -155,7 +156,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   static const MethodChannel _fileExportChannel = MethodChannel(
-    'simple_bike_display/file_export',
+    '$kAppChannelNamespace/file_export',
   );
   bool _isRunning = false;
   bool _serviceConfigured = false;
@@ -314,7 +315,7 @@ class _HomeScreenState extends State<HomeScreen> {
           autoStart: false,
           isForegroundMode: true,
           notificationChannelId: 'ride_tracking',
-          initialNotificationTitle: 'Simple Bike Display',
+          initialNotificationTitle: kAppDisplayName,
           initialNotificationContent: 'Ride recording active in background',
           foregroundServiceNotificationId: 888,
         ),
@@ -719,7 +720,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final buffer = StringBuffer()
       ..writeln('<?xml version="1.0" encoding="UTF-8"?>')
       ..writeln(
-        '<gpx version="1.1" creator="simple-bike-display" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1" xmlns:sbd="https://simple-bike-display.dev/xmlschemas/TrackPointQuality/v1">',
+        '<gpx version="1.1" creator="sebastians-bike-display" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1" xmlns:sbd="https://sebastians-bike-display.dev/xmlschemas/TrackPointQuality/v1">',
       )
       ..writeln('<metadata><time>${start.toUtc().toIso8601String()}</time></metadata>')
       ..writeln('<trk><name>Ride ${start.toIso8601String()}</name><trkseg>');
@@ -864,7 +865,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Simple Bike Display'),
+        title: const Text(kAppDisplayName),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
