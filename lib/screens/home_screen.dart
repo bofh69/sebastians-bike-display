@@ -38,6 +38,18 @@ String formatPowerBalance(double? leftBalance, double? rightBalance) {
   return '${formatSide(leftBalance)}/${formatSide(rightBalance)}';
 }
 
+bool shouldAccumulatePowerBalanceSample({
+  required bool isConnected,
+  required double? power,
+  required double? leftBalance,
+  required double? rightBalance,
+}) {
+  return isConnected &&
+      (power ?? 0) > 0 &&
+      leftBalance != null &&
+      rightBalance != null;
+}
+
 @pragma('vm:entry-point')
 void rideBackgroundServiceStart(ServiceInstance service) {
   DartPluginRegistrant.ensureInitialized();
@@ -179,7 +191,12 @@ class _HomeScreenState extends State<HomeScreen> {
       _rightBalanceAverage.clear();
       leftBalance = null;
       rightBalance = null;
-    } else if (leftBalance != null && rightBalance != null) {
+    } else if (shouldAccumulatePowerBalanceSample(
+      isConnected: isConnected,
+      power: power,
+      leftBalance: leftBalance,
+      rightBalance: rightBalance,
+    )) {
       final now = DateTime.now();
       leftBalance = _leftBalanceAverage.add(now, leftBalance);
       rightBalance = _rightBalanceAverage.add(now, rightBalance);

@@ -12,6 +12,36 @@ void main() {
     expect(formatPowerBalance(null, 50), 'N/A');
   });
 
+  test('shouldAccumulatePowerBalanceSample ignores idle samples', () {
+    expect(
+      shouldAccumulatePowerBalanceSample(
+        isConnected: true,
+        power: 200,
+        leftBalance: 45,
+        rightBalance: 55,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldAccumulatePowerBalanceSample(
+        isConnected: true,
+        power: 0,
+        leftBalance: 0,
+        rightBalance: 100,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldAccumulatePowerBalanceSample(
+        isConnected: false,
+        power: 200,
+        leftBalance: 45,
+        rightBalance: 55,
+      ),
+      isFalse,
+    );
+  });
+
   test('parsePowerBalance decodes half-percent values', () {
     expect(
       parsePowerBalance(flags: 0x0003, rawPedalBalance: 200),
