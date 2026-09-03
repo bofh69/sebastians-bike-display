@@ -119,13 +119,17 @@ void main() {
 
   test('SavedSensorReconnectCoordinator alternates between sensors', () {
     final coordinator = SavedSensorReconnectCoordinator(autoStartTimer: false);
+    final base = DateTime.now().add(const Duration(seconds: 1));
 
     coordinator.register(heartRateReconnectKey, () async {});
     coordinator.register(powerCadenceReconnectKey, () async {});
 
-    expect(coordinator.takeNextTurn(), heartRateReconnectKey);
-    expect(coordinator.takeNextTurn(), powerCadenceReconnectKey);
-    expect(coordinator.takeNextTurn(), heartRateReconnectKey);
+    expect(coordinator.takeNextTurnAt(base), heartRateReconnectKey);
+    expect(coordinator.takeNextTurnAt(base), powerCadenceReconnectKey);
+    expect(
+      coordinator.takeNextTurnAt(base.add(aggressiveSavedSensorReconnectInterval)),
+      heartRateReconnectKey,
+    );
 
     coordinator.unregister(heartRateReconnectKey);
     coordinator.unregister(powerCadenceReconnectKey);
