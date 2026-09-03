@@ -51,8 +51,8 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data
-                    android:host="strava-auth"
-                    android:scheme="simplebikedisplay"/>
+                    android:host="sebastiansbikedisplay"
+                    android:scheme="sebastiansbikedisplay"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

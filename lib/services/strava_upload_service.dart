@@ -9,8 +9,8 @@ import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-const String stravaCallbackScheme = 'simplebikedisplay';
-const String stravaCallbackHost = 'strava-auth';
+const String stravaCallbackScheme = 'sebastiansbikedisplay';
+const String stravaCallbackHost = 'sebastiansbikedisplay';
 
 String buildStravaAccountLabel({
   String? firstName,
