@@ -16,6 +16,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/bike_data.dart';
 import '../models/rolling_average.dart';
+import '../models/time_window_average.dart';
 import '../services/heart_rate_sensor_service.dart';
 import '../services/power_cadence_sensor_service.dart';
 import '../widgets/metric_tile.dart';
@@ -104,6 +105,10 @@ class _HomeScreenState extends State<HomeScreen> {
       PowerCadenceSensorService.instance;
   final RollingAverage _power3sAverage = RollingAverage(windowSize: 3);
   final RollingAverage _power20MinAverage = RollingAverage(windowSize: 20 * 60);
+  final TimeWindowAverage _leftBalanceAverage =
+      TimeWindowAverage(window: const Duration(minutes: 1));
+  final TimeWindowAverage _rightBalanceAverage =
+      TimeWindowAverage(window: const Duration(minutes: 1));
   double _currentPowerWatts = 0;
 
   final FlutterBackgroundService _backgroundService = FlutterBackgroundService();
@@ -162,13 +167,29 @@ class _HomeScreenState extends State<HomeScreen> {
   void _syncPowerCadenceData() {
     if (!mounted) return;
     final powerState = _powerCadenceSensorService.state.value;
+    final isConnected = powerState.isConnected;
     final power = powerState.power;
     final cadence = powerState.cadence;
-    final leftBalance = powerState.leftBalance;
-    final rightBalance = powerState.rightBalance;
+    var leftBalance = powerState.leftBalance;
+    var rightBalance = powerState.rightBalance;
     final double normalizedPower = power ?? 0.0;
     _currentPowerWatts = normalizedPower;
-    final double? displayedPower3s = _isRunning
+    if (!isConnected) {
+      _leftBalanceAverage.clear();
+      _rightBalanceAverage.clear();
+      leftBalance = null;
+      rightBalance = null;
+    } else if (leftBalance != null && rightBalance != null) {
+      final now = DateTime.now();
+      leftBalance = _leftBalanceAverage.add(now, leftBalance);
+      rightBalance = _rightBalanceAverage.add(now, rightBalance);
+    } else {
+      leftBalance = _leftBalanceAverage.average;
+      rightBalance = _rightBalanceAverage.average;
+    }
+    final double? displayedPower3s = !isConnected
+        ? null
+        : _isRunning
         ? _data.power3s
         : (normalizedPower > 0 ? normalizedPower : 0.0);
     if (_data.power3s == displayedPower3s &&
@@ -454,6 +475,8 @@ class _HomeScreenState extends State<HomeScreen> {
       _lastAcceptedTimestamp = null;
       _lastAcceptedBearingDegrees = null;
       _smoothedSpeedMps = 0;
+      _leftBalanceAverage.clear();
+      _rightBalanceAverage.clear();
       _power3sAverage.reset();
       _power20MinAverage.reset();
     });
@@ -674,6 +697,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return formatPowerBalance(_data.leftBalance, _data.rightBalance);
   }
 
+  bool get _isPowerSensorConnected => _powerCadenceSensorService.state.value.isConnected;
+
   bool get _hasReliableGpsForSpeed {
     final latest = _latestPosition;
     if (latest == null) return false;
@@ -768,7 +793,9 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 MetricTile(
                   title: 'Power (3s)',
-                  value: _data.power3s?.toStringAsFixed(0) ?? 'N/A',
+                  value: _isPowerSensorConnected
+                      ? (_data.power3s?.toStringAsFixed(0) ?? 'N/A')
+                      : 'N/A',
                   unit: 'W',
                 ),
                 MetricTile(
@@ -810,7 +837,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 MetricTile(
                   title: 'Power (20 min)',
-                  value: _data.power20min?.toStringAsFixed(0) ?? 'N/A',
+                  value: _isPowerSensorConnected
+                      ? (_data.power20min?.toStringAsFixed(0) ?? 'N/A')
+                      : 'N/A',
                   unit: 'W',
                 ),
                 MetricTile(
@@ -821,7 +850,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            PowerBar(power: _data.power3s, ftp: _ftp.toDouble()),
+            PowerBar(
+              power: _isPowerSensorConnected ? _data.power3s : null,
+              ftp: _ftp.toDouble(),
+            ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_bike_display/main.dart';
+import 'package:simple_bike_display/models/time_window_average.dart';
 import 'package:simple_bike_display/screens/home_screen.dart';
 import 'package:simple_bike_display/services/power_cadence_sensor_service.dart';
 
@@ -28,12 +29,22 @@ void main() {
     );
   });
 
+  test('TimeWindowAverage keeps only the last minute of values', () {
+    final average = TimeWindowAverage(window: const Duration(minutes: 1));
+    final start = DateTime(2026);
+
+    expect(average.add(start, 40), 40);
+    expect(average.add(start.add(const Duration(seconds: 30)), 20), 30);
+    expect(average.add(start.add(const Duration(seconds: 61)), 10), 15);
+  });
+
   testWidgets('Home screen shows Start button', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
     expect(find.text('Start'), findsOneWidget);
     expect(find.text('Power (3s)'), findsOneWidget);
     expect(find.text('Heart Rate'), findsOneWidget);
     expect(find.text('Total Climb'), findsOneWidget);
+    expect(find.text('N/A W'), findsWidgets);
   });
 
   testWidgets('Start button toggles to End', (WidgetTester tester) async {
