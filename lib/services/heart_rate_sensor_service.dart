@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const String _heartRateDeviceIdPrefKey = 'hr_device_id';
@@ -90,6 +91,7 @@ class HeartRateSensorService {
   StreamSubscription<ConnectionStateUpdate>? _connectionSubscription;
   StreamSubscription<List<int>>? _heartRateSubscription;
   StreamSubscription<List<int>>? _batterySubscription;
+  Timer? _heartRateStaleTimer;
   bool _initialized = false;
   bool _connectingToSavedDevice = false;
   Future<void>? _initializationFuture;
@@ -133,6 +135,7 @@ class HeartRateSensorService {
     final completer = Completer<List<HeartRateDiscoveredDevice>>();
 
     try {
+      await _ensureBluetoothPermissions();
       await _ensureBluetoothReady();
       await _scanSubscription?.cancel();
       _scanSubscription = _bleInstance
@@ -279,6 +282,7 @@ class HeartRateSensorService {
     );
 
     try {
+      await _ensureBluetoothPermissions();
       await _ensureBluetoothReady();
       _deviceId = deviceId;
       _connectionSubscription = (reconnecting
@@ -407,6 +411,20 @@ class HeartRateSensorService {
         );
       }
 
+      Future<void> _ensureBluetoothPermissions() async {
+        if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+          return;
+        }
+        final statuses = await <Permission>[
+          Permission.bluetoothScan,
+          Permission.bluetoothConnect,
+        ].request();
+        final hasAllPermissions = statuses.values.every((status) => status.isGranted);
+        if (!hasAllPermissions) {
+          throw const _HeartRateSensorException('Bluetooth permission is required.');
+        }
+      }
+
       if (status == BleStatus.ready) {
         return;
       }
@@ -423,6 +441,8 @@ class HeartRateSensorService {
     await _scanSubscription?.cancel();
     _scanSubscription = null;
     await _cancelCharacteristicSubscriptions();
+    _heartRateStaleTimer?.cancel();
+    _heartRateStaleTimer = null;
     await _connectionSubscription?.cancel();
     _connectionSubscription = null;
     _deviceId = null;
@@ -433,12 +453,24 @@ class HeartRateSensorService {
     await _batterySubscription?.cancel();
     _heartRateSubscription = null;
     _batterySubscription = null;
+    _heartRateStaleTimer?.cancel();
+    _heartRateStaleTimer = null;
   }
 
   void _updateHeartRate(List<int> value) {
     final heartRate = _parseHeartRate(value);
     if (heartRate == null) return;
     _setState(state.value.copyWith(heartRate: heartRate.toDouble()));
+    _scheduleHeartRateStaleTimer();
+  }
+
+  void _scheduleHeartRateStaleTimer() {
+    _heartRateStaleTimer?.cancel();
+    _heartRateStaleTimer = Timer(const Duration(seconds: 5), () {
+      final currentState = state.value;
+      if (!currentState.isConnected || currentState.heartRate == null) return;
+      _setState(currentState.copyWith(heartRate: null));
+    });
   }
 
   void _updateBatteryLevel(List<int> value) {
