@@ -155,6 +155,10 @@ void main() {
       heartRateReconnectKey,
     );
     expect(
+      coordinator.takeNextTurnAt(base.add(aggressiveSavedSensorReconnectWindow)),
+      heartRateReconnectKey,
+    );
+    expect(
       coordinator.takeNextTurnAt(
         base.add(aggressiveSavedSensorReconnectWindow + const Duration(seconds: 5)),
       ),
