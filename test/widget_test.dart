@@ -69,6 +69,44 @@ void main() {
     expect(average.add(start.add(const Duration(seconds: 61)), 10), 15);
   });
 
+  test('updateClimbTracking ignores small flat-road altitude oscillations', () {
+    double? filteredAltitude;
+    double? climbReferenceAltitude;
+    var totalClimb = 0.0;
+
+    for (final altitude in <double>[12, 13, 12, 13, 12, 13, 12]) {
+      final update = updateClimbTracking(
+        previousFilteredAltitude: filteredAltitude,
+        previousClimbReferenceAltitude: climbReferenceAltitude,
+        currentAltitude: altitude,
+      );
+      filteredAltitude = update.filteredAltitude;
+      climbReferenceAltitude = update.climbReferenceAltitude;
+      totalClimb += update.additionalClimb;
+    }
+
+    expect(totalClimb, 0);
+  });
+
+  test('updateClimbTracking records sustained climbing', () {
+    double? filteredAltitude;
+    double? climbReferenceAltitude;
+    var totalClimb = 0.0;
+
+    for (final altitude in <double>[12, 14, 16, 18, 20]) {
+      final update = updateClimbTracking(
+        previousFilteredAltitude: filteredAltitude,
+        previousClimbReferenceAltitude: climbReferenceAltitude,
+        currentAltitude: altitude,
+      );
+      filteredAltitude = update.filteredAltitude;
+      climbReferenceAltitude = update.climbReferenceAltitude;
+      totalClimb += update.additionalClimb;
+    }
+
+    expect(totalClimb, greaterThan(0));
+  });
+
   test('shouldRetrySavedSensorConnection only retries when idle and saved', () {
     expect(
       shouldRetrySavedSensorConnection(

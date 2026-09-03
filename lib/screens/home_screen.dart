@@ -26,6 +26,8 @@ const int _fitEpochOffsetSeconds = 631065600;
 const int _fitSportCycling = 2;
 const int _fitActivityTypeManual = 0;
 const double _minimumPowerForBalanceAverageWatts = 10;
+const double _climbAltitudeSmoothingFactor = 0.25;
+const double _minimumClimbGainMeters = 0.75;
 
 String formatPowerBalance(double? leftBalance, double? rightBalance) {
   if (leftBalance == null || rightBalance == null) return 'N/A';
@@ -49,6 +51,41 @@ bool shouldAccumulatePowerBalanceSample({
       (power ?? 0) >= _minimumPowerForBalanceAverageWatts &&
       leftBalance != null &&
       rightBalance != null;
+}
+
+({
+  double filteredAltitude,
+  double climbReferenceAltitude,
+  double additionalClimb,
+}) updateClimbTracking({
+  required double? previousFilteredAltitude,
+  required double? previousClimbReferenceAltitude,
+  required double currentAltitude,
+}) {
+  final filteredAltitude = previousFilteredAltitude == null
+      ? currentAltitude
+      : previousFilteredAltitude +
+          (currentAltitude - previousFilteredAltitude) *
+              _climbAltitudeSmoothingFactor;
+  var climbReferenceAltitude =
+      previousClimbReferenceAltitude ?? filteredAltitude;
+  var additionalClimb = 0.0;
+
+  if (filteredAltitude < climbReferenceAltitude) {
+    climbReferenceAltitude = filteredAltitude;
+  } else {
+    final climbGain = filteredAltitude - climbReferenceAltitude;
+    if (climbGain >= _minimumClimbGainMeters) {
+      additionalClimb = climbGain;
+      climbReferenceAltitude = filteredAltitude;
+    }
+  }
+
+  return (
+    filteredAltitude: filteredAltitude,
+    climbReferenceAltitude: climbReferenceAltitude,
+    additionalClimb: additionalClimb,
+  );
 }
 
 @pragma('vm:entry-point')
@@ -77,10 +114,6 @@ class _RideSample {
   final double? power;
   final double? cadence;
   final double? heartRate;
-  final double? rawLeftBalance;
-  final double? rawRightBalance;
-  final double? averagedLeftBalance;
-  final double? averagedRightBalance;
   final double distanceMeters;
   final double speedMps;
 
@@ -94,10 +127,6 @@ class _RideSample {
     required this.power,
     required this.cadence,
     required this.heartRate,
-    required this.rawLeftBalance,
-    required this.rawRightBalance,
-    required this.averagedLeftBalance,
-    required this.averagedRightBalance,
     required this.distanceMeters,
     required this.speedMps,
   });
@@ -142,6 +171,8 @@ class _HomeScreenState extends State<HomeScreen> {
   double? _lastAcceptedBearingDegrees;
   double _smoothedSpeedMps = 0;
   Position? _latestPosition;
+  double? _filteredAltitudeForClimb;
+  double? _climbReferenceAltitude;
 
   bool get _isMobileTrackingPlatform =>
       !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
@@ -330,6 +361,10 @@ class _HomeScreenState extends State<HomeScreen> {
       _lastAcceptedTimestamp = now;
       _lastAcceptedBearingDegrees = null;
       _smoothedSpeedMps = 0;
+      if (_isRunning && position.altitude.isFinite) {
+        _filteredAltitudeForClimb = position.altitude;
+        _climbReferenceAltitude = position.altitude;
+      }
       if (mounted) {
         setState(() {
           _data.speed = 0;
@@ -383,20 +418,25 @@ class _HomeScreenState extends State<HomeScreen> {
       rawSpeedMps: rawSpeedMps,
       deltaSeconds: deltaSeconds,
     );
-    final previousAltitude = previousPosition.altitude;
     final currentAltitude = position.altitude;
-    final shouldAddClimb = _isRunning &&
-        previousAltitude.isFinite &&
-        currentAltitude.isFinite &&
-        currentAltitude > previousAltitude;
+    var additionalClimb = 0.0;
+    if (_isRunning && currentAltitude.isFinite) {
+      final climbUpdate = updateClimbTracking(
+        previousFilteredAltitude: _filteredAltitudeForClimb,
+        previousClimbReferenceAltitude: _climbReferenceAltitude,
+        currentAltitude: currentAltitude,
+      );
+      _filteredAltitudeForClimb = climbUpdate.filteredAltitude;
+      _climbReferenceAltitude = climbUpdate.climbReferenceAltitude;
+      additionalClimb = climbUpdate.additionalClimb;
+    }
     if (mounted) {
       setState(() {
         _data.speed = _smoothedSpeedMps * 3.6;
         if (_isRunning) {
           _data.distance = (_data.distance ?? 0) + distanceMeters / 1000;
-          if (shouldAddClimb) {
-            _data.totalClimb =
-                (_data.totalClimb ?? 0) + (currentAltitude - previousAltitude);
+          if (additionalClimb > 0) {
+            _data.totalClimb = (_data.totalClimb ?? 0) + additionalClimb;
           }
           final durationSeconds =
               DateTime.now().difference(_startTime ?? DateTime.now()).inSeconds;
@@ -413,8 +453,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final now = DateTime.now();
     final startTime = _startTime;
     if (startTime == null) return;
-    final powerState = _powerCadenceSensorService.state.value;
-
     setState(() {
       _data.duration = now.difference(startTime);
       _data.power3s = _power3sAverage.add(_currentPowerWatts);
@@ -432,10 +470,6 @@ class _HomeScreenState extends State<HomeScreen> {
         power: _currentPowerWatts,
         cadence: _data.cadence,
         heartRate: _data.heartRate,
-        rawLeftBalance: powerState.leftBalance,
-        rawRightBalance: powerState.rightBalance,
-        averagedLeftBalance: _data.leftBalance,
-        averagedRightBalance: _data.rightBalance,
         distanceMeters: (_data.distance ?? 0) * 1000,
         speedMps: (_data.speed ?? 0) / 3.6,
       ),
@@ -508,6 +542,8 @@ class _HomeScreenState extends State<HomeScreen> {
       _lastAcceptedTimestamp = null;
       _lastAcceptedBearingDegrees = null;
       _smoothedSpeedMps = 0;
+      _filteredAltitudeForClimb = null;
+      _climbReferenceAltitude = null;
       _leftBalanceAverage.clear();
       _rightBalanceAverage.clear();
       _power3sAverage.reset();
@@ -676,7 +712,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final hasAltitude = altitude != null && altitude.isFinite;
       final hasAccuracy = sample.accuracyMeters != null && sample.accuracyMeters!.isFinite;
       buffer.writeln(
-        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}">${hasAltitude ? '<ele>${altitude.toStringAsFixed(1)}</ele>' : ''}<time>${sample.timestamp.toUtc().toIso8601String()}</time><cmt>distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}</cmt><extensions><gpxtpx:TrackPointExtension>${sample.heartRate != null ? '<gpxtpx:hr>${sample.heartRate!.round()}</gpxtpx:hr>' : ''}${sample.cadence != null ? '<gpxtpx:cad>${sample.cadence!.round()}</gpxtpx:cad>' : ''}<gpxtpx:speed>${sample.speedMps.toStringAsFixed(2)}</gpxtpx:speed></gpxtpx:TrackPointExtension><sbd:power_w>${(sample.power ?? 0).toStringAsFixed(0)}</sbd:power_w>${sample.rawLeftBalance != null ? '<sbd:raw_left_balance_pct>${sample.rawLeftBalance!.toStringAsFixed(1)}</sbd:raw_left_balance_pct>' : ''}${sample.rawRightBalance != null ? '<sbd:raw_right_balance_pct>${sample.rawRightBalance!.toStringAsFixed(1)}</sbd:raw_right_balance_pct>' : ''}${sample.averagedLeftBalance != null ? '<sbd:avg_left_balance_pct>${sample.averagedLeftBalance!.toStringAsFixed(1)}</sbd:avg_left_balance_pct>' : ''}${sample.averagedRightBalance != null ? '<sbd:avg_right_balance_pct>${sample.averagedRightBalance!.toStringAsFixed(1)}</sbd:avg_right_balance_pct>' : ''}${hasAccuracy ? '<sbd:gps_accuracy_m>${sample.accuracyMeters!.toStringAsFixed(1)}</sbd:gps_accuracy_m>' : ''}<sbd:gps_confidence>${sample.gpsConfidence.toStringAsFixed(2)}</sbd:gps_confidence></extensions></trkpt>',
+        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}">${hasAltitude ? '<ele>${altitude.toStringAsFixed(1)}</ele>' : ''}<time>${sample.timestamp.toUtc().toIso8601String()}</time><cmt>distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}</cmt><extensions><gpxtpx:TrackPointExtension>${sample.heartRate != null ? '<gpxtpx:hr>${sample.heartRate!.round()}</gpxtpx:hr>' : ''}${sample.cadence != null ? '<gpxtpx:cad>${sample.cadence!.round()}</gpxtpx:cad>' : ''}<gpxtpx:speed>${sample.speedMps.toStringAsFixed(2)}</gpxtpx:speed></gpxtpx:TrackPointExtension><sbd:power_w>${(sample.power ?? 0).toStringAsFixed(0)}</sbd:power_w>${hasAccuracy ? '<sbd:gps_accuracy_m>${sample.accuracyMeters!.toStringAsFixed(1)}</sbd:gps_accuracy_m>' : ''}<sbd:gps_confidence>${sample.gpsConfidence.toStringAsFixed(2)}</sbd:gps_confidence></extensions></trkpt>',
       );
     }
 
