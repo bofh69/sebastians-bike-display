@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
@@ -152,7 +151,7 @@ class StravaUploadService {
   static const _expiresAtKey = 'strava_expires_at';
   static const _oauthBaseUrl = 'https://www.strava.com';
   static const _apiBaseUrl = 'https://api-v3.strava.com';
-  static final _secureStorage = FlutterSecureStorage();
+  static const _secureStorage = FlutterSecureStorage();
 
   final ValueNotifier<StravaUploadState> state = ValueNotifier(
     const StravaUploadState.initial(),
