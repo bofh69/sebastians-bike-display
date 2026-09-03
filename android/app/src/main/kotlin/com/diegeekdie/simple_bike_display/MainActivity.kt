@@ -1,4 +1,4 @@
-package com.example.simple_bike_display
+package com.diegeekdie.simple_bike_display
 
 import android.content.ContentValues
 import android.os.Build

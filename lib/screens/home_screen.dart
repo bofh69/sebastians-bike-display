@@ -298,7 +298,7 @@ class _HomeScreenState extends State<HomeScreen> {
           autoStart: false,
           isForegroundMode: true,
           notificationChannelId: 'ride_tracking',
-          initialNotificationTitle: 'Simple Bike Display',
+          initialNotificationTitle: "Sebastian's Bike Display",
           initialNotificationContent: 'Ride recording active in background',
           foregroundServiceNotificationId: 888,
         ),
@@ -834,7 +834,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Simple Bike Display'),
+        title: const Text("Sebastian's Bike Display"),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
