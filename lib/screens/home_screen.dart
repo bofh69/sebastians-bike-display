@@ -46,6 +46,8 @@ class _RideSample {
   final double? latitude;
   final double? longitude;
   final double? altitudeMeters;
+  final double? accuracyMeters;
+  final double gpsConfidence;
   final double? power;
   final double? cadence;
   final double? heartRate;
@@ -57,6 +59,8 @@ class _RideSample {
     required this.latitude,
     required this.longitude,
     required this.altitudeMeters,
+    required this.accuracyMeters,
+    required this.gpsConfidence,
     required this.power,
     required this.cadence,
     required this.heartRate,
@@ -95,6 +99,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   DateTime? _startTime;
   Position? _lastAcceptedPosition;
   DateTime? _lastAcceptedTimestamp;
+  double? _lastAcceptedBearingDegrees;
+  double _smoothedSpeedMps = 0;
   Position? _latestPosition;
 
   bool get _isMobileTrackingPlatform =>
@@ -255,9 +261,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (previousPosition == null || previousTimestamp == null) {
       _lastAcceptedPosition = position;
       _lastAcceptedTimestamp = now;
+      _lastAcceptedBearingDegrees = null;
+      _smoothedSpeedMps = 0;
       if (mounted) {
         setState(() {
-          _data.speed = position.speed > 0 ? position.speed * 3.6 : 0.0;
+          _data.speed = 0;
         });
       }
       return;
@@ -273,22 +281,44 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       position.longitude,
     );
 
-    final jitterThreshold = position.accuracy.clamp(3.0, 15.0);
-    final speedMps = distanceMeters / deltaSeconds;
-    if (distanceMeters < jitterThreshold || speedMps > 25) {
+    final rawSpeedMps = distanceMeters / deltaSeconds;
+    final isLikelyMoving = (_smoothedSpeedMps > 1.5) || ((_data.cadence ?? 0) >= 20);
+    final jitterThreshold = _adaptiveJitterThresholdMeters(
+      accuracyMeters: position.accuracy,
+      isLikelyMoving: isLikelyMoving,
+    );
+    final bearingDegrees = Geolocator.bearingBetween(
+      previousPosition.latitude,
+      previousPosition.longitude,
+      position.latitude,
+      position.longitude,
+    );
+    if (distanceMeters < jitterThreshold ||
+        rawSpeedMps > 25 ||
+        _failsContinuityChecks(
+          candidateSpeedMps: rawSpeedMps,
+          deltaSeconds: deltaSeconds,
+          bearingDegrees: bearingDegrees,
+        )) {
       if (mounted && distanceMeters < jitterThreshold && (_data.speed ?? 0) > 0) {
+        _smoothedSpeedMps = _smoothSpeedMps(rawSpeedMps: 0, deltaSeconds: deltaSeconds);
         setState(() {
-          _data.speed = 0;
+          _data.speed = _smoothedSpeedMps * 3.6;
         });
       }
       return;
     }
     _lastAcceptedPosition = position;
     _lastAcceptedTimestamp = now;
+    _lastAcceptedBearingDegrees = bearingDegrees;
 
+    _smoothedSpeedMps = _smoothSpeedMps(
+      rawSpeedMps: rawSpeedMps,
+      deltaSeconds: deltaSeconds,
+    );
     if (mounted) {
       setState(() {
-        _data.speed = speedMps * 3.6;
+        _data.speed = _smoothedSpeedMps * 3.6;
         if (_isRunning) {
           _data.distance = (_data.distance ?? 0) + distanceMeters / 1000;
           final durationSeconds =
@@ -317,6 +347,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         latitude: _latestPosition?.latitude,
         longitude: _latestPosition?.longitude,
         altitudeMeters: _latestPosition?.altitude,
+        accuracyMeters: _latestPosition?.accuracy,
+        gpsConfidence: _gpsConfidenceFromAccuracy(_latestPosition?.accuracy),
         power: _data.power3s,
         cadence: _data.cadence,
         heartRate: _data.heartRate,
@@ -382,8 +414,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _data.distance = 0;
       _data.duration = Duration.zero;
       _data.avgSpeed = 0;
+      _data.speed = 0;
       _startTime = DateTime.now();
       _samples.clear();
+      _lastAcceptedPosition = null;
+      _lastAcceptedTimestamp = null;
+      _lastAcceptedBearingDegrees = null;
+      _smoothedSpeedMps = 0;
     });
 
     _recordSample();
@@ -473,6 +510,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (sample.altitudeMeters != null && sample.altitudeMeters!.isFinite) {
         record.setFieldValue(2, sample.altitudeMeters);
       }
+      if (sample.accuracyMeters != null && sample.accuracyMeters!.isFinite) {
+        record.setFieldValue(30, sample.accuracyMeters!.round().clamp(0, 254));
+      }
       if (sample.power != null) {
         record.setFieldValue(7, sample.power!.round());
       }
@@ -532,7 +572,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final buffer = StringBuffer()
       ..writeln('<?xml version="1.0" encoding="UTF-8"?>')
       ..writeln(
-        '<gpx version="1.1" creator="simple-bike-display" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1">',
+        '<gpx version="1.1" creator="simple-bike-display" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1" xmlns:sbd="https://simple-bike-display.dev/xmlschemas/TrackPointQuality/v1">',
       )
       ..writeln('<metadata><time>${start.toUtc().toIso8601String()}</time></metadata>')
       ..writeln('<trk><name>Ride ${start.toIso8601String()}</name><trkseg>');
@@ -543,8 +583,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
       final altitude = sample.altitudeMeters;
       final hasAltitude = altitude != null && altitude.isFinite;
+      final hasAccuracy = sample.accuracyMeters != null && sample.accuracyMeters!.isFinite;
       buffer.writeln(
-        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}">${hasAltitude ? '<ele>${altitude.toStringAsFixed(1)}</ele>' : ''}<time>${sample.timestamp.toUtc().toIso8601String()}</time><cmt>distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}</cmt><extensions><gpxtpx:TrackPointExtension>${sample.heartRate != null ? '<gpxtpx:hr>${sample.heartRate!.round()}</gpxtpx:hr>' : ''}${sample.cadence != null ? '<gpxtpx:cad>${sample.cadence!.round()}</gpxtpx:cad>' : ''}<gpxtpx:speed>${sample.speedMps.toStringAsFixed(2)}</gpxtpx:speed></gpxtpx:TrackPointExtension></extensions></trkpt>',
+        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}">${hasAltitude ? '<ele>${altitude.toStringAsFixed(1)}</ele>' : ''}<time>${sample.timestamp.toUtc().toIso8601String()}</time><cmt>distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}</cmt><extensions><gpxtpx:TrackPointExtension>${sample.heartRate != null ? '<gpxtpx:hr>${sample.heartRate!.round()}</gpxtpx:hr>' : ''}${sample.cadence != null ? '<gpxtpx:cad>${sample.cadence!.round()}</gpxtpx:cad>' : ''}<gpxtpx:speed>${sample.speedMps.toStringAsFixed(2)}</gpxtpx:speed></gpxtpx:TrackPointExtension>${hasAccuracy ? '<sbd:gps_accuracy_m>${sample.accuracyMeters!.toStringAsFixed(1)}</sbd:gps_accuracy_m>' : ''}<sbd:gps_confidence>${sample.gpsConfidence.toStringAsFixed(2)}</sbd:gps_confidence></extensions></trkpt>',
       );
     }
 
@@ -603,6 +644,66 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final latest = _latestPosition;
     if (latest == null) return false;
     return latest.accuracy > 0 && latest.accuracy <= 35;
+  }
+
+  double _adaptiveJitterThresholdMeters({
+    required double accuracyMeters,
+    required bool isLikelyMoving,
+  }) {
+    final normalizedAccuracy = accuracyMeters.clamp(3.0, 25.0).toDouble();
+    if (isLikelyMoving) {
+      return (normalizedAccuracy * 0.7).clamp(2.0, 12.0).toDouble();
+    }
+    return (normalizedAccuracy * 1.4).clamp(4.0, 20.0).toDouble();
+  }
+
+  double _smoothSpeedMps({
+    required double rawSpeedMps,
+    required double deltaSeconds,
+  }) {
+    if (deltaSeconds <= 0) return _smoothedSpeedMps;
+    final alpha = deltaSeconds >= 1 ? 0.35 : (0.2 + (deltaSeconds * 0.15));
+    final clampedAlpha = alpha.clamp(0.2, 0.6).toDouble();
+    final smoothed = _smoothedSpeedMps + (rawSpeedMps - _smoothedSpeedMps) * clampedAlpha;
+    if (!smoothed.isFinite || smoothed < 0) return 0;
+    if (smoothed < 0.15 && rawSpeedMps < 0.2) return 0;
+    return smoothed;
+  }
+
+  bool _failsContinuityChecks({
+    required double candidateSpeedMps,
+    required double deltaSeconds,
+    required double bearingDegrees,
+  }) {
+    if (deltaSeconds <= 0) return true;
+
+    final acceleration = (candidateSpeedMps - _smoothedSpeedMps) / deltaSeconds;
+    if (acceleration > 3.5 || acceleration < -6.5) {
+      return true;
+    }
+
+    final previousBearing = _lastAcceptedBearingDegrees;
+    if (previousBearing == null || candidateSpeedMps < 2 || _smoothedSpeedMps < 2) {
+      return false;
+    }
+
+    final headingDelta = _bearingDeltaDegrees(previousBearing, bearingDegrees);
+    final headingRate = headingDelta / deltaSeconds;
+    return headingRate > 95;
+  }
+
+  double _bearingDeltaDegrees(double from, double to) {
+    final delta = (to - from).abs() % 360;
+    return delta > 180 ? 360 - delta : delta;
+  }
+
+  double _gpsConfidenceFromAccuracy(double? accuracyMeters) {
+    if (accuracyMeters == null || !accuracyMeters.isFinite || accuracyMeters <= 0) {
+      return 0;
+    }
+    if (accuracyMeters <= 5) return 1;
+    if (accuracyMeters >= 50) return 0;
+    return ((50 - accuracyMeters) / 45).clamp(0, 1).toDouble();
   }
 
   @override
