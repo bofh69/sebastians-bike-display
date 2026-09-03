@@ -4,12 +4,14 @@ class MetricTile extends StatelessWidget {
   final String title;
   final String value;
   final String unit;
+  final Color? valueColor;
 
   const MetricTile({
     super.key,
     required this.title,
     required this.value,
     required this.unit,
+    this.valueColor,
   });
 
   @override
@@ -30,6 +32,7 @@ class MetricTile extends StatelessWidget {
               unit.isEmpty ? value : '$value $unit',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
+                    color: valueColor,
                   ),
               overflow: TextOverflow.ellipsis,
             ),

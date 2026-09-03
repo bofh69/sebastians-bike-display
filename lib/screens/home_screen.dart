@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' as io;
 import 'dart:ui';
 
 import 'package:fit_sdk/fit_sdk.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:path_provider/path_provider.dart';
@@ -13,12 +15,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/bike_data.dart';
+import '../models/rolling_average.dart';
 import '../services/heart_rate_sensor_service.dart';
 import '../services/power_cadence_sensor_service.dart';
 import '../widgets/metric_tile.dart';
 import '../widgets/power_bar.dart';
 
 const int _fitEpochOffsetSeconds = 631065600;
+const int _fitSportCycling = 2;
+const int _fitActivityTypeManual = 0;
 
 @pragma('vm:entry-point')
 void rideBackgroundServiceStart(ServiceInstance service) {
@@ -40,17 +45,27 @@ class _RideSample {
   final DateTime timestamp;
   final double? latitude;
   final double? longitude;
+  final double? altitudeMeters;
+  final double? accuracyMeters;
+  final double gpsConfidence;
   final double? power;
+  final double? cadence;
   final double? heartRate;
   final double distanceMeters;
+  final double speedMps;
 
   const _RideSample({
     required this.timestamp,
     required this.latitude,
     required this.longitude,
+    required this.altitudeMeters,
+    required this.accuracyMeters,
+    required this.gpsConfidence,
     required this.power,
+    required this.cadence,
     required this.heartRate,
     required this.distanceMeters,
+    required this.speedMps,
   });
 }
 
@@ -62,8 +77,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  static const MethodChannel _fileExportChannel = MethodChannel(
+    'simple_bike_display/file_export',
+  );
   bool _isRunning = false;
   bool _serviceConfigured = false;
+  Future<void>? _backgroundServiceConfigurationFuture;
   bool _isAppInBackground = false;
   int _ftp = 200;
   final BikeData _data = BikeData();
@@ -72,6 +91,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       HeartRateSensorService.instance;
   final PowerCadenceSensorService _powerCadenceSensorService =
       PowerCadenceSensorService.instance;
+  final RollingAverage _power3sAverage = RollingAverage(windowSize: 3);
+  final RollingAverage _power20MinAverage = RollingAverage(windowSize: 20 * 60);
+  double _currentPowerWatts = 0;
 
   final FlutterBackgroundService _backgroundService = FlutterBackgroundService();
 
@@ -80,18 +102,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   DateTime? _startTime;
   Position? _lastAcceptedPosition;
   DateTime? _lastAcceptedTimestamp;
+  double? _lastAcceptedBearingDegrees;
+  double _smoothedSpeedMps = 0;
   Position? _latestPosition;
 
   bool get _isMobileTrackingPlatform =>
       !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
+  bool get _supportsBackgroundRideService => !kIsWeb && io.Platform.isIOS;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadPreferences();
-    if (_isMobileTrackingPlatform) {
-      _configureBackgroundService();
+    if (_supportsBackgroundRideService) {
+      unawaited(_preconfigureBackgroundService());
     }
     unawaited(_heartRateSensorService.initialize());
     _heartRateSensorService.state.addListener(_syncHeartRateData);
@@ -118,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_isRunning && _isMobileTrackingPlatform) {
       WakelockPlus.disable();
     }
-    if (_serviceConfigured) {
+    if (_supportsBackgroundRideService && _serviceConfigured) {
       _backgroundService.invoke('stopService');
     }
     super.dispose();
@@ -138,10 +163,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final powerState = _powerCadenceSensorService.state.value;
     final power = powerState.power;
     final cadence = powerState.cadence;
-    if (_data.power3s == power && _data.cadence == cadence) return;
+    final leftBalance = powerState.leftBalance;
+    final rightBalance = powerState.rightBalance;
+    final double normalizedPower = power ?? 0.0;
+    _currentPowerWatts = normalizedPower;
+    final double? displayedPower3s = _isRunning
+        ? _data.power3s
+        : (normalizedPower > 0 ? normalizedPower : 0.0);
+    if (_data.power3s == displayedPower3s &&
+        _data.cadence == cadence &&
+        _data.leftBalance == leftBalance &&
+        _data.rightBalance == rightBalance) {
+      return;
+    }
     setState(() {
-      _data.power3s = power;
+      _data.power3s = displayedPower3s;
       _data.cadence = cadence;
+      _data.leftBalance = leftBalance;
+      _data.rightBalance = rightBalance;
     });
   }
 
@@ -155,22 +194,42 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _configureBackgroundService() async {
     if (_serviceConfigured) return;
-    await _backgroundService.configure(
-      androidConfiguration: AndroidConfiguration(
-        onStart: rideBackgroundServiceStart,
-        autoStart: false,
-        isForegroundMode: true,
-        notificationChannelId: 'ride_tracking',
-        initialNotificationTitle: 'Simple Bike Display',
-        initialNotificationContent: 'Ride recording active in background',
-        foregroundServiceNotificationId: 888,
-      ),
-      iosConfiguration: IosConfiguration(
-        autoStart: false,
-        onForeground: rideBackgroundServiceStart,
-      ),
-    );
-    _serviceConfigured = true;
+    _backgroundServiceConfigurationFuture ??=
+        _configureBackgroundServiceInternal();
+    await _backgroundServiceConfigurationFuture;
+  }
+
+  Future<void> _preconfigureBackgroundService() async {
+    try {
+      await _configureBackgroundService();
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Background service preconfiguration failed: $error\n$stackTrace',
+      );
+    }
+  }
+
+  Future<void> _configureBackgroundServiceInternal() async {
+    try {
+      await _backgroundService.configure(
+        androidConfiguration: AndroidConfiguration(
+          onStart: rideBackgroundServiceStart,
+          autoStart: false,
+          isForegroundMode: true,
+          notificationChannelId: 'ride_tracking',
+          initialNotificationTitle: 'Simple Bike Display',
+          initialNotificationContent: 'Ride recording active in background',
+          foregroundServiceNotificationId: 888,
+        ),
+        iosConfiguration: IosConfiguration(
+          autoStart: false,
+          onForeground: rideBackgroundServiceStart,
+        ),
+      );
+      _serviceConfigured = true;
+    } finally {
+      _backgroundServiceConfigurationFuture = null;
+    }
   }
 
   Future<void> _startLocationStream() async {
@@ -203,19 +262,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _handlePosition(Position position) {
-    if (position.accuracy > 35) return;
+    final wasReliableGpsForSpeed = _hasReliableGpsForSpeed;
+    _latestPosition = position;
+    if (position.accuracy > 35) {
+      if (wasReliableGpsForSpeed && mounted) {
+        setState(() {});
+      }
+      return;
+    }
 
     final now = position.timestamp;
     final previousPosition = _lastAcceptedPosition;
     final previousTimestamp = _lastAcceptedTimestamp;
-    _latestPosition = position;
 
     if (previousPosition == null || previousTimestamp == null) {
       _lastAcceptedPosition = position;
       _lastAcceptedTimestamp = now;
+      _lastAcceptedBearingDegrees = null;
+      _smoothedSpeedMps = 0;
       if (mounted) {
         setState(() {
-          _data.speed = position.speed > 0 ? position.speed * 3.6 : 0.0;
+          _data.speed = 0;
         });
       }
       return;
@@ -231,22 +298,44 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       position.longitude,
     );
 
-    final jitterThreshold = position.accuracy.clamp(3.0, 15.0);
-    final speedMps = distanceMeters / deltaSeconds;
-    if (distanceMeters < jitterThreshold || speedMps > 25) {
+    final rawSpeedMps = distanceMeters / deltaSeconds;
+    final isLikelyMoving = (_smoothedSpeedMps > 1.5) || ((_data.cadence ?? 0) >= 20);
+    final jitterThreshold = _adaptiveJitterThresholdMeters(
+      accuracyMeters: position.accuracy,
+      isLikelyMoving: isLikelyMoving,
+    );
+    final bearingDegrees = Geolocator.bearingBetween(
+      previousPosition.latitude,
+      previousPosition.longitude,
+      position.latitude,
+      position.longitude,
+    );
+    if (distanceMeters < jitterThreshold ||
+        rawSpeedMps > 25 ||
+        _failsContinuityChecks(
+          candidateSpeedMps: rawSpeedMps,
+          deltaSeconds: deltaSeconds,
+          bearingDegrees: bearingDegrees,
+        )) {
       if (mounted && distanceMeters < jitterThreshold && (_data.speed ?? 0) > 0) {
+        _smoothedSpeedMps = _smoothSpeedMps(rawSpeedMps: 0, deltaSeconds: deltaSeconds);
         setState(() {
-          _data.speed = 0;
+          _data.speed = _smoothedSpeedMps * 3.6;
         });
       }
       return;
     }
     _lastAcceptedPosition = position;
     _lastAcceptedTimestamp = now;
+    _lastAcceptedBearingDegrees = bearingDegrees;
 
+    _smoothedSpeedMps = _smoothSpeedMps(
+      rawSpeedMps: rawSpeedMps,
+      deltaSeconds: deltaSeconds,
+    );
     if (mounted) {
       setState(() {
-        _data.speed = speedMps * 3.6;
+        _data.speed = _smoothedSpeedMps * 3.6;
         if (_isRunning) {
           _data.distance = (_data.distance ?? 0) + distanceMeters / 1000;
           final durationSeconds =
@@ -267,6 +356,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     setState(() {
       _data.duration = now.difference(startTime);
+      _data.power3s = _power3sAverage.add(_currentPowerWatts);
+      _data.power20min = _power20MinAverage.add(_currentPowerWatts);
     });
 
     _samples.add(
@@ -274,9 +365,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         timestamp: now,
         latitude: _latestPosition?.latitude,
         longitude: _latestPosition?.longitude,
-        power: _data.power3s,
+        altitudeMeters: _latestPosition?.altitude,
+        accuracyMeters: _latestPosition?.accuracy,
+        gpsConfidence: _gpsConfidenceFromAccuracy(_latestPosition?.accuracy),
+        power: _currentPowerWatts,
+        cadence: _data.cadence,
         heartRate: _data.heartRate,
         distanceMeters: (_data.distance ?? 0) * 1000,
+        speedMps: (_data.speed ?? 0) / 3.6,
       ),
     );
   }
@@ -305,7 +401,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    if (_isMobileTrackingPlatform) {
+    if (_supportsBackgroundRideService) {
       try {
         await _configureBackgroundService();
         final started = await _backgroundService.startService();
@@ -313,13 +409,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           throw Exception('Unable to start ride tracking service.');
         }
         _backgroundService.invoke('setAsForeground');
-        await WakelockPlus.enable();
-      } on Exception {
+      } catch (error, stackTrace) {
+        debugPrint('Failed to start ride tracking service: $error\n$stackTrace');
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to start ride tracking service.')),
+          SnackBar(
+            content: Text('Failed to start ride tracking service: $error'),
+          ),
         );
         return;
+      }
+    }
+    if (_isMobileTrackingPlatform) {
+      try {
+        await WakelockPlus.enable();
+      } catch (error, stackTrace) {
+        debugPrint('Failed to enable wakelock: $error\n$stackTrace');
       }
     }
 
@@ -328,8 +433,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _data.distance = 0;
       _data.duration = Duration.zero;
       _data.avgSpeed = 0;
+      _data.speed = 0;
+      _data.power3s = 0;
+      _data.power20min = 0;
       _startTime = DateTime.now();
       _samples.clear();
+      _lastAcceptedPosition = null;
+      _lastAcceptedTimestamp = null;
+      _lastAcceptedBearingDegrees = null;
+      _smoothedSpeedMps = 0;
+      _power3sAverage.reset();
+      _power20MinAverage.reset();
     });
 
     _recordSample();
@@ -351,7 +465,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_isMobileTrackingPlatform) {
       await WakelockPlus.disable();
     }
-    if (_serviceConfigured) {
+    if (_supportsBackgroundRideService && _serviceConfigured) {
       _backgroundService.invoke('stopService');
     }
 
@@ -360,13 +474,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
 
     final fitPath = await _writeFitFile();
+    final gpxPath = await _writeGpxFile();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          fitPath == null
-              ? 'Ride ended. No FIT file written (no samples).'
-              : 'Ride saved to $fitPath',
+          fitPath == null && gpxPath == null
+              ? 'Ride ended. No files written (no samples).'
+              : 'Ride saved. FIT: ${fitPath ?? 'N/A'} GPX: ${gpxPath ?? 'N/A'}',
         ),
       ),
     );
@@ -401,7 +516,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final record = Mesg.fromMesgNum(MesgNum.record)
         ..setFieldValue(253, _fitTimestamp(sample.timestamp))
         ..setFieldValue(5, sample.distanceMeters)
-        ..setFieldValue(6, (_data.speed ?? 0) / 3.6);
+        ..setFieldValue(6, sample.speedMps);
 
       if (sample.latitude != null) {
         record.setFieldValue(0, (sample.latitude! * 11930464.7111).round());
@@ -411,6 +526,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
       if (sample.heartRate != null) {
         record.setFieldValue(3, sample.heartRate!.round());
+      }
+      if (sample.cadence != null) {
+        record.setFieldValue(4, sample.cadence!.round());
+      }
+      if (sample.altitudeMeters != null && sample.altitudeMeters!.isFinite) {
+        record.setFieldValue(2, sample.altitudeMeters);
+      }
+      if (sample.accuracyMeters != null && sample.accuracyMeters!.isFinite) {
+        record.setFieldValue(30, sample.accuracyMeters!.round().clamp(0, 254));
       }
       if (sample.power != null) {
         record.setFieldValue(7, sample.power!.round());
@@ -424,10 +548,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final session = Mesg.fromMesgNum(MesgNum.session)
       ..setFieldValue(253, _fitTimestamp(end))
       ..setFieldValue(2, _fitTimestamp(start))
+      ..setFieldValue(5, _fitSportCycling)
       ..setFieldValue(7, elapsedSeconds.toDouble())
       ..setFieldValue(8, elapsedSeconds.toDouble())
-      ..setFieldValue(9, totalDistance)
-      ..setFieldValue(16, 2);
+      ..setFieldValue(9, totalDistance);
     final sessionDef = MesgDefinition.fromMesg(session);
     encoder.writeMesgDefinition(sessionDef);
     encoder.writeMesg(session);
@@ -438,27 +562,91 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ..setFieldValue(7, elapsedSeconds.toDouble())
       ..setFieldValue(8, elapsedSeconds.toDouble())
       ..setFieldValue(9, totalDistance)
-      ..setFieldValue(16, 0);
+      ..setFieldValue(25, _fitSportCycling);
     final lapDef = MesgDefinition.fromMesg(lap);
     encoder.writeMesgDefinition(lapDef);
     encoder.writeMesg(lap);
 
     final activity = Mesg.fromMesgNum(MesgNum.activity)
       ..setFieldValue(253, _fitTimestamp(end))
-      ..setFieldValue(0, totalDistance)
-      ..setFieldValue(1, elapsedSeconds)
-      ..setFieldValue(2, 1)
-      ..setFieldValue(3, 0);
+      ..setFieldValue(0, elapsedSeconds)
+      ..setFieldValue(1, 1)
+      ..setFieldValue(2, _fitActivityTypeManual);
     final activityDef = MesgDefinition.fromMesg(activity);
     encoder.writeMesgDefinition(activityDef);
     encoder.writeMesg(activity);
 
     final fitBytes = encoder.close();
 
-    final docsDir = await getApplicationDocumentsDirectory();
     final fileName = 'ride_${start.toIso8601String().replaceAll(':', '-')}.fit';
+    return _writeExportFile(
+      fileName: fileName,
+      mimeType: 'application/octet-stream',
+      bytes: fitBytes,
+    );
+  }
+
+  Future<String?> _writeGpxFile() async {
+    if (_samples.isEmpty) return null;
+
+    final start = _samples.first.timestamp;
+    final fileName = 'ride_${start.toIso8601String().replaceAll(':', '-')}.gpx';
+
+    final buffer = StringBuffer()
+      ..writeln('<?xml version="1.0" encoding="UTF-8"?>')
+      ..writeln(
+        '<gpx version="1.1" creator="simple-bike-display" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1" xmlns:sbd="https://simple-bike-display.dev/xmlschemas/TrackPointQuality/v1">',
+      )
+      ..writeln('<metadata><time>${start.toUtc().toIso8601String()}</time></metadata>')
+      ..writeln('<trk><name>Ride ${start.toIso8601String()}</name><trkseg>');
+
+    for (final sample in _samples) {
+      if (sample.latitude == null || sample.longitude == null) {
+        continue;
+      }
+      final altitude = sample.altitudeMeters;
+      final hasAltitude = altitude != null && altitude.isFinite;
+      final hasAccuracy = sample.accuracyMeters != null && sample.accuracyMeters!.isFinite;
+      buffer.writeln(
+        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}">${hasAltitude ? '<ele>${altitude.toStringAsFixed(1)}</ele>' : ''}<time>${sample.timestamp.toUtc().toIso8601String()}</time><cmt>distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}</cmt><extensions><gpxtpx:TrackPointExtension>${sample.heartRate != null ? '<gpxtpx:hr>${sample.heartRate!.round()}</gpxtpx:hr>' : ''}${sample.cadence != null ? '<gpxtpx:cad>${sample.cadence!.round()}</gpxtpx:cad>' : ''}<gpxtpx:speed>${sample.speedMps.toStringAsFixed(2)}</gpxtpx:speed></gpxtpx:TrackPointExtension><sbd:power_w>${(sample.power ?? 0).toStringAsFixed(0)}</sbd:power_w>${hasAccuracy ? '<sbd:gps_accuracy_m>${sample.accuracyMeters!.toStringAsFixed(1)}</sbd:gps_accuracy_m>' : ''}<sbd:gps_confidence>${sample.gpsConfidence.toStringAsFixed(2)}</sbd:gps_confidence></extensions></trkpt>',
+      );
+    }
+
+    buffer.writeln('</trkseg></trk></gpx>');
+
+    return _writeExportFile(
+      fileName: fileName,
+      mimeType: 'application/gpx+xml',
+      bytes: Uint8List.fromList(utf8.encode(buffer.toString())),
+    );
+  }
+
+  Future<String> _writeExportFile({
+    required String fileName,
+    required String mimeType,
+    required List<int> bytes,
+  }) async {
+    if (!kIsWeb && io.Platform.isAndroid) {
+      try {
+        final uriOrPath = await _fileExportChannel.invokeMethod<String>(
+          'saveToDownloads',
+          <String, Object>{
+            'fileName': fileName,
+            'mimeType': mimeType,
+            'bytes': Uint8List.fromList(bytes),
+          },
+        );
+        if (uriOrPath != null && uriOrPath.isNotEmpty) {
+          return uriOrPath;
+        }
+      } catch (_) {
+        // Fall back to app document directory.
+      }
+    }
+    final docsDir = await getApplicationDocumentsDirectory();
+    await docsDir.create(recursive: true);
     final file = io.File('${docsDir.path}/$fileName');
-    await file.writeAsBytes(fitBytes, flush: true);
+    await file.writeAsBytes(bytes, flush: true);
     return file.path;
   }
 
@@ -473,6 +661,72 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _formatBalance() {
     if (_data.leftBalance == null || _data.rightBalance == null) return 'N/A';
     return '${_data.leftBalance!.toStringAsFixed(0)}/${_data.rightBalance!.toStringAsFixed(0)}';
+  }
+
+  bool get _hasReliableGpsForSpeed {
+    final latest = _latestPosition;
+    if (latest == null) return false;
+    return latest.accuracy > 0 && latest.accuracy <= 35;
+  }
+
+  double _adaptiveJitterThresholdMeters({
+    required double accuracyMeters,
+    required bool isLikelyMoving,
+  }) {
+    final normalizedAccuracy = accuracyMeters.clamp(3.0, 25.0).toDouble();
+    if (isLikelyMoving) {
+      return (normalizedAccuracy * 0.7).clamp(2.0, 12.0).toDouble();
+    }
+    return (normalizedAccuracy * 1.4).clamp(4.0, 20.0).toDouble();
+  }
+
+  double _smoothSpeedMps({
+    required double rawSpeedMps,
+    required double deltaSeconds,
+  }) {
+    if (deltaSeconds <= 0) return _smoothedSpeedMps;
+    final alpha = deltaSeconds >= 1 ? 0.35 : (0.2 + (deltaSeconds * 0.15));
+    final clampedAlpha = alpha.clamp(0.2, 0.6).toDouble();
+    final smoothed = _smoothedSpeedMps + (rawSpeedMps - _smoothedSpeedMps) * clampedAlpha;
+    if (!smoothed.isFinite || smoothed < 0) return 0;
+    if (smoothed < 0.15 && rawSpeedMps < 0.2) return 0;
+    return smoothed;
+  }
+
+  bool _failsContinuityChecks({
+    required double candidateSpeedMps,
+    required double deltaSeconds,
+    required double bearingDegrees,
+  }) {
+    if (deltaSeconds <= 0) return true;
+
+    final acceleration = (candidateSpeedMps - _smoothedSpeedMps) / deltaSeconds;
+    if (acceleration > 3.5 || acceleration < -6.5) {
+      return true;
+    }
+
+    final previousBearing = _lastAcceptedBearingDegrees;
+    if (previousBearing == null || candidateSpeedMps < 2 || _smoothedSpeedMps < 2) {
+      return false;
+    }
+
+    final headingDelta = _bearingDeltaDegrees(previousBearing, bearingDegrees);
+    final headingRate = headingDelta / deltaSeconds;
+    return headingRate > 95;
+  }
+
+  double _bearingDeltaDegrees(double from, double to) {
+    final delta = (to - from).abs() % 360;
+    return delta > 180 ? 360 - delta : delta;
+  }
+
+  double _gpsConfidenceFromAccuracy(double? accuracyMeters) {
+    if (accuracyMeters == null || !accuracyMeters.isFinite || accuracyMeters <= 0) {
+      return 0;
+    }
+    if (accuracyMeters <= 5) return 1;
+    if (accuracyMeters >= 50) return 0;
+    return ((50 - accuracyMeters) / 45).clamp(0, 1).toDouble();
   }
 
   @override
@@ -505,9 +759,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  _isAppInBackground
-                      ? 'Recording continues while app is in background.'
-                      : 'Recording active (background tracking enabled).',
+                  _supportsBackgroundRideService
+                      ? (_isAppInBackground
+                          ? 'Recording continues while app is in background.'
+                          : 'Recording active (background tracking enabled).')
+                      : 'Recording active.',
                   style: TextStyle(color: colorScheme.onTertiaryContainer),
                 ),
               ),
@@ -546,6 +802,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   title: 'Speed',
                   value: _data.speed?.toStringAsFixed(1) ?? 'N/A',
                   unit: 'km/h',
+                  valueColor:
+                      _hasReliableGpsForSpeed ? null : Theme.of(context).colorScheme.error,
                 ),
                 MetricTile(
                   title: 'L/R Balance',

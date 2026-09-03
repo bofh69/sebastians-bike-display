@@ -36,6 +36,8 @@ class PowerCadenceSensorState {
     this.isConnected = false,
     this.power,
     this.cadence,
+    this.leftBalance,
+    this.rightBalance,
     this.batteryLevel,
     this.scanResults = const <PowerCadenceDiscoveredDevice>[],
     this.errorMessage,
@@ -48,6 +50,8 @@ class PowerCadenceSensorState {
   final bool isConnected;
   final double? power;
   final double? cadence;
+  final double? leftBalance;
+  final double? rightBalance;
   final int? batteryLevel;
   final List<PowerCadenceDiscoveredDevice> scanResults;
   final String? errorMessage;
@@ -60,6 +64,8 @@ class PowerCadenceSensorState {
     bool? isConnected,
     Object? power = _sentinel,
     Object? cadence = _sentinel,
+    Object? leftBalance = _sentinel,
+    Object? rightBalance = _sentinel,
     Object? batteryLevel = _sentinel,
     List<PowerCadenceDiscoveredDevice>? scanResults,
     Object? errorMessage = _sentinel,
@@ -73,6 +79,10 @@ class PowerCadenceSensorState {
       isConnected: isConnected ?? this.isConnected,
       power: identical(power, _sentinel) ? this.power : power as double?,
       cadence: identical(cadence, _sentinel) ? this.cadence : cadence as double?,
+      leftBalance:
+          identical(leftBalance, _sentinel) ? this.leftBalance : leftBalance as double?,
+      rightBalance:
+          identical(rightBalance, _sentinel) ? this.rightBalance : rightBalance as double?,
       batteryLevel:
           identical(batteryLevel, _sentinel) ? this.batteryLevel : batteryLevel as int?,
       scanResults: scanResults ?? this.scanResults,
@@ -98,6 +108,8 @@ class PowerCadenceSensorService {
   StreamSubscription<List<int>>? _powerSubscription;
   StreamSubscription<List<int>>? _cadenceSubscription;
   StreamSubscription<List<int>>? _batterySubscription;
+  Timer? _powerStaleTimer;
+  Timer? _cadenceStaleTimer;
   bool _initialized = false;
   bool _connectingToSavedDevice = false;
   Future<void>? _initializationFuture;
@@ -150,13 +162,13 @@ class PowerCadenceSensorService {
       await _scanSubscription?.cancel();
       _scanSubscription = _bleInstance
           .scanForDevices(
-            withServices: const <Uuid>[],
+            withServices: <Uuid>[
+              _cyclingPowerServiceUuid,
+              _cyclingSpeedCadenceServiceUuid,
+            ],
             scanMode: ScanMode.lowLatency,
           )
           .listen((device) {
-            if (!_isPowerCadenceDevice(device)) {
-              return;
-            }
             final name = _bestDeviceName(device.name) ?? device.id;
             discovered[device.id] = PowerCadenceDiscoveredDevice(
               device: device,
@@ -289,6 +301,8 @@ class PowerCadenceSensorService {
         batteryLevel: null,
         power: null,
         cadence: null,
+        leftBalance: null,
+        rightBalance: null,
       ),
     );
 
@@ -313,6 +327,8 @@ class PowerCadenceSensorService {
                 batteryLevel: isConnected ? state.value.batteryLevel : null,
                 power: isConnected ? state.value.power : null,
                 cadence: isConnected ? state.value.cadence : null,
+                leftBalance: isConnected ? state.value.leftBalance : null,
+                rightBalance: isConnected ? state.value.rightBalance : null,
               ),
             );
             if (isConnected) {
@@ -321,7 +337,13 @@ class PowerCadenceSensorService {
                 DeviceConnectionState.disconnected) {
               unawaited(_cancelCharacteristicSubscriptions());
               _setState(
-                state.value.copyWith(batteryLevel: null, power: null, cadence: null),
+                state.value.copyWith(
+                  batteryLevel: null,
+                  power: null,
+                  cadence: null,
+                  leftBalance: null,
+                  rightBalance: null,
+                ),
               );
             }
           }, onError: (Object error) {
@@ -464,6 +486,10 @@ class PowerCadenceSensorService {
     _powerSubscription = null;
     _cadenceSubscription = null;
     _batterySubscription = null;
+    _powerStaleTimer?.cancel();
+    _powerStaleTimer = null;
+    _cadenceStaleTimer?.cancel();
+    _cadenceStaleTimer = null;
   }
 
   Future<StreamSubscription<List<int>>?> _subscribeToOptionalCharacteristic({
@@ -483,25 +509,6 @@ class PowerCadenceSensorService {
     }
   }
 
-  bool _isPowerCadenceDevice(DiscoveredDevice device) {
-    for (final serviceUuid in device.serviceUuids) {
-      if (serviceUuid == _cyclingPowerServiceUuid ||
-          serviceUuid == _cyclingSpeedCadenceServiceUuid) {
-        return true;
-      }
-    }
-    final normalizedName = device.name.trim().toLowerCase();
-    if (normalizedName.isEmpty) return false;
-    return normalizedName.contains('power') ||
-        normalizedName.contains('cadence') ||
-        normalizedName.contains('csc') ||
-        normalizedName.contains('assioma') ||
-        normalizedName.contains('favero') ||
-        normalizedName.contains('stages') ||
-        normalizedName.contains('quarq') ||
-        normalizedName.contains('garmin');
-  }
-
   void _updateCyclingPowerData(List<int> value) {
     if (value.length < 4) return;
 
@@ -510,9 +517,24 @@ class PowerCadenceSensorService {
     final signedPower = rawPower >= 0x8000 ? rawPower - 0x10000 : rawPower;
     final power = signedPower < 0 ? 0.0 : signedPower.toDouble();
     var cadence = state.value.cadence;
+    var leftBalance = state.value.leftBalance;
+    var rightBalance = state.value.rightBalance;
+    var hasCadenceUpdate = false;
 
     var offset = 4;
     if ((flags & 0x0001) != 0) {
+      if (value.length >= offset + 1) {
+        final pedalBalanceRaw = value[offset];
+        final pedalBalancePercent = (pedalBalanceRaw & 0x7F) / 2.0;
+        final isRightReferenced = (flags & 0x0002) != 0;
+        if (isRightReferenced) {
+          rightBalance = pedalBalancePercent.clamp(0, 100).toDouble();
+          leftBalance = (100 - pedalBalancePercent).clamp(0, 100).toDouble();
+        } else {
+          leftBalance = pedalBalancePercent.clamp(0, 100).toDouble();
+          rightBalance = (100 - pedalBalancePercent).clamp(0, 100).toDouble();
+        }
+      }
       offset += 1;
     }
     if ((flags & 0x0004) != 0) {
@@ -534,6 +556,7 @@ class PowerCadenceSensorService {
       _lastPowerCrankEventTime = crankEventTime;
       if (parsedCadence != null) {
         cadence = parsedCadence;
+        hasCadenceUpdate = true;
       }
     }
 
@@ -541,8 +564,14 @@ class PowerCadenceSensorService {
       state.value.copyWith(
         power: power,
         cadence: cadence,
+        leftBalance: leftBalance,
+        rightBalance: rightBalance,
       ),
     );
+    _schedulePowerStaleTimer();
+    if (hasCadenceUpdate) {
+      _scheduleCadenceStaleTimer();
+    }
   }
 
   void _updateCyclingCadenceData(List<int> value) {
@@ -572,6 +601,7 @@ class PowerCadenceSensorService {
     if (cadence == null) return;
 
     _setState(state.value.copyWith(cadence: cadence));
+    _scheduleCadenceStaleTimer();
   }
 
   double? _calculateCadenceFromCrankData({
@@ -593,10 +623,41 @@ class PowerCadenceSensorService {
       deltaTime += 0x10000;
     }
 
-    if (deltaRevolutions <= 0 || deltaTime <= 0) return null;
+    if (deltaTime <= 0) return null;
+    if (deltaRevolutions <= 0) return 0;
     final cadence = (deltaRevolutions * 60 * 1024) / deltaTime;
     if (!cadence.isFinite) return null;
     return cadence < 0 ? 0 : cadence.toDouble();
+  }
+
+  void _schedulePowerStaleTimer() {
+    _powerStaleTimer?.cancel();
+    _powerStaleTimer = Timer(const Duration(seconds: 3), () {
+      final currentState = state.value;
+      if (!currentState.isConnected) return;
+      if ((currentState.power ?? 0) == 0) {
+        return;
+      }
+      _setState(
+        currentState.copyWith(
+          power: 0.0,
+          leftBalance: null,
+          rightBalance: null,
+        ),
+      );
+    });
+  }
+
+  void _scheduleCadenceStaleTimer() {
+    _cadenceStaleTimer?.cancel();
+    _cadenceStaleTimer = Timer(const Duration(seconds: 3), () {
+      final currentState = state.value;
+      if (!currentState.isConnected) return;
+      if ((currentState.cadence ?? 0) == 0) {
+        return;
+      }
+      _setState(currentState.copyWith(cadence: 0.0));
+    });
   }
 
   void _updateBatteryLevel(List<int> value) {
