@@ -166,11 +166,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final cadence = powerState.cadence;
     final leftBalance = powerState.leftBalance;
     final rightBalance = powerState.rightBalance;
-    final normalizedPower = power ?? 0;
+    final double normalizedPower = power ?? 0.0;
     _currentPowerWatts = normalizedPower;
-    final displayedPower3s = _isRunning
+    final double? displayedPower3s = _isRunning
         ? _data.power3s
-        : (normalizedPower > 0 ? normalizedPower : 0);
+        : (normalizedPower > 0 ? normalizedPower : 0.0);
     if (_data.power3s == displayedPower3s &&
         _data.cadence == cadence &&
         _data.leftBalance == leftBalance &&
