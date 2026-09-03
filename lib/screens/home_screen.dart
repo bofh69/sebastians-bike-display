@@ -385,13 +385,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
 
     final fitPath = await _writeFitFile();
+    final gpxPath = await _writeGpxFile();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          fitPath == null
-              ? 'Ride ended. No FIT file written (no samples).'
-              : 'Ride saved to $fitPath',
+          fitPath == null && gpxPath == null
+              ? 'Ride ended. No files written (no samples).'
+              : 'Ride saved. FIT: ${fitPath ?? 'N/A'} GPX: ${gpxPath ?? 'N/A'}',
         ),
       ),
     );
@@ -488,6 +489,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return file.path;
   }
 
+  Future<String?> _writeGpxFile() async {
+    if (_samples.isEmpty) return null;
+
+    final outputDir = await _resolveFitOutputDirectory();
+    await outputDir.create(recursive: true);
+    final start = _samples.first.timestamp;
+    final fileName = 'ride_${start.toIso8601String().replaceAll(':', '-')}.gpx';
+    final file = io.File('${outputDir.path}/$fileName');
+
+    final buffer = StringBuffer()
+      ..writeln('<?xml version="1.0" encoding="UTF-8"?>')
+      ..writeln(
+        '<gpx version="1.1" creator="simple-bike-display" xmlns="http://www.topografix.com/GPX/1/1">',
+      )
+      ..writeln('<metadata><time>${start.toUtc().toIso8601String()}</time></metadata>')
+      ..writeln('<trk><name>Ride ${start.toIso8601String()}</name><trkseg>');
+
+    for (final sample in _samples) {
+      if (sample.latitude == null || sample.longitude == null) {
+        continue;
+      }
+      buffer.writeln(
+        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}"><time>${sample.timestamp.toUtc().toIso8601String()}</time></trkpt>',
+      );
+    }
+
+    buffer.writeln('</trkseg></trk></gpx>');
+
+    await file.writeAsString(buffer.toString(), flush: true);
+    return file.path;
+  }
+
   Future<io.Directory> _resolveFitOutputDirectory() async {
     if (!kIsWeb && io.Platform.isAndroid) {
       final downloadDirs = await getExternalStorageDirectories(
@@ -515,6 +548,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _formatBalance() {
     if (_data.leftBalance == null || _data.rightBalance == null) return 'N/A';
     return '${_data.leftBalance!.toStringAsFixed(0)}/${_data.rightBalance!.toStringAsFixed(0)}';
+  }
+
+  bool get _hasReliableGpsForSpeed {
+    final latest = _latestPosition;
+    if (latest == null) return false;
+    return latest.accuracy > 0 && latest.accuracy <= 35;
   }
 
   @override
@@ -590,6 +629,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   title: 'Speed',
                   value: _data.speed?.toStringAsFixed(1) ?? 'N/A',
                   unit: 'km/h',
+                  valueColor:
+                      _hasReliableGpsForSpeed ? null : Theme.of(context).colorScheme.error,
                 ),
                 MetricTile(
                   title: 'L/R Balance',
