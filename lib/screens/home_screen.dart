@@ -25,6 +25,7 @@ import '../widgets/power_bar.dart';
 const int _fitEpochOffsetSeconds = 631065600;
 const int _fitSportCycling = 2;
 const int _fitActivityTypeManual = 0;
+const double _minimumPowerForBalanceAverageWatts = 10;
 
 String formatPowerBalance(double? leftBalance, double? rightBalance) {
   if (leftBalance == null || rightBalance == null) return 'N/A';
@@ -45,7 +46,7 @@ bool shouldAccumulatePowerBalanceSample({
   required double? rightBalance,
 }) {
   return isConnected &&
-      (power ?? 0) > 0 &&
+      (power ?? 0) >= _minimumPowerForBalanceAverageWatts &&
       leftBalance != null &&
       rightBalance != null;
 }

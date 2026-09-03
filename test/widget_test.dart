@@ -25,7 +25,7 @@ void main() {
     expect(
       shouldAccumulatePowerBalanceSample(
         isConnected: true,
-        power: 0,
+        power: 9.9,
         leftBalance: 0,
         rightBalance: 100,
       ),
