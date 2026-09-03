@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const String _powerDeviceIdPrefKey = 'power_device_id';
@@ -144,14 +145,12 @@ class PowerCadenceSensorService {
     final completer = Completer<List<PowerCadenceDiscoveredDevice>>();
 
     try {
+      await _ensureBluetoothPermissions();
       await _ensureBluetoothReady();
       await _scanSubscription?.cancel();
       _scanSubscription = _bleInstance
           .scanForDevices(
-            withServices: <Uuid>[
-              _cyclingPowerServiceUuid,
-              _cyclingSpeedCadenceServiceUuid,
-            ],
+            withServices: const <Uuid>[],
             scanMode: ScanMode.lowLatency,
           )
           .listen((device) {
@@ -294,6 +293,7 @@ class PowerCadenceSensorService {
     );
 
     try {
+      await _ensureBluetoothPermissions();
       await _ensureBluetoothReady();
       _deviceId = deviceId;
       _connectionSubscription = _bleInstance
@@ -430,6 +430,20 @@ class PowerCadenceSensorService {
     }
   }
 
+  Future<void> _ensureBluetoothPermissions() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return;
+    }
+    final statuses = await <Permission>[
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+    ].request();
+    final hasAllPermissions = statuses.values.every((status) => status.isGranted);
+    if (!hasAllPermissions) {
+      throw const _PowerCadenceSensorException('Bluetooth permission is required.');
+    }
+  }
+
   Future<void> _disconnectCurrentDevice() async {
     await _scanSubscription?.cancel();
     _scanSubscription = null;
@@ -477,9 +491,15 @@ class PowerCadenceSensorService {
       }
     }
     final normalizedName = device.name.trim().toLowerCase();
+    if (normalizedName.isEmpty) return false;
     return normalizedName.contains('power') ||
         normalizedName.contains('cadence') ||
-        normalizedName.contains('csc');
+        normalizedName.contains('csc') ||
+        normalizedName.contains('assioma') ||
+        normalizedName.contains('favero') ||
+        normalizedName.contains('stages') ||
+        normalizedName.contains('quarq') ||
+        normalizedName.contains('garmin');
   }
 
   void _updateCyclingPowerData(List<int> value) {

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -233,6 +234,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final jitterThreshold = position.accuracy.clamp(3.0, 15.0);
     final speedMps = distanceMeters / deltaSeconds;
     if (distanceMeters < jitterThreshold || speedMps > 25) {
+      if (mounted && distanceMeters < jitterThreshold && (_data.speed ?? 0) > 0) {
+        setState(() {
+          _data.speed = 0;
+        });
+      }
       return;
     }
     _lastAcceptedPosition = position;
@@ -290,11 +296,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
+    final canStartForegroundTracking = await _ensureForegroundTrackingPermission();
+    if (!canStartForegroundTracking) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notification permission is required.')),
+      );
+      return;
+    }
+
     if (_isMobileTrackingPlatform) {
-      await _configureBackgroundService();
-      await _backgroundService.startService();
-      _backgroundService.invoke('setAsForeground');
-      await WakelockPlus.enable();
+      try {
+        await _configureBackgroundService();
+        final started = await _backgroundService.startService();
+        if (!started) {
+          throw Exception('Unable to start ride tracking service.');
+        }
+        _backgroundService.invoke('setAsForeground');
+        await WakelockPlus.enable();
+      } on Exception {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to start ride tracking service.')),
+        );
+        return;
+      }
     }
 
     setState(() {
@@ -311,6 +337,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       _recordSample();
     });
+  }
+
+  Future<bool> _ensureForegroundTrackingPermission() async {
+    if (kIsWeb || !io.Platform.isAndroid) return true;
+    final status = await Permission.notification.request();
+    return status.isGranted;
   }
 
   Future<void> _endRide() async {
