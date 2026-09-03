@@ -1,10 +1,13 @@
 # simple-bike-display
 
-## Development container
+A simple bike computer app showing important stats and recording
+the ride.
 
-This repository includes a dev container in `/home/runner/work/simple-bike-display/simple-bike-display/.devcontainer` with Flutter 3.22.3, Java 17, and Android SDK tooling.
+## Development
 
-After opening the folder in the container, run:
+There is a dev container with the needed tools for development.
+
+Build & test with:
 
 - `flutter pub get`
 - `flutter analyze`
