@@ -92,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _loadPreferences();
     if (_isMobileTrackingPlatform) {
-      unawaited(_configureBackgroundService());
+      unawaited(_preconfigureBackgroundService());
     }
     unawaited(_heartRateSensorService.initialize());
     _heartRateSensorService.state.addListener(_syncHeartRateData);
@@ -159,6 +159,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _backgroundServiceConfigurationFuture ??=
         _configureBackgroundServiceInternal();
     await _backgroundServiceConfigurationFuture;
+  }
+
+  Future<void> _preconfigureBackgroundService() async {
+    try {
+      await _configureBackgroundService();
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Background service preconfiguration failed: $error\n$stackTrace',
+      );
+    }
   }
 
   Future<void> _configureBackgroundServiceInternal() async {
@@ -325,10 +335,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
         _backgroundService.invoke('setAsForeground');
         await WakelockPlus.enable();
-      } on Exception {
+      } catch (error, stackTrace) {
+        debugPrint('Failed to start ride tracking service: $error\n$stackTrace');
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to start ride tracking service.')),
+          SnackBar(
+            content: Text('Failed to start ride tracking service: $error'),
+          ),
         );
         return;
       }
