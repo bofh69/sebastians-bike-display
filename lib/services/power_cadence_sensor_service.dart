@@ -98,7 +98,8 @@ class PowerCadenceSensorService {
   StreamSubscription<List<int>>? _powerSubscription;
   StreamSubscription<List<int>>? _cadenceSubscription;
   StreamSubscription<List<int>>? _batterySubscription;
-  Timer? _powerCadenceStaleTimer;
+  Timer? _powerStaleTimer;
+  Timer? _cadenceStaleTimer;
   bool _initialized = false;
   bool _connectingToSavedDevice = false;
   Future<void>? _initializationFuture;
@@ -151,13 +152,13 @@ class PowerCadenceSensorService {
       await _scanSubscription?.cancel();
       _scanSubscription = _bleInstance
           .scanForDevices(
-            withServices: const <Uuid>[],
+            withServices: <Uuid>[
+              _cyclingPowerServiceUuid,
+              _cyclingSpeedCadenceServiceUuid,
+            ],
             scanMode: ScanMode.lowLatency,
           )
           .listen((device) {
-            if (!_isPowerCadenceDevice(device)) {
-              return;
-            }
             final name = _bestDeviceName(device.name) ?? device.id;
             discovered[device.id] = PowerCadenceDiscoveredDevice(
               device: device,
@@ -465,8 +466,10 @@ class PowerCadenceSensorService {
     _powerSubscription = null;
     _cadenceSubscription = null;
     _batterySubscription = null;
-    _powerCadenceStaleTimer?.cancel();
-    _powerCadenceStaleTimer = null;
+    _powerStaleTimer?.cancel();
+    _powerStaleTimer = null;
+    _cadenceStaleTimer?.cancel();
+    _cadenceStaleTimer = null;
   }
 
   Future<StreamSubscription<List<int>>?> _subscribeToOptionalCharacteristic({
@@ -486,25 +489,6 @@ class PowerCadenceSensorService {
     }
   }
 
-  bool _isPowerCadenceDevice(DiscoveredDevice device) {
-    for (final serviceUuid in device.serviceUuids) {
-      if (serviceUuid == _cyclingPowerServiceUuid ||
-          serviceUuid == _cyclingSpeedCadenceServiceUuid) {
-        return true;
-      }
-    }
-    final normalizedName = device.name.trim().toLowerCase();
-    if (normalizedName.isEmpty) return false;
-    return normalizedName.contains('power') ||
-        normalizedName.contains('cadence') ||
-        normalizedName.contains('csc') ||
-        normalizedName.contains('assioma') ||
-        normalizedName.contains('favero') ||
-        normalizedName.contains('stages') ||
-        normalizedName.contains('quarq') ||
-        normalizedName.contains('garmin');
-  }
-
   void _updateCyclingPowerData(List<int> value) {
     if (value.length < 4) return;
 
@@ -513,6 +497,7 @@ class PowerCadenceSensorService {
     final signedPower = rawPower >= 0x8000 ? rawPower - 0x10000 : rawPower;
     final power = signedPower < 0 ? 0.0 : signedPower.toDouble();
     var cadence = state.value.cadence;
+    var hasCadenceUpdate = false;
 
     var offset = 4;
     if ((flags & 0x0001) != 0) {
@@ -537,6 +522,7 @@ class PowerCadenceSensorService {
       _lastPowerCrankEventTime = crankEventTime;
       if (parsedCadence != null) {
         cadence = parsedCadence;
+        hasCadenceUpdate = true;
       }
     }
 
@@ -546,7 +532,10 @@ class PowerCadenceSensorService {
         cadence: cadence,
       ),
     );
-    _schedulePowerCadenceStaleTimer();
+    _schedulePowerStaleTimer();
+    if (hasCadenceUpdate) {
+      _scheduleCadenceStaleTimer();
+    }
   }
 
   void _updateCyclingCadenceData(List<int> value) {
@@ -576,7 +565,7 @@ class PowerCadenceSensorService {
     if (cadence == null) return;
 
     _setState(state.value.copyWith(cadence: cadence));
-    _schedulePowerCadenceStaleTimer();
+    _scheduleCadenceStaleTimer();
   }
 
   double? _calculateCadenceFromCrankData({
@@ -605,15 +594,27 @@ class PowerCadenceSensorService {
     return cadence < 0 ? 0 : cadence.toDouble();
   }
 
-  void _schedulePowerCadenceStaleTimer() {
-    _powerCadenceStaleTimer?.cancel();
-    _powerCadenceStaleTimer = Timer(const Duration(seconds: 3), () {
+  void _schedulePowerStaleTimer() {
+    _powerStaleTimer?.cancel();
+    _powerStaleTimer = Timer(const Duration(seconds: 3), () {
       final currentState = state.value;
       if (!currentState.isConnected) return;
-      if ((currentState.power ?? 0) == 0 && (currentState.cadence ?? 0) == 0) {
+      if ((currentState.power ?? 0) == 0) {
         return;
       }
-      _setState(currentState.copyWith(power: 0.0, cadence: 0.0));
+      _setState(currentState.copyWith(power: 0.0));
+    });
+  }
+
+  void _scheduleCadenceStaleTimer() {
+    _cadenceStaleTimer?.cancel();
+    _cadenceStaleTimer = Timer(const Duration(seconds: 3), () {
+      final currentState = state.value;
+      if (!currentState.isConnected) return;
+      if ((currentState.cadence ?? 0) == 0) {
+        return;
+      }
+      _setState(currentState.copyWith(cadence: 0.0));
     });
   }
 

@@ -480,11 +480,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     final fitBytes = encoder.close();
 
-    final docsDir = await getApplicationDocumentsDirectory();
+    final outputDir = await _resolveFitOutputDirectory();
+    await outputDir.create(recursive: true);
     final fileName = 'ride_${start.toIso8601String().replaceAll(':', '-')}.fit';
-    final file = io.File('${docsDir.path}/$fileName');
+    final file = io.File('${outputDir.path}/$fileName');
     await file.writeAsBytes(fitBytes, flush: true);
     return file.path;
+  }
+
+  Future<io.Directory> _resolveFitOutputDirectory() async {
+    if (!kIsWeb && io.Platform.isAndroid) {
+      final downloadDirs = await getExternalStorageDirectories(
+        type: StorageDirectory.downloads,
+      );
+      if (downloadDirs != null && downloadDirs.isNotEmpty) {
+        return downloadDirs.first;
+      }
+      final externalDir = await getExternalStorageDirectory();
+      if (externalDir != null) {
+        return externalDir;
+      }
+    }
+    return getApplicationDocumentsDirectory();
   }
 
   String _formatDuration(Duration? d) {
