@@ -15,6 +15,18 @@ final Uuid _cscMeasurementUuid = Uuid.parse('2A5B');
 final Uuid _batteryServiceUuid = Uuid.parse('180F');
 final Uuid _batteryLevelUuid = Uuid.parse('2A19');
 
+({double leftBalance, double rightBalance}) parsePowerBalance(int rawPedalBalance) {
+  final isRightReferenced = rawPedalBalance > 100 && (rawPedalBalance & 0x80) != 0;
+  final balancePercent =
+      (isRightReferenced ? (rawPedalBalance & 0x7F) : rawPedalBalance)
+          .clamp(0, 100)
+          .toDouble();
+
+  return isRightReferenced
+      ? (leftBalance: 100 - balancePercent, rightBalance: balancePercent)
+      : (leftBalance: balancePercent, rightBalance: 100 - balancePercent);
+}
+
 class PowerCadenceDiscoveredDevice {
   const PowerCadenceDiscoveredDevice({
     required this.device,
@@ -517,23 +529,16 @@ class PowerCadenceSensorService {
     final signedPower = rawPower >= 0x8000 ? rawPower - 0x10000 : rawPower;
     final power = signedPower < 0 ? 0.0 : signedPower.toDouble();
     var cadence = state.value.cadence;
-    var leftBalance = state.value.leftBalance;
-    var rightBalance = state.value.rightBalance;
+    double? leftBalance;
+    double? rightBalance;
     var hasCadenceUpdate = false;
 
     var offset = 4;
     if ((flags & 0x0001) != 0) {
       if (value.length >= offset + 1) {
-        final pedalBalanceRaw = value[offset];
-        final pedalBalancePercent = (pedalBalanceRaw & 0x7F) / 2.0;
-        final isRightReferenced = (flags & 0x0002) != 0;
-        if (isRightReferenced) {
-          rightBalance = pedalBalancePercent.clamp(0, 100).toDouble();
-          leftBalance = (100 - pedalBalancePercent).clamp(0, 100).toDouble();
-        } else {
-          leftBalance = pedalBalancePercent.clamp(0, 100).toDouble();
-          rightBalance = (100 - pedalBalancePercent).clamp(0, 100).toDouble();
-        }
+        final parsedBalance = parsePowerBalance(value[offset]);
+        leftBalance = parsedBalance.leftBalance;
+        rightBalance = parsedBalance.rightBalance;
       }
       offset += 1;
     }
