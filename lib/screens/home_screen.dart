@@ -85,13 +85,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   bool get _isMobileTrackingPlatform =>
       !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
+  bool get _supportsBackgroundRideService => !kIsWeb && io.Platform.isIOS;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadPreferences();
-    if (_isMobileTrackingPlatform) {
+    if (_supportsBackgroundRideService) {
       unawaited(_preconfigureBackgroundService());
     }
     unawaited(_heartRateSensorService.initialize());
@@ -119,7 +120,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_isRunning && _isMobileTrackingPlatform) {
       WakelockPlus.disable();
     }
-    if (_serviceConfigured) {
+    if (_supportsBackgroundRideService && _serviceConfigured) {
       _backgroundService.invoke('stopService');
     }
     super.dispose();
@@ -326,7 +327,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    if (_isMobileTrackingPlatform) {
+    if (_supportsBackgroundRideService) {
       try {
         await _configureBackgroundService();
         final started = await _backgroundService.startService();
@@ -375,7 +376,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_isMobileTrackingPlatform) {
       await WakelockPlus.disable();
     }
-    if (_serviceConfigured) {
+    if (_supportsBackgroundRideService && _serviceConfigured) {
       _backgroundService.invoke('stopService');
     }
 
@@ -529,9 +530,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  _isAppInBackground
-                      ? 'Recording continues while app is in background.'
-                      : 'Recording active (background tracking enabled).',
+                  _supportsBackgroundRideService
+                      ? (_isAppInBackground
+                          ? 'Recording continues while app is in background.'
+                          : 'Recording active (background tracking enabled).')
+                      : 'Recording active.',
                   style: TextStyle(color: colorScheme.onTertiaryContainer),
                 ),
               ),

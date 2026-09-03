@@ -468,10 +468,10 @@ packages:
     dependency: transitive
     description:
       name: reactive_ble_platform_interface
-      sha256: "20efc78259f8d8bf20cd8048c274985e67e043f0d2c62d778303baaa1f1ac667"
+      sha256: "605fdd7b0538ad3991acae80315110fbf36e742fed21e7a9acc0adf0bf84c577"
       url: "https://pub.dev"
     source: hosted
-    version: "5.5.0"
+    version: "5.4.2"
   shared_preferences:
     dependency: "direct main"
     description:
