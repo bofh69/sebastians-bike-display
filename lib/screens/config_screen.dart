@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/heart_rate_sensor_service.dart';
 import '../services/power_cadence_sensor_service.dart';
+import '../services/strava_upload_service.dart';
 
 class ConfigScreen extends StatefulWidget {
   const ConfigScreen({super.key});
@@ -15,10 +16,14 @@ class ConfigScreen extends StatefulWidget {
 
 class _ConfigScreenState extends State<ConfigScreen> {
   final _ftpController = TextEditingController();
+  final _stravaClientIdController = TextEditingController();
+  final _stravaClientSecretController = TextEditingController();
   final HeartRateSensorService _heartRateSensorService =
       HeartRateSensorService.instance;
   final PowerCadenceSensorService _powerCadenceSensorService =
       PowerCadenceSensorService.instance;
+  final StravaUploadService _stravaUploadService = StravaUploadService.instance;
+  bool _stravaAutoUploadEnabled = false;
 
   @override
   void initState() {
@@ -34,6 +39,15 @@ class _ConfigScreenState extends State<ConfigScreen> {
         return _powerCadenceSensorService.refreshBatteryLevel();
       }),
     );
+    unawaited(_stravaUploadService.initialize().then((_) {
+      final state = _stravaUploadService.state.value;
+      if (!mounted) return;
+      setState(() {
+        _stravaClientIdController.text = state.clientId;
+        _stravaClientSecretController.text = state.clientSecret;
+        _stravaAutoUploadEnabled = state.autoUploadEnabled;
+      });
+    }));
   }
 
   Future<void> _loadPrefs() async {
@@ -43,19 +57,28 @@ class _ConfigScreenState extends State<ConfigScreen> {
     });
   }
 
-  Future<void> _savePrefs() async {
+  Future<void> _savePrefs({bool showFeedback = true}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('ftp', int.tryParse(_ftpController.text) ?? 200);
+    await _stravaUploadService.saveConfiguration(
+      clientId: _stravaClientIdController.text,
+      clientSecret: _stravaClientSecretController.text,
+      autoUploadEnabled: _stravaAutoUploadEnabled,
+    );
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Settings saved')),
-      );
+      if (showFeedback) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Settings saved')),
+        );
+      }
     }
   }
 
   @override
   void dispose() {
     _ftpController.dispose();
+    _stravaClientIdController.dispose();
+    _stravaClientSecretController.dispose();
     super.dispose();
   }
 
@@ -65,7 +88,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
       appBar: AppBar(
         title: const Text('Configuration'),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,6 +138,92 @@ class _ConfigScreenState extends State<ConfigScreen> {
               },
             ),
             const SizedBox(height: 24),
+            Text('Strava', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _stravaClientIdController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Strava Client ID',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _stravaClientSecretController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Strava Client Secret',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Automatically upload finished rides'),
+              subtitle: const Text(
+                'Uploads the FIT file after each ride when a Strava account is connected.',
+              ),
+              value: _stravaAutoUploadEnabled,
+              onChanged: (value) {
+                setState(() {
+                  _stravaAutoUploadEnabled = value;
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            ValueListenableBuilder<StravaUploadState>(
+              valueListenable: _stravaUploadService.state,
+              builder: (context, stravaState, _) {
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Account: ${stravaState.isAuthenticated ? stravaState.accountLabel : 'Not connected'}',
+                        ),
+                        if (stravaState.errorMessage != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            stravaState.errorMessage!,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            ElevatedButton(
+                              onPressed: stravaState.isBusy
+                                  ? null
+                                  : () => _connectStrava(),
+                              child: Text(
+                                stravaState.isAuthenticated
+                                    ? 'Reconnect account'
+                                    : 'Connect account',
+                              ),
+                            ),
+                            if (stravaState.isAuthenticated)
+                              OutlinedButton(
+                                onPressed: stravaState.isBusy
+                                    ? null
+                                    : _disconnectStrava,
+                                child: const Text('Disconnect'),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -126,6 +235,31 @@ class _ConfigScreenState extends State<ConfigScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _connectStrava() async {
+    try {
+      await _savePrefs(showFeedback: false);
+      await _stravaUploadService.authenticate();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Connected to ${_stravaUploadService.state.value.accountLabel}.',
+          ),
+        ),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _disconnectStrava() async {
+    try {
+      await _stravaUploadService.disconnect();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Strava account disconnected.')),
+      );
+    } catch (_) {}
   }
 
   Future<void> _pairHrDevice() async {

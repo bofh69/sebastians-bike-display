@@ -4,6 +4,7 @@ import 'package:simple_bike_display/models/time_window_average.dart';
 import 'package:simple_bike_display/screens/home_screen.dart';
 import 'package:simple_bike_display/services/power_cadence_sensor_service.dart';
 import 'package:simple_bike_display/services/sensor_reconnect_policy.dart';
+import 'package:simple_bike_display/services/strava_upload_service.dart';
 
 void main() {
   test('formatPowerBalance preserves fractional balance values', () {
@@ -219,6 +220,59 @@ void main() {
     );
 
     coordinator.unregister(heartRateReconnectKey);
+  });
+
+  test('buildStravaAccountLabel prefers full name then username then athlete ID', () {
+    expect(
+      buildStravaAccountLabel(
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        username: 'ada',
+        athleteId: '42',
+      ),
+      'Ada Lovelace',
+    );
+    expect(
+      buildStravaAccountLabel(
+        username: 'ada',
+        athleteId: '42',
+      ),
+      'ada',
+    );
+    expect(
+      buildStravaAccountLabel(athleteId: '42'),
+      'Athlete 42',
+    );
+  });
+
+  test('shouldResetStravaAuthentication detects credential changes', () {
+    expect(
+      shouldResetStravaAuthentication(
+        previousClientId: '123',
+        nextClientId: '123',
+        previousClientSecret: 'secret',
+        nextClientSecret: 'secret',
+      ),
+      isFalse,
+    );
+    expect(
+      shouldResetStravaAuthentication(
+        previousClientId: '123',
+        nextClientId: '456',
+        previousClientSecret: 'secret',
+        nextClientSecret: 'secret',
+      ),
+      isTrue,
+    );
+    expect(
+      shouldResetStravaAuthentication(
+        previousClientId: '123',
+        nextClientId: '123',
+        previousClientSecret: 'secret',
+        nextClientSecret: 'other',
+      ),
+      isTrue,
+    );
   });
 
   testWidgets('Home screen shows Start button', (WidgetTester tester) async {

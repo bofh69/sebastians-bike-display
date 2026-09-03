@@ -19,6 +19,7 @@ import '../models/rolling_average.dart';
 import '../models/time_window_average.dart';
 import '../services/heart_rate_sensor_service.dart';
 import '../services/power_cadence_sensor_service.dart';
+import '../services/strava_upload_service.dart';
 import '../widgets/metric_tile.dart';
 import '../widgets/power_bar.dart';
 
@@ -132,6 +133,18 @@ class _RideSample {
   });
 }
 
+class _ExportedRideFile {
+  final String fileName;
+  final String path;
+  final Uint8List bytes;
+
+  const _ExportedRideFile({
+    required this.fileName,
+    required this.path,
+    required this.bytes,
+  });
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -153,6 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
       HeartRateSensorService.instance;
   final PowerCadenceSensorService _powerCadenceSensorService =
       PowerCadenceSensorService.instance;
+  final StravaUploadService _stravaUploadService = StravaUploadService.instance;
   final RollingAverage _power3sAverage = RollingAverage(windowSize: 3);
   final RollingAverage _power20MinAverage = RollingAverage(windowSize: 20 * 60);
   final TimeWindowAverage _leftBalanceAverage =
@@ -189,6 +203,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _heartRateSensorService.state.addListener(_syncHeartRateData);
     unawaited(_powerCadenceSensorService.initialize());
     _powerCadenceSensorService.state.addListener(_syncPowerCadenceData);
+    unawaited(_stravaUploadService.initialize());
     _startLocationStream();
   }
 
@@ -577,16 +592,25 @@ class _HomeScreenState extends State<HomeScreen> {
       _isRunning = false;
     });
 
-    final fitPath = await _writeFitFile();
-    final gpxPath = await _writeGpxFile();
+    final rideStartTime = _startTime;
+    final fitFile = await _writeFitFile();
+    final gpxFile = await _writeGpxFile();
+    final uploadResult = fitFile == null
+        ? const StravaUploadResult.skipped()
+        : await _stravaUploadService.uploadFinishedRide(
+            fileName: fitFile.fileName,
+            fileBytes: fitFile.bytes,
+            startedAt: rideStartTime,
+          );
     if (!mounted) return;
+    final rideSavedMessage = fitFile == null && gpxFile == null
+        ? 'Ride ended. No files written (no samples).'
+        : 'Ride saved. FIT: ${fitFile?.path ?? 'N/A'} GPX: ${gpxFile?.path ?? 'N/A'}';
+    final uploadMessage =
+        uploadResult.message == null ? '' : ' ${uploadResult.message}';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          fitPath == null && gpxPath == null
-              ? 'Ride ended. No files written (no samples).'
-              : 'Ride saved. FIT: ${fitPath ?? 'N/A'} GPX: ${gpxPath ?? 'N/A'}',
-        ),
+        content: Text('$rideSavedMessage$uploadMessage'),
       ),
     );
   }
@@ -595,7 +619,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return dt.toUtc().millisecondsSinceEpoch ~/ 1000 - _fitEpochOffsetSeconds;
   }
 
-  Future<String?> _writeFitFile() async {
+  Future<_ExportedRideFile?> _writeFitFile() async {
     if (_samples.isEmpty) return null;
 
     final encoder = Encode();
@@ -681,11 +705,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return _writeExportFile(
       fileName: fileName,
       mimeType: 'application/octet-stream',
-      bytes: fitBytes,
+      bytes: Uint8List.fromList(fitBytes),
     );
   }
 
-  Future<String?> _writeGpxFile() async {
+  Future<_ExportedRideFile?> _writeGpxFile() async {
     if (_samples.isEmpty) return null;
 
     final start = _samples.first.timestamp;
@@ -720,23 +744,28 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<String> _writeExportFile({
+  Future<_ExportedRideFile> _writeExportFile({
     required String fileName,
     required String mimeType,
-    required List<int> bytes,
+    required Uint8List bytes,
   }) async {
+    String? uriOrPath;
     if (!kIsWeb && io.Platform.isAndroid) {
       try {
-        final uriOrPath = await _fileExportChannel.invokeMethod<String>(
+        uriOrPath = await _fileExportChannel.invokeMethod<String>(
           'saveToDownloads',
           <String, Object>{
             'fileName': fileName,
             'mimeType': mimeType,
-            'bytes': Uint8List.fromList(bytes),
+            'bytes': bytes,
           },
         );
         if (uriOrPath != null && uriOrPath.isNotEmpty) {
-          return uriOrPath;
+          return _ExportedRideFile(
+            fileName: fileName,
+            path: uriOrPath,
+            bytes: bytes,
+          );
         }
       } catch (_) {
         // Fall back to app document directory.
@@ -746,7 +775,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await docsDir.create(recursive: true);
     final file = io.File('${docsDir.path}/$fileName');
     await file.writeAsBytes(bytes, flush: true);
-    return file.path;
+    return _ExportedRideFile(fileName: fileName, path: file.path, bytes: bytes);
   }
 
   String _formatDuration(Duration? d) {
