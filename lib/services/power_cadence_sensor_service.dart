@@ -150,6 +150,7 @@ class PowerCadenceSensorService {
       await _scanSubscription?.cancel();
       _scanSubscription = _bleInstance
           .scanForDevices(
+            withServices: const <Uuid>[],
             scanMode: ScanMode.lowLatency,
           )
           .listen((device) {
