@@ -695,7 +695,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final buffer = StringBuffer()
       ..writeln('<?xml version="1.0" encoding="UTF-8"?>')
       ..writeln(
-        '<gpx version="1.1" creator="simple-bike-display" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1" xmlns:sbd="https://simple-bike-display.dev/xmlschemas/TrackPointQuality/v1">',
+        '<gpx version="1.1" creator="sebastians-bike-display" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1" xmlns:sbd="https://sebastians-bike-display.dev/xmlschemas/TrackPointQuality/v1">',
       )
       ..writeln('<metadata><time>${start.toUtc().toIso8601String()}</time></metadata>')
       ..writeln('<trk><name>Ride ${start.toIso8601String()}</name><trkseg>');
