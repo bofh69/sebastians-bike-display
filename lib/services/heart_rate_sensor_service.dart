@@ -411,20 +411,6 @@ class HeartRateSensorService {
         );
       }
 
-      Future<void> _ensureBluetoothPermissions() async {
-        if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-          return;
-        }
-        final statuses = await <Permission>[
-          Permission.bluetoothScan,
-          Permission.bluetoothConnect,
-        ].request();
-        final hasAllPermissions = statuses.values.every((status) => status.isGranted);
-        if (!hasAllPermissions) {
-          throw const _HeartRateSensorException('Bluetooth permission is required.');
-        }
-      }
-
       if (status == BleStatus.ready) {
         return;
       }
@@ -434,6 +420,20 @@ class HeartRateSensorService {
       throw const _HeartRateSensorException('Bluetooth is unavailable on this device.');
     } on MissingPluginException {
       throw const _HeartRateSensorException('Bluetooth is unavailable on this device.');
+    }
+  }
+
+  Future<void> _ensureBluetoothPermissions() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return;
+    }
+    final statuses = await <Permission>[
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+    ].request();
+    final hasAllPermissions = statuses.values.every((status) => status.isGranted);
+    if (!hasAllPermissions) {
+      throw const _HeartRateSensorException('Bluetooth permission is required.');
     }
   }
 
