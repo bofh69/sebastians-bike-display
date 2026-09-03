@@ -8,6 +8,7 @@ the ride.
 Finished rides can be uploaded to Strava automatically.
 
 1. Create a Strava API application and note its client ID and client secret.
+   Configure the callback URL as `simplebikedisplay://strava-auth`.
 2. In the app configuration screen, enter those credentials.
 3. Connect the Strava account that should receive uploads.
 4. Enable automatic uploads for finished rides.
