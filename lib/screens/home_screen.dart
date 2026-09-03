@@ -43,7 +43,9 @@ class _RideSample {
   final DateTime timestamp;
   final double? latitude;
   final double? longitude;
+  final double? altitudeMeters;
   final double? power;
+  final double? cadence;
   final double? heartRate;
   final double distanceMeters;
   final double speedMps;
@@ -52,7 +54,9 @@ class _RideSample {
     required this.timestamp,
     required this.latitude,
     required this.longitude,
+    required this.altitudeMeters,
     required this.power,
+    required this.cadence,
     required this.heartRate,
     required this.distanceMeters,
     required this.speedMps,
@@ -310,7 +314,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         timestamp: now,
         latitude: _latestPosition?.latitude,
         longitude: _latestPosition?.longitude,
+        altitudeMeters: _latestPosition?.altitude,
         power: _data.power3s,
+        cadence: _data.cadence,
         heartRate: _data.heartRate,
         distanceMeters: (_data.distance ?? 0) * 1000,
         speedMps: (_data.speed ?? 0) / 3.6,
@@ -350,7 +356,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           throw Exception('Unable to start ride tracking service.');
         }
         _backgroundService.invoke('setAsForeground');
-        await WakelockPlus.enable();
       } catch (error, stackTrace) {
         debugPrint('Failed to start ride tracking service: $error\n$stackTrace');
         if (!mounted) return;
@@ -360,6 +365,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         );
         return;
+      }
+    }
+    if (_isMobileTrackingPlatform) {
+      try {
+        await WakelockPlus.enable();
+      } catch (error, stackTrace) {
+        debugPrint('Failed to enable wakelock: $error\n$stackTrace');
       }
     }
 
@@ -453,6 +465,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (sample.heartRate != null) {
         record.setFieldValue(3, sample.heartRate!.round());
       }
+      if (sample.cadence != null) {
+        record.setFieldValue(4, sample.cadence!.round());
+      }
+      if (sample.altitudeMeters != null && sample.altitudeMeters!.isFinite) {
+        record.setFieldValue(2, sample.altitudeMeters);
+      }
       if (sample.power != null) {
         record.setFieldValue(7, sample.power!.round());
       }
@@ -513,7 +531,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final buffer = StringBuffer()
       ..writeln('<?xml version="1.0" encoding="UTF-8"?>')
       ..writeln(
-        '<gpx version="1.1" creator="simple-bike-display" xmlns="http://www.topografix.com/GPX/1/1">',
+        '<gpx version="1.1" creator="simple-bike-display" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1">',
       )
       ..writeln('<metadata><time>${start.toUtc().toIso8601String()}</time></metadata>')
       ..writeln('<trk><name>Ride ${start.toIso8601String()}</name><trkseg>');
@@ -522,8 +540,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (sample.latitude == null || sample.longitude == null) {
         continue;
       }
+      final altitude = sample.altitudeMeters;
+      final hasAltitude = altitude != null && altitude.isFinite;
       buffer.writeln(
-        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}"><time>${sample.timestamp.toUtc().toIso8601String()}</time><cmt>speed_kmh=${(sample.speedMps * 3.6).toStringAsFixed(1)} distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}</cmt></trkpt>',
+        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}">${hasAltitude ? '<ele>${altitude.toStringAsFixed(1)}</ele>' : ''}<time>${sample.timestamp.toUtc().toIso8601String()}</time><cmt>speed_kmh=${(sample.speedMps * 3.6).toStringAsFixed(1)} distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}</cmt><extensions><gpxtpx:TrackPointExtension>${sample.heartRate != null ? '<gpxtpx:hr>${sample.heartRate!.round()}</gpxtpx:hr>' : ''}${sample.cadence != null ? '<gpxtpx:cad>${sample.cadence!.round()}</gpxtpx:cad>' : ''}<gpxtpx:speed>${sample.speedMps.toStringAsFixed(2)}</gpxtpx:speed></gpxtpx:TrackPointExtension></extensions></trkpt>',
       );
     }
 
