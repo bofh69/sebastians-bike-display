@@ -16,7 +16,6 @@ final Uuid _cyclingSpeedCadenceServiceUuid = Uuid.parse('1816');
 final Uuid _cscMeasurementUuid = Uuid.parse('2A5B');
 final Uuid _batteryServiceUuid = Uuid.parse('180F');
 final Uuid _batteryLevelUuid = Uuid.parse('2A19');
-const Duration _powerCadenceReconnectDelay = Duration(seconds: 15);
 
 ({double leftBalance, double rightBalance}) parsePowerBalance({
   required int flags,
@@ -133,7 +132,6 @@ class PowerCadenceSensorService {
   StreamSubscription<List<int>>? _batterySubscription;
   Timer? _powerStaleTimer;
   Timer? _cadenceStaleTimer;
-  Timer? _reconnectTimer;
   bool _initialized = false;
   bool _connectingToSavedDevice = false;
   Future<void>? _initializationFuture;
@@ -163,15 +161,12 @@ class PowerCadenceSensorService {
 
     final savedDeviceId = state.value.deviceId;
     if (savedDeviceId != null && savedDeviceId.isNotEmpty) {
-      _ensureReconnectTimer();
       unawaited(_connectToSavedDevice());
     }
   }
 
   Future<List<PowerCadenceDiscoveredDevice>> scanForDevices() async {
     await initialize();
-    _reconnectTimer?.cancel();
-    _reconnectTimer = null;
     _setState(
       state.value.copyWith(
         isScanning: true,
@@ -264,7 +259,6 @@ class PowerCadenceSensorService {
       await _scanSubscription?.cancel();
       _scanSubscription = null;
       _setState(state.value.copyWith(isScanning: false));
-      _ensureReconnectTimer();
     }
   }
 
@@ -280,7 +274,6 @@ class PowerCadenceSensorService {
       ),
     );
 
-    _ensureReconnectTimer();
     await _disconnectCurrentDevice();
     await _connectToDeviceId(discoveredDevice.id, reconnecting: false);
   }
@@ -371,12 +364,6 @@ class PowerCadenceSensorService {
                 update.connectionState == DeviceConnectionState.connected;
             final isConnecting =
                 update.connectionState == DeviceConnectionState.connecting;
-            if (isConnected) {
-              _reconnectTimer?.cancel();
-              _reconnectTimer = null;
-            } else {
-              _ensureReconnectTimer();
-            }
             _setState(
               state.value.copyWith(
                 isConnected: isConnected,
@@ -402,7 +389,6 @@ class PowerCadenceSensorService {
                   rightBalance: null,
                 ),
               );
-              _ensureReconnectTimer();
             }
           }, onError: (Object error) {
             _setState(
@@ -415,7 +401,6 @@ class PowerCadenceSensorService {
                 ),
               ),
             );
-            _ensureReconnectTimer();
           });
     } on _PowerCadenceSensorException catch (error) {
       _setState(
@@ -426,7 +411,6 @@ class PowerCadenceSensorService {
         ),
       );
       _deviceId = null;
-      _ensureReconnectTimer();
     }
   }
 
@@ -527,8 +511,7 @@ class PowerCadenceSensorService {
   }
 
   Future<void> _disconnectCurrentDevice() async {
-    _reconnectTimer?.cancel();
-    _reconnectTimer = null;
+    SavedSensorReconnectCoordinator.instance.unregister(powerCadenceReconnectKey);
     await _scanSubscription?.cancel();
     _scanSubscription = null;
     await _cancelCharacteristicSubscriptions();
@@ -735,26 +718,20 @@ class PowerCadenceSensorService {
 
   void _setState(PowerCadenceSensorState nextState) {
     state.value = nextState;
-  }
-
-  void _ensureReconnectTimer() {
-    if (_reconnectTimer != null) return;
-    _reconnectTimer = Timer.periodic(_powerCadenceReconnectDelay, (_) {
-      final currentState = state.value;
-      if (!shouldRetrySavedSensorConnection(
-        deviceId: currentState.deviceId,
-        isConnected: currentState.isConnected,
-        isConnecting: currentState.isConnecting,
-        isScanning: currentState.isScanning,
-      )) {
-        if (currentState.isConnected) {
-          _reconnectTimer?.cancel();
-          _reconnectTimer = null;
-        }
-        return;
-      }
-      unawaited(_connectToSavedDevice());
-    });
+    final currentState = state.value;
+    if (shouldRetrySavedSensorConnection(
+      deviceId: currentState.deviceId,
+      isConnected: currentState.isConnected,
+      isConnecting: currentState.isConnecting,
+      isScanning: currentState.isScanning,
+    )) {
+      SavedSensorReconnectCoordinator.instance.register(
+        powerCadenceReconnectKey,
+        _connectToSavedDevice,
+      );
+      return;
+    }
+    SavedSensorReconnectCoordinator.instance.unregister(powerCadenceReconnectKey);
   }
 
   String _statusMessage(BleStatus status) {

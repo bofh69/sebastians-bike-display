@@ -14,7 +14,6 @@ final Uuid _heartRateServiceUuid = Uuid.parse('180D');
 final Uuid _heartRateMeasurementUuid = Uuid.parse('2A37');
 final Uuid _batteryServiceUuid = Uuid.parse('180F');
 final Uuid _batteryLevelUuid = Uuid.parse('2A19');
-const Duration _heartRateReconnectDelay = Duration(seconds: 15);
 
 class HeartRateDiscoveredDevice {
   const HeartRateDiscoveredDevice({
@@ -95,7 +94,6 @@ class HeartRateSensorService {
   StreamSubscription<List<int>>? _heartRateSubscription;
   StreamSubscription<List<int>>? _batterySubscription;
   Timer? _heartRateStaleTimer;
-  Timer? _reconnectTimer;
   bool _initialized = false;
   bool _connectingToSavedDevice = false;
   Future<void>? _initializationFuture;
@@ -121,15 +119,12 @@ class HeartRateSensorService {
 
     final savedDeviceId = state.value.deviceId;
     if (savedDeviceId != null && savedDeviceId.isNotEmpty) {
-      _ensureReconnectTimer();
       unawaited(_connectToSavedDevice());
     }
   }
 
   Future<List<HeartRateDiscoveredDevice>> scanForDevices() async {
     await initialize();
-    _reconnectTimer?.cancel();
-    _reconnectTimer = null;
     _setState(
       state.value.copyWith(
         isScanning: true,
@@ -219,7 +214,6 @@ class HeartRateSensorService {
       await _scanSubscription?.cancel();
       _scanSubscription = null;
       _setState(state.value.copyWith(isScanning: false));
-      _ensureReconnectTimer();
     }
   }
 
@@ -235,7 +229,6 @@ class HeartRateSensorService {
       ),
     );
 
-    _ensureReconnectTimer();
     await _disconnectCurrentDevice();
     await _connectToDeviceId(discoveredDevice.id, reconnecting: false);
   }
@@ -318,12 +311,6 @@ class HeartRateSensorService {
             update.connectionState == DeviceConnectionState.connected;
         final isConnecting =
             update.connectionState == DeviceConnectionState.connecting;
-        if (isConnected) {
-          _reconnectTimer?.cancel();
-          _reconnectTimer = null;
-        } else {
-          _ensureReconnectTimer();
-        }
         _setState(
           state.value.copyWith(
             isConnected: isConnected,
@@ -337,7 +324,6 @@ class HeartRateSensorService {
         } else if (update.connectionState == DeviceConnectionState.disconnected) {
           unawaited(_cancelCharacteristicSubscriptions());
           _setState(state.value.copyWith(batteryLevel: null, heartRate: null));
-          _ensureReconnectTimer();
         }
       }, onError: (Object error) {
         _setState(
@@ -350,7 +336,6 @@ class HeartRateSensorService {
             ),
           ),
         );
-        _ensureReconnectTimer();
       });
     } on _HeartRateSensorException catch (error) {
       _setState(
@@ -361,7 +346,6 @@ class HeartRateSensorService {
         ),
       );
       _deviceId = null;
-      _ensureReconnectTimer();
     }
   }
 
@@ -456,8 +440,7 @@ class HeartRateSensorService {
   }
 
   Future<void> _disconnectCurrentDevice() async {
-    _reconnectTimer?.cancel();
-    _reconnectTimer = null;
+    SavedSensorReconnectCoordinator.instance.unregister(heartRateReconnectKey);
     await _scanSubscription?.cancel();
     _scanSubscription = null;
     await _cancelCharacteristicSubscriptions();
@@ -523,26 +506,20 @@ class HeartRateSensorService {
 
   void _setState(HeartRateSensorState nextState) {
     state.value = nextState;
-  }
-
-  void _ensureReconnectTimer() {
-    if (_reconnectTimer != null) return;
-    _reconnectTimer = Timer.periodic(_heartRateReconnectDelay, (_) {
-      final currentState = state.value;
-      if (!shouldRetrySavedSensorConnection(
-        deviceId: currentState.deviceId,
-        isConnected: currentState.isConnected,
-        isConnecting: currentState.isConnecting,
-        isScanning: currentState.isScanning,
-      )) {
-        if (currentState.isConnected) {
-          _reconnectTimer?.cancel();
-          _reconnectTimer = null;
-        }
-        return;
-      }
-      unawaited(_connectToSavedDevice());
-    });
+    final currentState = state.value;
+    if (shouldRetrySavedSensorConnection(
+      deviceId: currentState.deviceId,
+      isConnected: currentState.isConnected,
+      isConnecting: currentState.isConnecting,
+      isScanning: currentState.isScanning,
+    )) {
+      SavedSensorReconnectCoordinator.instance.register(
+        heartRateReconnectKey,
+        _connectToSavedDevice,
+      );
+      return;
+    }
+    SavedSensorReconnectCoordinator.instance.unregister(heartRateReconnectKey);
   }
 
   String _statusMessage(BleStatus status) {

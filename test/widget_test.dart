@@ -87,6 +87,20 @@ void main() {
     );
   });
 
+  test('SavedSensorReconnectCoordinator alternates between sensors', () {
+    final coordinator = SavedSensorReconnectCoordinator(autoStartTimer: false);
+
+    coordinator.register(heartRateReconnectKey, () async {});
+    coordinator.register(powerCadenceReconnectKey, () async {});
+
+    expect(coordinator.takeNextTurn(), heartRateReconnectKey);
+    expect(coordinator.takeNextTurn(), powerCadenceReconnectKey);
+    expect(coordinator.takeNextTurn(), heartRateReconnectKey);
+
+    coordinator.unregister(heartRateReconnectKey);
+    coordinator.unregister(powerCadenceReconnectKey);
+  });
+
   testWidgets('Home screen shows Start button', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
     expect(find.text('Start'), findsOneWidget);
