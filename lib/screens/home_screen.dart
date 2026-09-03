@@ -22,6 +22,8 @@ import '../widgets/metric_tile.dart';
 import '../widgets/power_bar.dart';
 
 const int _fitEpochOffsetSeconds = 631065600;
+const int _fitSportCycling = 2;
+const int _fitActivityTypeManual = 0;
 
 @pragma('vm:entry-point')
 void rideBackgroundServiceStart(ServiceInstance service) {
@@ -483,10 +485,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final session = Mesg.fromMesgNum(MesgNum.session)
       ..setFieldValue(253, _fitTimestamp(end))
       ..setFieldValue(2, _fitTimestamp(start))
+      ..setFieldValue(5, _fitSportCycling)
       ..setFieldValue(7, elapsedSeconds.toDouble())
       ..setFieldValue(8, elapsedSeconds.toDouble())
-      ..setFieldValue(9, totalDistance)
-      ..setFieldValue(16, 2);
+      ..setFieldValue(9, totalDistance);
     final sessionDef = MesgDefinition.fromMesg(session);
     encoder.writeMesgDefinition(sessionDef);
     encoder.writeMesg(session);
@@ -497,17 +499,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ..setFieldValue(7, elapsedSeconds.toDouble())
       ..setFieldValue(8, elapsedSeconds.toDouble())
       ..setFieldValue(9, totalDistance)
-      ..setFieldValue(16, 0);
+      ..setFieldValue(25, _fitSportCycling);
     final lapDef = MesgDefinition.fromMesg(lap);
     encoder.writeMesgDefinition(lapDef);
     encoder.writeMesg(lap);
 
     final activity = Mesg.fromMesgNum(MesgNum.activity)
       ..setFieldValue(253, _fitTimestamp(end))
-      ..setFieldValue(0, totalDistance)
-      ..setFieldValue(1, elapsedSeconds)
-      ..setFieldValue(2, 1)
-      ..setFieldValue(3, 0);
+      ..setFieldValue(0, elapsedSeconds)
+      ..setFieldValue(1, 1)
+      ..setFieldValue(2, _fitActivityTypeManual);
     final activityDef = MesgDefinition.fromMesg(activity);
     encoder.writeMesgDefinition(activityDef);
     encoder.writeMesg(activity);
@@ -543,7 +544,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final altitude = sample.altitudeMeters;
       final hasAltitude = altitude != null && altitude.isFinite;
       buffer.writeln(
-        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}">${hasAltitude ? '<ele>${altitude.toStringAsFixed(1)}</ele>' : ''}<time>${sample.timestamp.toUtc().toIso8601String()}</time><cmt>speed_kmh=${(sample.speedMps * 3.6).toStringAsFixed(1)} distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}</cmt><extensions><gpxtpx:TrackPointExtension>${sample.heartRate != null ? '<gpxtpx:hr>${sample.heartRate!.round()}</gpxtpx:hr>' : ''}${sample.cadence != null ? '<gpxtpx:cad>${sample.cadence!.round()}</gpxtpx:cad>' : ''}<gpxtpx:speed>${sample.speedMps.toStringAsFixed(2)}</gpxtpx:speed></gpxtpx:TrackPointExtension></extensions></trkpt>',
+        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}">${hasAltitude ? '<ele>${altitude.toStringAsFixed(1)}</ele>' : ''}<time>${sample.timestamp.toUtc().toIso8601String()}</time><cmt>distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}</cmt><extensions><gpxtpx:TrackPointExtension>${sample.heartRate != null ? '<gpxtpx:hr>${sample.heartRate!.round()}</gpxtpx:hr>' : ''}${sample.cadence != null ? '<gpxtpx:cad>${sample.cadence!.round()}</gpxtpx:cad>' : ''}<gpxtpx:speed>${sample.speedMps.toStringAsFixed(2)}</gpxtpx:speed></gpxtpx:TrackPointExtension></extensions></trkpt>',
       );
     }
 
