@@ -16,6 +16,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/bike_data.dart';
 import '../models/rolling_average.dart';
+import '../models/time_window_average.dart';
 import '../services/heart_rate_sensor_service.dart';
 import '../services/power_cadence_sensor_service.dart';
 import '../widgets/metric_tile.dart';
@@ -24,6 +25,68 @@ import '../widgets/power_bar.dart';
 const int _fitEpochOffsetSeconds = 631065600;
 const int _fitSportCycling = 2;
 const int _fitActivityTypeManual = 0;
+const double _minimumPowerForBalanceAverageWatts = 10;
+const double _climbAltitudeSmoothingFactor = 0.25;
+const double _minimumClimbGainMeters = 0.75;
+
+String formatPowerBalance(double? leftBalance, double? rightBalance) {
+  if (leftBalance == null || rightBalance == null) return 'N/A';
+
+  String formatSide(double value) {
+    return value == value.roundToDouble()
+        ? value.toStringAsFixed(0)
+        : value.toStringAsFixed(1);
+  }
+
+  return '${formatSide(leftBalance)}/${formatSide(rightBalance)}';
+}
+
+bool shouldAccumulatePowerBalanceSample({
+  required bool isConnected,
+  required double? power,
+  required double? leftBalance,
+  required double? rightBalance,
+}) {
+  return isConnected &&
+      (power ?? 0) >= _minimumPowerForBalanceAverageWatts &&
+      leftBalance != null &&
+      rightBalance != null;
+}
+
+({
+  double filteredAltitude,
+  double climbReferenceAltitude,
+  double additionalClimb,
+}) updateClimbTracking({
+  required double? previousFilteredAltitude,
+  required double? previousClimbReferenceAltitude,
+  required double currentAltitude,
+}) {
+  final filteredAltitude = previousFilteredAltitude == null
+      ? currentAltitude
+      : previousFilteredAltitude +
+          (currentAltitude - previousFilteredAltitude) *
+              _climbAltitudeSmoothingFactor;
+  var climbReferenceAltitude =
+      previousClimbReferenceAltitude ?? filteredAltitude;
+  var additionalClimb = 0.0;
+
+  if (filteredAltitude < climbReferenceAltitude) {
+    climbReferenceAltitude = filteredAltitude;
+  } else {
+    final climbGain = filteredAltitude - climbReferenceAltitude;
+    if (climbGain >= _minimumClimbGainMeters) {
+      additionalClimb = climbGain;
+      climbReferenceAltitude = filteredAltitude;
+    }
+  }
+
+  return (
+    filteredAltitude: filteredAltitude,
+    climbReferenceAltitude: climbReferenceAltitude,
+    additionalClimb: additionalClimb,
+  );
+}
 
 @pragma('vm:entry-point')
 void rideBackgroundServiceStart(ServiceInstance service) {
@@ -76,14 +139,13 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen> {
   static const MethodChannel _fileExportChannel = MethodChannel(
     'simple_bike_display/file_export',
   );
   bool _isRunning = false;
   bool _serviceConfigured = false;
   Future<void>? _backgroundServiceConfigurationFuture;
-  bool _isAppInBackground = false;
   int _ftp = 200;
   final BikeData _data = BikeData();
   final List<_RideSample> _samples = [];
@@ -93,6 +155,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       PowerCadenceSensorService.instance;
   final RollingAverage _power3sAverage = RollingAverage(windowSize: 3);
   final RollingAverage _power20MinAverage = RollingAverage(windowSize: 20 * 60);
+  final TimeWindowAverage _leftBalanceAverage =
+      TimeWindowAverage(window: const Duration(minutes: 1));
+  final TimeWindowAverage _rightBalanceAverage =
+      TimeWindowAverage(window: const Duration(minutes: 1));
   double _currentPowerWatts = 0;
 
   final FlutterBackgroundService _backgroundService = FlutterBackgroundService();
@@ -105,6 +171,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   double? _lastAcceptedBearingDegrees;
   double _smoothedSpeedMps = 0;
   Position? _latestPosition;
+  double? _filteredAltitudeForClimb;
+  double? _climbReferenceAltitude;
 
   bool get _isMobileTrackingPlatform =>
       !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
@@ -113,7 +181,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _loadPreferences();
     if (_supportsBackgroundRideService) {
       unawaited(_preconfigureBackgroundService());
@@ -126,16 +193,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    _isAppInBackground = state != AppLifecycleState.resumed;
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _positionSubscription?.cancel();
     _recordingTimer?.cancel();
     _heartRateSensorService.state.removeListener(_syncHeartRateData);
@@ -161,13 +219,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _syncPowerCadenceData() {
     if (!mounted) return;
     final powerState = _powerCadenceSensorService.state.value;
+    final isConnected = powerState.isConnected;
     final power = powerState.power;
     final cadence = powerState.cadence;
-    final leftBalance = powerState.leftBalance;
-    final rightBalance = powerState.rightBalance;
+    var leftBalance = powerState.leftBalance;
+    var rightBalance = powerState.rightBalance;
     final double normalizedPower = power ?? 0.0;
     _currentPowerWatts = normalizedPower;
-    final double? displayedPower3s = _isRunning
+    if (!isConnected) {
+      _leftBalanceAverage.clear();
+      _rightBalanceAverage.clear();
+      leftBalance = null;
+      rightBalance = null;
+    } else if (shouldAccumulatePowerBalanceSample(
+      isConnected: isConnected,
+      power: power,
+      leftBalance: leftBalance,
+      rightBalance: rightBalance,
+    )) {
+      final now = DateTime.now();
+      final currentLeftBalance = leftBalance!;
+      final currentRightBalance = rightBalance!;
+      leftBalance = _leftBalanceAverage.add(now, currentLeftBalance);
+      rightBalance = _rightBalanceAverage.add(now, currentRightBalance);
+    } else {
+      leftBalance = _leftBalanceAverage.average;
+      rightBalance = _rightBalanceAverage.average;
+    }
+    final double? displayedPower3s = !isConnected
+        ? null
+        : _isRunning
         ? _data.power3s
         : (normalizedPower > 0 ? normalizedPower : 0.0);
     if (_data.power3s == displayedPower3s &&
@@ -280,6 +361,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _lastAcceptedTimestamp = now;
       _lastAcceptedBearingDegrees = null;
       _smoothedSpeedMps = 0;
+      if (_isRunning && position.altitude.isFinite) {
+        _filteredAltitudeForClimb = position.altitude;
+        _climbReferenceAltitude = position.altitude;
+      }
       if (mounted) {
         setState(() {
           _data.speed = 0;
@@ -333,11 +418,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       rawSpeedMps: rawSpeedMps,
       deltaSeconds: deltaSeconds,
     );
+    final currentAltitude = position.altitude;
+    var additionalClimb = 0.0;
+    if (_isRunning && currentAltitude.isFinite) {
+      final climbUpdate = updateClimbTracking(
+        previousFilteredAltitude: _filteredAltitudeForClimb,
+        previousClimbReferenceAltitude: _climbReferenceAltitude,
+        currentAltitude: currentAltitude,
+      );
+      _filteredAltitudeForClimb = climbUpdate.filteredAltitude;
+      _climbReferenceAltitude = climbUpdate.climbReferenceAltitude;
+      additionalClimb = climbUpdate.additionalClimb;
+    }
     if (mounted) {
       setState(() {
         _data.speed = _smoothedSpeedMps * 3.6;
         if (_isRunning) {
           _data.distance = (_data.distance ?? 0) + distanceMeters / 1000;
+          if (additionalClimb > 0) {
+            _data.totalClimb = (_data.totalClimb ?? 0) + additionalClimb;
+          }
           final durationSeconds =
               DateTime.now().difference(_startTime ?? DateTime.now()).inSeconds;
           if (durationSeconds > 0) {
@@ -353,7 +453,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final now = DateTime.now();
     final startTime = _startTime;
     if (startTime == null) return;
-
     setState(() {
       _data.duration = now.difference(startTime);
       _data.power3s = _power3sAverage.add(_currentPowerWatts);
@@ -436,12 +535,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _data.speed = 0;
       _data.power3s = 0;
       _data.power20min = 0;
+      _data.totalClimb = 0;
       _startTime = DateTime.now();
       _samples.clear();
       _lastAcceptedPosition = null;
       _lastAcceptedTimestamp = null;
       _lastAcceptedBearingDegrees = null;
       _smoothedSpeedMps = 0;
+      _filteredAltitudeForClimb = null;
+      _climbReferenceAltitude = null;
+      _leftBalanceAverage.clear();
+      _rightBalanceAverage.clear();
       _power3sAverage.reset();
       _power20MinAverage.reset();
     });
@@ -499,7 +603,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     final start = _samples.first.timestamp;
     final end = _samples.last.timestamp;
-    final totalDistance = _samples.last.distanceMeters;
     final elapsedSeconds = end.difference(start).inSeconds.clamp(1, 1 << 30);
 
     final fileId = Mesg.fromMesgNum(MesgNum.fileId)
@@ -514,9 +617,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     for (final sample in _samples) {
       final record = Mesg.fromMesgNum(MesgNum.record)
-        ..setFieldValue(253, _fitTimestamp(sample.timestamp))
-        ..setFieldValue(5, sample.distanceMeters)
-        ..setFieldValue(6, sample.speedMps);
+        ..setFieldValue(253, _fitTimestamp(sample.timestamp));
 
       if (sample.latitude != null) {
         record.setFieldValue(0, (sample.latitude! * 11930464.7111).round());
@@ -550,8 +651,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ..setFieldValue(2, _fitTimestamp(start))
       ..setFieldValue(5, _fitSportCycling)
       ..setFieldValue(7, elapsedSeconds.toDouble())
-      ..setFieldValue(8, elapsedSeconds.toDouble())
-      ..setFieldValue(9, totalDistance);
+      ..setFieldValue(8, elapsedSeconds.toDouble());
     final sessionDef = MesgDefinition.fromMesg(session);
     encoder.writeMesgDefinition(sessionDef);
     encoder.writeMesg(session);
@@ -561,7 +661,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ..setFieldValue(2, _fitTimestamp(start))
       ..setFieldValue(7, elapsedSeconds.toDouble())
       ..setFieldValue(8, elapsedSeconds.toDouble())
-      ..setFieldValue(9, totalDistance)
       ..setFieldValue(25, _fitSportCycling);
     final lapDef = MesgDefinition.fromMesg(lap);
     encoder.writeMesgDefinition(lapDef);
@@ -659,9 +758,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   String _formatBalance() {
-    if (_data.leftBalance == null || _data.rightBalance == null) return 'N/A';
-    return '${_data.leftBalance!.toStringAsFixed(0)}/${_data.rightBalance!.toStringAsFixed(0)}';
+    return formatPowerBalance(_data.leftBalance, _data.rightBalance);
   }
+
+  bool get _isPowerSensorConnected => _powerCadenceSensorService.state.value.isConnected;
 
   bool get _hasReliableGpsForSpeed {
     final latest = _latestPosition;
@@ -749,24 +849,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            if (_isRunning)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: colorScheme.tertiaryContainer,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _supportsBackgroundRideService
-                      ? (_isAppInBackground
-                          ? 'Recording continues while app is in background.'
-                          : 'Recording active (background tracking enabled).')
-                      : 'Recording active.',
-                  style: TextStyle(color: colorScheme.onTertiaryContainer),
-                ),
-              ),
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
@@ -775,7 +857,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               children: [
                 MetricTile(
                   title: 'Power (3s)',
-                  value: _data.power3s?.toStringAsFixed(0) ?? 'N/A',
+                  value: _isPowerSensorConnected
+                      ? (_data.power3s?.toStringAsFixed(0) ?? 'N/A')
+                      : 'N/A',
                   unit: 'W',
                 ),
                 MetricTile(
@@ -789,9 +873,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   unit: 'bpm',
                 ),
                 MetricTile(
-                  title: 'Distance',
-                  value: _data.distance?.toStringAsFixed(2) ?? 'N/A',
-                  unit: 'km',
+                  title: 'Speed',
+                  value: _data.speed?.toStringAsFixed(1) ?? 'N/A',
+                  unit: 'km/h',
+                  valueColor:
+                      _hasReliableGpsForSpeed ? null : Theme.of(context).colorScheme.error,
                 ),
                 MetricTile(
                   title: 'Duration',
@@ -799,11 +885,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   unit: '',
                 ),
                 MetricTile(
-                  title: 'Speed',
-                  value: _data.speed?.toStringAsFixed(1) ?? 'N/A',
-                  unit: 'km/h',
-                  valueColor:
-                      _hasReliableGpsForSpeed ? null : Theme.of(context).colorScheme.error,
+                  title: 'Distance',
+                  value: _data.distance?.toStringAsFixed(2) ?? 'N/A',
+                  unit: 'km',
                 ),
                 MetricTile(
                   title: 'L/R Balance',
@@ -817,13 +901,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
                 MetricTile(
                   title: 'Power (20 min)',
-                  value: _data.power20min?.toStringAsFixed(0) ?? 'N/A',
+                  value: _isPowerSensorConnected
+                      ? (_data.power20min?.toStringAsFixed(0) ?? 'N/A')
+                      : 'N/A',
                   unit: 'W',
+                ),
+                MetricTile(
+                  title: 'Total Climb',
+                  value: _data.totalClimb?.toStringAsFixed(0) ?? 'N/A',
+                  unit: 'm',
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            PowerBar(power: _data.power3s, ftp: _ftp.toDouble()),
+            PowerBar(
+              power: _isPowerSensorConnected ? _data.power3s : null,
+              ftp: _ftp.toDouble(),
+            ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,

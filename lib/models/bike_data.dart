@@ -9,6 +9,7 @@ class BikeData {
   double? rightBalance;
   double? avgSpeed;
   double? power20min;
+  double? totalClimb = 0;
 
   BikeData();
 }

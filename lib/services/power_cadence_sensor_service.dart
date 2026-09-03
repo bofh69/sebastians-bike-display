@@ -6,6 +6,8 @@ import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'sensor_reconnect_policy.dart';
+
 const String _powerDeviceIdPrefKey = 'power_device_id';
 const String _powerDeviceNamePrefKey = 'power_device';
 final Uuid _cyclingPowerServiceUuid = Uuid.parse('1818');
@@ -14,6 +16,26 @@ final Uuid _cyclingSpeedCadenceServiceUuid = Uuid.parse('1816');
 final Uuid _cscMeasurementUuid = Uuid.parse('2A5B');
 final Uuid _batteryServiceUuid = Uuid.parse('180F');
 final Uuid _batteryLevelUuid = Uuid.parse('2A19');
+
+({double leftBalance, double rightBalance}) parsePowerBalance({
+  required int flags,
+  required int rawPedalBalance,
+}) {
+  final balancePercent = (rawPedalBalance / 2.0).clamp(0, 100).toDouble();
+  final isLeftReferenced = (flags & 0x0002) != 0;
+
+  if (isLeftReferenced) {
+    return (
+      leftBalance: balancePercent,
+      rightBalance: 100 - balancePercent,
+    );
+  }
+
+  return (
+    leftBalance: balancePercent,
+    rightBalance: 100 - balancePercent,
+  );
+}
 
 class PowerCadenceDiscoveredDevice {
   const PowerCadenceDiscoveredDevice({
@@ -113,6 +135,7 @@ class PowerCadenceSensorService {
   bool _initialized = false;
   bool _connectingToSavedDevice = false;
   Future<void>? _initializationFuture;
+  bool _hasConnectedSinceLastRetryReset = false;
   int? _lastPowerCrankRevolutions;
   int? _lastPowerCrankEventTime;
   int? _lastCscCrankRevolutions;
@@ -145,6 +168,10 @@ class PowerCadenceSensorService {
 
   Future<List<PowerCadenceDiscoveredDevice>> scanForDevices() async {
     await initialize();
+    SavedSensorReconnectCoordinator.instance.reset(
+      powerCadenceReconnectKey,
+      _connectToSavedDevice,
+    );
     _setState(
       state.value.copyWith(
         isScanning: true,
@@ -253,7 +280,7 @@ class PowerCadenceSensorService {
     );
 
     await _disconnectCurrentDevice();
-    await _connectToDeviceId(discoveredDevice.id);
+    await _connectToDeviceId(discoveredDevice.id, reconnecting: false);
   }
 
   Future<void> refreshBatteryLevel() async {
@@ -284,13 +311,16 @@ class PowerCadenceSensorService {
 
     _connectingToSavedDevice = true;
     try {
-      await _connectToDeviceId(savedDeviceId);
+      await _connectToDeviceId(savedDeviceId, reconnecting: true);
     } finally {
       _connectingToSavedDevice = false;
     }
   }
 
-  Future<void> _connectToDeviceId(String deviceId) async {
+  Future<void> _connectToDeviceId(
+    String deviceId, {
+    required bool reconnecting,
+  }) async {
     await _cancelCharacteristicSubscriptions();
     await _connectionSubscription?.cancel();
     _setState(
@@ -310,16 +340,38 @@ class PowerCadenceSensorService {
       await _ensureBluetoothPermissions();
       await _ensureBluetoothReady();
       _deviceId = deviceId;
-      _connectionSubscription = _bleInstance
-          .connectToDevice(
-            id: deviceId,
-            connectionTimeout: const Duration(seconds: 10),
-          )
+      _connectionSubscription = (reconnecting
+              ? _bleInstance.connectToAdvertisingDevice(
+                  id: deviceId,
+                  withServices: <Uuid>[
+                    _cyclingPowerServiceUuid,
+                    _cyclingSpeedCadenceServiceUuid,
+                  ],
+                  prescanDuration: const Duration(seconds: 5),
+                  servicesWithCharacteristicsToDiscover: <Uuid, List<Uuid>>{
+                    _cyclingPowerServiceUuid: <Uuid>[_cyclingPowerMeasurementUuid],
+                    _cyclingSpeedCadenceServiceUuid: <Uuid>[_cscMeasurementUuid],
+                    _batteryServiceUuid: <Uuid>[_batteryLevelUuid],
+                  },
+                  connectionTimeout: const Duration(seconds: 10),
+                )
+              : _bleInstance.connectToDevice(
+                  id: deviceId,
+                  servicesWithCharacteristicsToDiscover: <Uuid, List<Uuid>>{
+                    _cyclingPowerServiceUuid: <Uuid>[_cyclingPowerMeasurementUuid],
+                    _cyclingSpeedCadenceServiceUuid: <Uuid>[_cscMeasurementUuid],
+                    _batteryServiceUuid: <Uuid>[_batteryLevelUuid],
+                  },
+                  connectionTimeout: const Duration(seconds: 10),
+                ))
           .listen((update) {
             final isConnected =
                 update.connectionState == DeviceConnectionState.connected;
             final isConnecting =
                 update.connectionState == DeviceConnectionState.connecting;
+            if (isConnected) {
+              _hasConnectedSinceLastRetryReset = true;
+            }
             _setState(
               state.value.copyWith(
                 isConnected: isConnected,
@@ -345,6 +397,13 @@ class PowerCadenceSensorService {
                   rightBalance: null,
                 ),
               );
+              if (_hasConnectedSinceLastRetryReset) {
+                SavedSensorReconnectCoordinator.instance.reset(
+                  powerCadenceReconnectKey,
+                  _connectToSavedDevice,
+                );
+                _hasConnectedSinceLastRetryReset = false;
+              }
             }
           }, onError: (Object error) {
             _setState(
@@ -467,12 +526,14 @@ class PowerCadenceSensorService {
   }
 
   Future<void> _disconnectCurrentDevice() async {
+    SavedSensorReconnectCoordinator.instance.unregister(powerCadenceReconnectKey);
     await _scanSubscription?.cancel();
     _scanSubscription = null;
     await _cancelCharacteristicSubscriptions();
     await _connectionSubscription?.cancel();
     _connectionSubscription = null;
     _deviceId = null;
+    _hasConnectedSinceLastRetryReset = false;
     _lastPowerCrankRevolutions = null;
     _lastPowerCrankEventTime = null;
     _lastCscCrankRevolutions = null;
@@ -517,23 +578,19 @@ class PowerCadenceSensorService {
     final signedPower = rawPower >= 0x8000 ? rawPower - 0x10000 : rawPower;
     final power = signedPower < 0 ? 0.0 : signedPower.toDouble();
     var cadence = state.value.cadence;
-    var leftBalance = state.value.leftBalance;
-    var rightBalance = state.value.rightBalance;
+    double? leftBalance;
+    double? rightBalance;
     var hasCadenceUpdate = false;
 
     var offset = 4;
     if ((flags & 0x0001) != 0) {
       if (value.length >= offset + 1) {
-        final pedalBalanceRaw = value[offset];
-        final pedalBalancePercent = (pedalBalanceRaw & 0x7F) / 2.0;
-        final isRightReferenced = (flags & 0x0002) != 0;
-        if (isRightReferenced) {
-          rightBalance = pedalBalancePercent.clamp(0, 100).toDouble();
-          leftBalance = (100 - pedalBalancePercent).clamp(0, 100).toDouble();
-        } else {
-          leftBalance = pedalBalancePercent.clamp(0, 100).toDouble();
-          rightBalance = (100 - pedalBalancePercent).clamp(0, 100).toDouble();
-        }
+        final parsedBalance = parsePowerBalance(
+          flags: flags,
+          rawPedalBalance: value[offset],
+        );
+        leftBalance = parsedBalance.leftBalance;
+        rightBalance = parsedBalance.rightBalance;
       }
       offset += 1;
     }
@@ -677,6 +734,20 @@ class PowerCadenceSensorService {
 
   void _setState(PowerCadenceSensorState nextState) {
     state.value = nextState;
+    final currentState = state.value;
+    if (shouldRetrySavedSensorConnection(
+      deviceId: currentState.deviceId,
+      isConnected: currentState.isConnected,
+      isConnecting: currentState.isConnecting,
+      isScanning: currentState.isScanning,
+    )) {
+      SavedSensorReconnectCoordinator.instance.register(
+        powerCadenceReconnectKey,
+        _connectToSavedDevice,
+      );
+      return;
+    }
+    SavedSensorReconnectCoordinator.instance.unregister(powerCadenceReconnectKey);
   }
 
   String _statusMessage(BleStatus status) {
