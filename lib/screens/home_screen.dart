@@ -64,6 +64,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _isRunning = false;
   bool _serviceConfigured = false;
+  Future<void>? _backgroundServiceConfigurationFuture;
   bool _isAppInBackground = false;
   int _ftp = 200;
   final BikeData _data = BikeData();
@@ -91,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _loadPreferences();
     if (_isMobileTrackingPlatform) {
-      _configureBackgroundService();
+      unawaited(_configureBackgroundService());
     }
     unawaited(_heartRateSensorService.initialize());
     _heartRateSensorService.state.addListener(_syncHeartRateData);
@@ -155,22 +156,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _configureBackgroundService() async {
     if (_serviceConfigured) return;
-    await _backgroundService.configure(
-      androidConfiguration: AndroidConfiguration(
-        onStart: rideBackgroundServiceStart,
-        autoStart: false,
-        isForegroundMode: true,
-        notificationChannelId: 'ride_tracking',
-        initialNotificationTitle: 'Simple Bike Display',
-        initialNotificationContent: 'Ride recording active in background',
-        foregroundServiceNotificationId: 888,
-      ),
-      iosConfiguration: IosConfiguration(
-        autoStart: false,
-        onForeground: rideBackgroundServiceStart,
-      ),
-    );
-    _serviceConfigured = true;
+    _backgroundServiceConfigurationFuture ??=
+        _configureBackgroundServiceInternal();
+    await _backgroundServiceConfigurationFuture;
+  }
+
+  Future<void> _configureBackgroundServiceInternal() async {
+    try {
+      await _backgroundService.configure(
+        androidConfiguration: AndroidConfiguration(
+          onStart: rideBackgroundServiceStart,
+          autoStart: false,
+          isForegroundMode: true,
+          notificationChannelId: 'ride_tracking',
+          initialNotificationTitle: 'Simple Bike Display',
+          initialNotificationContent: 'Ride recording active in background',
+          foregroundServiceNotificationId: 888,
+        ),
+        iosConfiguration: IosConfiguration(
+          autoStart: false,
+          onForeground: rideBackgroundServiceStart,
+        ),
+      );
+      _serviceConfigured = true;
+    } finally {
+      _backgroundServiceConfigurationFuture = null;
+    }
   }
 
   Future<void> _startLocationStream() async {

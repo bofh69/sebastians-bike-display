@@ -98,6 +98,7 @@ class PowerCadenceSensorService {
   StreamSubscription<List<int>>? _powerSubscription;
   StreamSubscription<List<int>>? _cadenceSubscription;
   StreamSubscription<List<int>>? _batterySubscription;
+  Timer? _powerCadenceStaleTimer;
   bool _initialized = false;
   bool _connectingToSavedDevice = false;
   Future<void>? _initializationFuture;
@@ -464,6 +465,8 @@ class PowerCadenceSensorService {
     _powerSubscription = null;
     _cadenceSubscription = null;
     _batterySubscription = null;
+    _powerCadenceStaleTimer?.cancel();
+    _powerCadenceStaleTimer = null;
   }
 
   Future<StreamSubscription<List<int>>?> _subscribeToOptionalCharacteristic({
@@ -543,6 +546,7 @@ class PowerCadenceSensorService {
         cadence: cadence,
       ),
     );
+    _schedulePowerCadenceStaleTimer();
   }
 
   void _updateCyclingCadenceData(List<int> value) {
@@ -572,6 +576,7 @@ class PowerCadenceSensorService {
     if (cadence == null) return;
 
     _setState(state.value.copyWith(cadence: cadence));
+    _schedulePowerCadenceStaleTimer();
   }
 
   double? _calculateCadenceFromCrankData({
@@ -593,10 +598,23 @@ class PowerCadenceSensorService {
       deltaTime += 0x10000;
     }
 
-    if (deltaRevolutions <= 0 || deltaTime <= 0) return null;
+    if (deltaTime <= 0) return null;
+    if (deltaRevolutions <= 0) return 0;
     final cadence = (deltaRevolutions * 60 * 1024) / deltaTime;
     if (!cadence.isFinite) return null;
     return cadence < 0 ? 0 : cadence.toDouble();
+  }
+
+  void _schedulePowerCadenceStaleTimer() {
+    _powerCadenceStaleTimer?.cancel();
+    _powerCadenceStaleTimer = Timer(const Duration(seconds: 3), () {
+      final currentState = state.value;
+      if (!currentState.isConnected) return;
+      if ((currentState.power ?? 0) == 0 && (currentState.cadence ?? 0) == 0) {
+        return;
+      }
+      _setState(currentState.copyWith(power: 0.0, cadence: 0.0));
+    });
   }
 
   void _updateBatteryLevel(List<int> value) {

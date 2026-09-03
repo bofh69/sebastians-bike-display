@@ -2,8 +2,8 @@ class BikeData {
   double? power3s;
   double? cadence;
   double? heartRate;
-  double? distance;
-  Duration? duration;
+  double? distance = 0;
+  Duration? duration = Duration.zero;
   double? speed;
   double? leftBalance;
   double? rightBalance;
