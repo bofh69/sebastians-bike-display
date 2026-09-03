@@ -77,6 +77,10 @@ class _RideSample {
   final double? power;
   final double? cadence;
   final double? heartRate;
+  final double? rawLeftBalance;
+  final double? rawRightBalance;
+  final double? averagedLeftBalance;
+  final double? averagedRightBalance;
   final double distanceMeters;
   final double speedMps;
 
@@ -90,6 +94,10 @@ class _RideSample {
     required this.power,
     required this.cadence,
     required this.heartRate,
+    required this.rawLeftBalance,
+    required this.rawRightBalance,
+    required this.averagedLeftBalance,
+    required this.averagedRightBalance,
     required this.distanceMeters,
     required this.speedMps,
   });
@@ -405,6 +413,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final now = DateTime.now();
     final startTime = _startTime;
     if (startTime == null) return;
+    final powerState = _powerCadenceSensorService.state.value;
 
     setState(() {
       _data.duration = now.difference(startTime);
@@ -423,6 +432,10 @@ class _HomeScreenState extends State<HomeScreen> {
         power: _currentPowerWatts,
         cadence: _data.cadence,
         heartRate: _data.heartRate,
+        rawLeftBalance: powerState.leftBalance,
+        rawRightBalance: powerState.rightBalance,
+        averagedLeftBalance: _data.leftBalance,
+        averagedRightBalance: _data.rightBalance,
         distanceMeters: (_data.distance ?? 0) * 1000,
         speedMps: (_data.speed ?? 0) / 3.6,
       ),
@@ -663,7 +676,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final hasAltitude = altitude != null && altitude.isFinite;
       final hasAccuracy = sample.accuracyMeters != null && sample.accuracyMeters!.isFinite;
       buffer.writeln(
-        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}">${hasAltitude ? '<ele>${altitude.toStringAsFixed(1)}</ele>' : ''}<time>${sample.timestamp.toUtc().toIso8601String()}</time><cmt>distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}</cmt><extensions><gpxtpx:TrackPointExtension>${sample.heartRate != null ? '<gpxtpx:hr>${sample.heartRate!.round()}</gpxtpx:hr>' : ''}${sample.cadence != null ? '<gpxtpx:cad>${sample.cadence!.round()}</gpxtpx:cad>' : ''}<gpxtpx:speed>${sample.speedMps.toStringAsFixed(2)}</gpxtpx:speed></gpxtpx:TrackPointExtension><sbd:power_w>${(sample.power ?? 0).toStringAsFixed(0)}</sbd:power_w>${hasAccuracy ? '<sbd:gps_accuracy_m>${sample.accuracyMeters!.toStringAsFixed(1)}</sbd:gps_accuracy_m>' : ''}<sbd:gps_confidence>${sample.gpsConfidence.toStringAsFixed(2)}</sbd:gps_confidence></extensions></trkpt>',
+        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}">${hasAltitude ? '<ele>${altitude.toStringAsFixed(1)}</ele>' : ''}<time>${sample.timestamp.toUtc().toIso8601String()}</time><cmt>distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}</cmt><extensions><gpxtpx:TrackPointExtension>${sample.heartRate != null ? '<gpxtpx:hr>${sample.heartRate!.round()}</gpxtpx:hr>' : ''}${sample.cadence != null ? '<gpxtpx:cad>${sample.cadence!.round()}</gpxtpx:cad>' : ''}<gpxtpx:speed>${sample.speedMps.toStringAsFixed(2)}</gpxtpx:speed></gpxtpx:TrackPointExtension><sbd:power_w>${(sample.power ?? 0).toStringAsFixed(0)}</sbd:power_w>${sample.rawLeftBalance != null ? '<sbd:raw_left_balance_pct>${sample.rawLeftBalance!.toStringAsFixed(1)}</sbd:raw_left_balance_pct>' : ''}${sample.rawRightBalance != null ? '<sbd:raw_right_balance_pct>${sample.rawRightBalance!.toStringAsFixed(1)}</sbd:raw_right_balance_pct>' : ''}${sample.averagedLeftBalance != null ? '<sbd:avg_left_balance_pct>${sample.averagedLeftBalance!.toStringAsFixed(1)}</sbd:avg_left_balance_pct>' : ''}${sample.averagedRightBalance != null ? '<sbd:avg_right_balance_pct>${sample.averagedRightBalance!.toStringAsFixed(1)}</sbd:avg_right_balance_pct>' : ''}${hasAccuracy ? '<sbd:gps_accuracy_m>${sample.accuracyMeters!.toStringAsFixed(1)}</sbd:gps_accuracy_m>' : ''}<sbd:gps_confidence>${sample.gpsConfidence.toStringAsFixed(2)}</sbd:gps_confidence></extensions></trkpt>',
       );
     }
 
