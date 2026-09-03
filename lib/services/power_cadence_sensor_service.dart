@@ -15,16 +15,24 @@ final Uuid _cscMeasurementUuid = Uuid.parse('2A5B');
 final Uuid _batteryServiceUuid = Uuid.parse('180F');
 final Uuid _batteryLevelUuid = Uuid.parse('2A19');
 
-({double leftBalance, double rightBalance}) parsePowerBalance(int rawPedalBalance) {
-  final isRightReferenced = rawPedalBalance > 100 && (rawPedalBalance & 0x80) != 0;
-  final balancePercent =
-      (isRightReferenced ? (rawPedalBalance & 0x7F) : rawPedalBalance)
-          .clamp(0, 100)
-          .toDouble();
+({double leftBalance, double rightBalance}) parsePowerBalance({
+  required int flags,
+  required int rawPedalBalance,
+}) {
+  final balancePercent = (rawPedalBalance / 2.0).clamp(0, 100).toDouble();
+  final isLeftReferenced = (flags & 0x0002) != 0;
 
-  return isRightReferenced
-      ? (leftBalance: 100 - balancePercent, rightBalance: balancePercent)
-      : (leftBalance: balancePercent, rightBalance: 100 - balancePercent);
+  if (isLeftReferenced) {
+    return (
+      leftBalance: balancePercent,
+      rightBalance: 100 - balancePercent,
+    );
+  }
+
+  return (
+    leftBalance: balancePercent,
+    rightBalance: 100 - balancePercent,
+  );
 }
 
 class PowerCadenceDiscoveredDevice {
@@ -265,7 +273,7 @@ class PowerCadenceSensorService {
     );
 
     await _disconnectCurrentDevice();
-    await _connectToDeviceId(discoveredDevice.id);
+    await _connectToDeviceId(discoveredDevice.id, reconnecting: false);
   }
 
   Future<void> refreshBatteryLevel() async {
@@ -296,13 +304,16 @@ class PowerCadenceSensorService {
 
     _connectingToSavedDevice = true;
     try {
-      await _connectToDeviceId(savedDeviceId);
+      await _connectToDeviceId(savedDeviceId, reconnecting: true);
     } finally {
       _connectingToSavedDevice = false;
     }
   }
 
-  Future<void> _connectToDeviceId(String deviceId) async {
+  Future<void> _connectToDeviceId(
+    String deviceId, {
+    required bool reconnecting,
+  }) async {
     await _cancelCharacteristicSubscriptions();
     await _connectionSubscription?.cancel();
     _setState(
@@ -322,11 +333,30 @@ class PowerCadenceSensorService {
       await _ensureBluetoothPermissions();
       await _ensureBluetoothReady();
       _deviceId = deviceId;
-      _connectionSubscription = _bleInstance
-          .connectToDevice(
-            id: deviceId,
-            connectionTimeout: const Duration(seconds: 10),
-          )
+      _connectionSubscription = (reconnecting
+              ? _bleInstance.connectToAdvertisingDevice(
+                  id: deviceId,
+                  withServices: <Uuid>[
+                    _cyclingPowerServiceUuid,
+                    _cyclingSpeedCadenceServiceUuid,
+                  ],
+                  prescanDuration: const Duration(seconds: 5),
+                  servicesWithCharacteristicsToDiscover: <Uuid, List<Uuid>>{
+                    _cyclingPowerServiceUuid: <Uuid>[_cyclingPowerMeasurementUuid],
+                    _cyclingSpeedCadenceServiceUuid: <Uuid>[_cscMeasurementUuid],
+                    _batteryServiceUuid: <Uuid>[_batteryLevelUuid],
+                  },
+                  connectionTimeout: const Duration(seconds: 10),
+                )
+              : _bleInstance.connectToDevice(
+                  id: deviceId,
+                  servicesWithCharacteristicsToDiscover: <Uuid, List<Uuid>>{
+                    _cyclingPowerServiceUuid: <Uuid>[_cyclingPowerMeasurementUuid],
+                    _cyclingSpeedCadenceServiceUuid: <Uuid>[_cscMeasurementUuid],
+                    _batteryServiceUuid: <Uuid>[_batteryLevelUuid],
+                  },
+                  connectionTimeout: const Duration(seconds: 10),
+                ))
           .listen((update) {
             final isConnected =
                 update.connectionState == DeviceConnectionState.connected;
@@ -536,7 +566,10 @@ class PowerCadenceSensorService {
     var offset = 4;
     if ((flags & 0x0001) != 0) {
       if (value.length >= offset + 1) {
-        final parsedBalance = parsePowerBalance(value[offset]);
+        final parsedBalance = parsePowerBalance(
+          flags: flags,
+          rawPedalBalance: value[offset],
+        );
         leftBalance = parsedBalance.leftBalance;
         rightBalance = parsedBalance.rightBalance;
       }

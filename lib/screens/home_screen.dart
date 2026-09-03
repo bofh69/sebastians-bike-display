@@ -88,14 +88,13 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen> {
   static const MethodChannel _fileExportChannel = MethodChannel(
     'simple_bike_display/file_export',
   );
   bool _isRunning = false;
   bool _serviceConfigured = false;
   Future<void>? _backgroundServiceConfigurationFuture;
-  bool _isAppInBackground = false;
   int _ftp = 200;
   final BikeData _data = BikeData();
   final List<_RideSample> _samples = [];
@@ -125,7 +124,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _loadPreferences();
     if (_supportsBackgroundRideService) {
       unawaited(_preconfigureBackgroundService());
@@ -138,16 +136,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    _isAppInBackground = state != AppLifecycleState.resumed;
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _positionSubscription?.cancel();
     _recordingTimer?.cancel();
     _heartRateSensorService.state.removeListener(_syncHeartRateData);
@@ -345,11 +334,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       rawSpeedMps: rawSpeedMps,
       deltaSeconds: deltaSeconds,
     );
+    final previousAltitude = previousPosition.altitude;
+    final currentAltitude = position.altitude;
+    final shouldAddClimb = _isRunning &&
+        previousAltitude.isFinite &&
+        currentAltitude.isFinite &&
+        currentAltitude > previousAltitude;
     if (mounted) {
       setState(() {
         _data.speed = _smoothedSpeedMps * 3.6;
         if (_isRunning) {
           _data.distance = (_data.distance ?? 0) + distanceMeters / 1000;
+          if (shouldAddClimb) {
+            _data.totalClimb =
+                (_data.totalClimb ?? 0) + (currentAltitude - previousAltitude);
+          }
           final durationSeconds =
               DateTime.now().difference(_startTime ?? DateTime.now()).inSeconds;
           if (durationSeconds > 0) {
@@ -448,6 +447,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _data.speed = 0;
       _data.power3s = 0;
       _data.power20min = 0;
+      _data.totalClimb = 0;
       _startTime = DateTime.now();
       _samples.clear();
       _lastAcceptedPosition = null;
@@ -760,24 +760,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            if (_isRunning)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: colorScheme.tertiaryContainer,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _supportsBackgroundRideService
-                      ? (_isAppInBackground
-                          ? 'Recording continues while app is in background.'
-                          : 'Recording active (background tracking enabled).')
-                      : 'Recording active.',
-                  style: TextStyle(color: colorScheme.onTertiaryContainer),
-                ),
-              ),
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
@@ -800,9 +782,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   unit: 'bpm',
                 ),
                 MetricTile(
-                  title: 'Distance',
-                  value: _data.distance?.toStringAsFixed(2) ?? 'N/A',
-                  unit: 'km',
+                  title: 'Speed',
+                  value: _data.speed?.toStringAsFixed(1) ?? 'N/A',
+                  unit: 'km/h',
+                  valueColor:
+                      _hasReliableGpsForSpeed ? null : Theme.of(context).colorScheme.error,
                 ),
                 MetricTile(
                   title: 'Duration',
@@ -810,11 +794,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   unit: '',
                 ),
                 MetricTile(
-                  title: 'Speed',
-                  value: _data.speed?.toStringAsFixed(1) ?? 'N/A',
-                  unit: 'km/h',
-                  valueColor:
-                      _hasReliableGpsForSpeed ? null : Theme.of(context).colorScheme.error,
+                  title: 'Distance',
+                  value: _data.distance?.toStringAsFixed(2) ?? 'N/A',
+                  unit: 'km',
                 ),
                 MetricTile(
                   title: 'L/R Balance',
@@ -830,6 +812,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   title: 'Power (20 min)',
                   value: _data.power20min?.toStringAsFixed(0) ?? 'N/A',
                   unit: 'W',
+                ),
+                MetricTile(
+                  title: 'Total Climb',
+                  value: _data.totalClimb?.toStringAsFixed(0) ?? 'N/A',
+                  unit: 'm',
                 ),
               ],
             ),

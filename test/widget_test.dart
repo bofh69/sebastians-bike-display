@@ -10,13 +10,22 @@ void main() {
     expect(formatPowerBalance(null, 50), 'N/A');
   });
 
-  test('parsePowerBalance handles direct percentage values', () {
-    expect(parsePowerBalance(100), (leftBalance: 100.0, rightBalance: 0.0));
-    expect(parsePowerBalance(17), (leftBalance: 17.0, rightBalance: 83.0));
+  test('parsePowerBalance decodes half-percent values', () {
+    expect(
+      parsePowerBalance(flags: 0x0003, rawPedalBalance: 200),
+      (leftBalance: 100.0, rightBalance: 0.0),
+    );
+    expect(
+      parsePowerBalance(flags: 0x0001, rawPedalBalance: 34),
+      (leftBalance: 17.0, rightBalance: 83.0),
+    );
   });
 
-  test('parsePowerBalance handles right-referenced encoded values', () {
-    expect(parsePowerBalance(0x91), (leftBalance: 83.0, rightBalance: 17.0));
+  test('parsePowerBalance treats the flag bit as left-referenced', () {
+    expect(
+      parsePowerBalance(flags: 0x0003, rawPedalBalance: 40),
+      (leftBalance: 20.0, rightBalance: 80.0),
+    );
   });
 
   testWidgets('Home screen shows Start button', (WidgetTester tester) async {
@@ -24,6 +33,7 @@ void main() {
     expect(find.text('Start'), findsOneWidget);
     expect(find.text('Power (3s)'), findsOneWidget);
     expect(find.text('Heart Rate'), findsOneWidget);
+    expect(find.text('Total Climb'), findsOneWidget);
   });
 
   testWidgets('Start button toggles to End', (WidgetTester tester) async {
