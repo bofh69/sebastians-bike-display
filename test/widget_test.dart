@@ -3,6 +3,7 @@ import 'package:simple_bike_display/main.dart';
 import 'package:simple_bike_display/models/time_window_average.dart';
 import 'package:simple_bike_display/screens/home_screen.dart';
 import 'package:simple_bike_display/services/power_cadence_sensor_service.dart';
+import 'package:simple_bike_display/services/sensor_reconnect_policy.dart';
 
 void main() {
   test('formatPowerBalance preserves fractional balance values', () {
@@ -36,6 +37,54 @@ void main() {
     expect(average.add(start, 40), 40);
     expect(average.add(start.add(const Duration(seconds: 30)), 20), 30);
     expect(average.add(start.add(const Duration(seconds: 61)), 10), 15);
+  });
+
+  test('shouldRetrySavedSensorConnection only retries when idle and saved', () {
+    expect(
+      shouldRetrySavedSensorConnection(
+        deviceId: 'sensor-1',
+        isConnected: false,
+        isConnecting: false,
+        isScanning: false,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldRetrySavedSensorConnection(
+        deviceId: null,
+        isConnected: false,
+        isConnecting: false,
+        isScanning: false,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldRetrySavedSensorConnection(
+        deviceId: 'sensor-1',
+        isConnected: true,
+        isConnecting: false,
+        isScanning: false,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldRetrySavedSensorConnection(
+        deviceId: 'sensor-1',
+        isConnected: false,
+        isConnecting: true,
+        isScanning: false,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldRetrySavedSensorConnection(
+        deviceId: 'sensor-1',
+        isConnected: false,
+        isConnecting: false,
+        isScanning: true,
+      ),
+      isFalse,
+    );
   });
 
   testWidgets('Home screen shows Start button', (WidgetTester tester) async {
