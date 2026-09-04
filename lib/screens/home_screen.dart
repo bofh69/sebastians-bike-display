@@ -689,8 +689,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     setState(() {
       _isRunning = false;
     });
-    if (!_isAppInForeground) {
-      await _stopLocationStream();
+    if (!_isAppInForeground && _isMobileTrackingPlatform) {
+      await _pauseSensorsAndLocationWhileIdle();
     }
 
     final rideStartTime = _startTime;
