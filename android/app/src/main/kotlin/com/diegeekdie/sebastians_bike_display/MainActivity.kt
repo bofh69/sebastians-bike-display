@@ -1,10 +1,12 @@
 package com.diegeekdie.sebastians_bike_display
 
+import android.Manifest
 import android.content.ContentValues
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
@@ -19,9 +21,7 @@ class MainActivity : FlutterActivity() {
     private val exportChannelName = "sebastians_bike_display/file_export"
     private val backgroundNotificationChannelName =
         "sebastians_bike_display/background_notification"
-    private val rideTrackingChannelId = "ride_tracking"
     private val rideTrackingChannelName = "Ride Tracking"
-    private val rideTrackingNotificationId = 888
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -55,8 +55,22 @@ class MainActivity : FlutterActivity() {
             backgroundNotificationChannelName
         ).setMethodCallHandler { call, result ->
             when (call.method) {
-                "attachForegroundActionToRideNotification" -> {
-                    attachForegroundActionToRideNotification()
+                "showRideNotification" -> {
+                    val channelId = call.argument<String>("channelId")
+                    val notificationId = call.argument<Int>("notificationId")
+                    val title = call.argument<String>("title")
+                    val content = call.argument<String>("content")
+                    showRideNotification(
+                        channelId = channelId,
+                        notificationId = notificationId,
+                        title = title,
+                        content = content,
+                    )
+                    result.success(null)
+                }
+                "hideRideNotification" -> {
+                    val notificationId = call.argument<Int>("notificationId")
+                    hideRideNotification(notificationId)
                     result.success(null)
                 }
                 else -> result.notImplemented()
@@ -64,13 +78,26 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun attachForegroundActionToRideNotification() {
+    private fun showRideNotification(
+        channelId: String?,
+        notificationId: Int?,
+        title: String?,
+        content: String?,
+    ) {
+        val effectiveChannelId = channelId ?: "ride_tracking"
+        val effectiveNotificationId = notificationId ?: 888
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
         val manager = getSystemService(NotificationManager::class.java) ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val existingChannel = manager.getNotificationChannel(rideTrackingChannelId)
+            val existingChannel = manager.getNotificationChannel(effectiveChannelId)
             if (existingChannel == null) {
                 val channel = NotificationChannel(
-                    rideTrackingChannelId,
+                    effectiveChannelId,
                     rideTrackingChannelName,
                     NotificationManager.IMPORTANCE_LOW
                 )
@@ -93,22 +120,27 @@ class MainActivity : FlutterActivity() {
             }
         val launchPendingIntent = PendingIntent.getActivity(this, 0, launchIntent, flags)
 
-        val notification = NotificationCompat.Builder(this, rideTrackingChannelId)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Simple Bike Display")
-            .setContentText("Ride recording active in background")
+            val notification = NotificationCompat.Builder(this, effectiveChannelId)
+                .setSmallIcon(R.drawable.ic_stat_ride)
+            .setContentTitle(title ?: getString(R.string.app_name))
+                .setContentText(content ?: getString(R.string.ride_notification_content))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(launchPendingIntent)
             .addAction(
-                0,
-                "Open",
+                android.R.drawable.ic_menu_view,
+                getString(R.string.ride_notification_open_action),
                 launchPendingIntent,
             )
             .build()
 
-        manager.notify(rideTrackingNotificationId, notification)
+        manager.notify(effectiveNotificationId, notification)
+    }
+
+    private fun hideRideNotification(notificationId: Int?) {
+        val manager = getSystemService(NotificationManager::class.java) ?: return
+        manager.cancel(notificationId ?: 888)
     }
 
     private fun saveToDownloads(fileName: String, mimeType: String, bytes: ByteArray): String {

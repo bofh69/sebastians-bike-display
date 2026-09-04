@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">SBD</string>
+    <string name="ride_notification_open_action">Open</string>
+    <string name="ride_notification_content">Ride recording active in background</string>
 </resources>
