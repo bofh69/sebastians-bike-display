@@ -166,6 +166,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   );
   bool _isRunning = false;
   bool _isBackgroundNotificationVisible = false;
+  bool _isAppInForeground = true;
   bool _serviceConfigured = false;
   Future<void>? _backgroundServiceConfigurationFuture;
   int _ftp = 200;
@@ -236,13 +237,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!_isRunning || kIsWeb || !io.Platform.isAndroid) return;
-    if (state == AppLifecycleState.resumed) {
-      unawaited(_hideBackgroundRideNotification());
+    _isAppInForeground = state == AppLifecycleState.resumed;
+
+    if (!_isRunning && _isMobileTrackingPlatform) {
+      if (_isAppInForeground) {
+        unawaited(_startLocationStream());
+      } else if (state == AppLifecycleState.paused ||
+          state == AppLifecycleState.hidden ||
+          state == AppLifecycleState.detached) {
+        unawaited(_stopLocationStream());
+      }
       return;
     }
-    if (state == AppLifecycleState.paused) {
-      unawaited(_showBackgroundRideNotification());
+
+    if (!kIsWeb && io.Platform.isAndroid) {
+      if (state == AppLifecycleState.resumed) {
+        unawaited(_hideBackgroundRideNotification());
+        return;
+      }
+      if (state == AppLifecycleState.paused) {
+        unawaited(_showBackgroundRideNotification());
+      }
     }
   }
 
@@ -394,6 +409,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _startLocationStream() async {
     if (!_isMobileTrackingPlatform) return;
+    if (!_isRunning && !_isAppInForeground) return;
     final hasPermission = await _ensureLocationPermission();
     if (!hasPermission) return;
 
@@ -406,6 +422,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _positionSubscription = Geolocator.getPositionStream(
       locationSettings: settings,
     ).listen(_handlePosition);
+  }
+
+  Future<void> _stopLocationStream() async {
+    await _positionSubscription?.cancel();
+    _positionSubscription = null;
   }
 
   Future<bool> _ensureLocationPermission() async {
@@ -656,6 +677,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     setState(() {
       _isRunning = false;
     });
+    if (!_isAppInForeground) {
+      await _stopLocationStream();
+    }
 
     final rideStartTime = _startTime;
     final fitFile = await _writeFitFile();
