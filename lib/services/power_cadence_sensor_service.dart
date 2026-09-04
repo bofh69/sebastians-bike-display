@@ -136,6 +136,7 @@ class PowerCadenceSensorService {
   bool _connectingToSavedDevice = false;
   Future<void>? _initializationFuture;
   bool _hasConnectedSinceLastRetryReset = false;
+  bool _allowSavedDeviceReconnect = true;
   int? _lastPowerCrankRevolutions;
   int? _lastPowerCrankEventTime;
   int? _lastCscCrankRevolutions;
@@ -301,6 +302,38 @@ class PowerCadenceSensorService {
       // Ignore transient read failures.
     } on Exception {
       // Ignore transient read failures.
+    }
+
+    Future<void> disconnectFromDeviceForBackgroundIdle() async {
+      await initialize();
+      _allowSavedDeviceReconnect = false;
+      SavedSensorReconnectCoordinator.instance.unregister(powerCadenceReconnectKey);
+      await _disconnectCurrentDevice();
+      _setState(
+        state.value.copyWith(
+          isConnected: false,
+          isConnecting: false,
+          isScanning: false,
+          power: null,
+          cadence: null,
+          leftBalance: null,
+          rightBalance: null,
+          batteryLevel: null,
+        ),
+      );
+    }
+
+    Future<void> reconnectDeviceAfterBackgroundIdle() async {
+      await initialize();
+      _allowSavedDeviceReconnect = true;
+      final savedDeviceId = state.value.deviceId;
+      if (savedDeviceId == null ||
+          savedDeviceId.isEmpty ||
+          state.value.isConnected ||
+          state.value.isConnecting) {
+        return;
+      }
+      await _connectToSavedDevice();
     }
   }
 
@@ -735,7 +768,8 @@ class PowerCadenceSensorService {
   void _setState(PowerCadenceSensorState nextState) {
     state.value = nextState;
     final currentState = state.value;
-    if (shouldRetrySavedSensorConnection(
+    if (_allowSavedDeviceReconnect &&
+        shouldRetrySavedSensorConnection(
       deviceId: currentState.deviceId,
       isConnected: currentState.isConnected,
       isConnecting: currentState.isConnecting,

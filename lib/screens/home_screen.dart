@@ -241,11 +241,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (!_isRunning && _isMobileTrackingPlatform) {
       if (_isAppInForeground) {
-        unawaited(_startLocationStream());
+        unawaited(_resumeSensorsAndLocationWhileIdle());
       } else if (state == AppLifecycleState.paused ||
           state == AppLifecycleState.hidden ||
           state == AppLifecycleState.detached) {
-        unawaited(_stopLocationStream());
+        unawaited(_pauseSensorsAndLocationWhileIdle());
       }
       return;
     }
@@ -427,6 +427,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _stopLocationStream() async {
     await _positionSubscription?.cancel();
     _positionSubscription = null;
+  }
+
+  Future<void> _pauseSensorsAndLocationWhileIdle() async {
+    await _stopLocationStream();
+    await _heartRateSensorService.disconnectFromDeviceForBackgroundIdle();
+    await _powerCadenceSensorService.disconnectFromDeviceForBackgroundIdle();
+  }
+
+  Future<void> _resumeSensorsAndLocationWhileIdle() async {
+    await _heartRateSensorService.reconnectDeviceAfterBackgroundIdle();
+    await _powerCadenceSensorService.reconnectDeviceAfterBackgroundIdle();
+    await _startLocationStream();
   }
 
   Future<bool> _ensureLocationPermission() async {

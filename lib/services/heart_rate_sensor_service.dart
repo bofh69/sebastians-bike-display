@@ -98,6 +98,7 @@ class HeartRateSensorService {
   bool _connectingToSavedDevice = false;
   Future<void>? _initializationFuture;
   bool _hasConnectedSinceLastRetryReset = false;
+  bool _allowSavedDeviceReconnect = true;
 
   FlutterReactiveBle get _bleInstance => _ble ??= FlutterReactiveBle();
 
@@ -256,6 +257,35 @@ class HeartRateSensorService {
       // Ignore transient read failures.
     } on Exception {
       // Ignore transient read failures.
+    }
+
+    Future<void> disconnectFromDeviceForBackgroundIdle() async {
+      await initialize();
+      _allowSavedDeviceReconnect = false;
+      SavedSensorReconnectCoordinator.instance.unregister(heartRateReconnectKey);
+      await _disconnectCurrentDevice();
+      _setState(
+        state.value.copyWith(
+          isConnected: false,
+          isConnecting: false,
+          isScanning: false,
+          heartRate: null,
+          batteryLevel: null,
+        ),
+      );
+    }
+
+    Future<void> reconnectDeviceAfterBackgroundIdle() async {
+      await initialize();
+      _allowSavedDeviceReconnect = true;
+      final savedDeviceId = state.value.deviceId;
+      if (savedDeviceId == null ||
+          savedDeviceId.isEmpty ||
+          state.value.isConnected ||
+          state.value.isConnecting) {
+        return;
+      }
+      await _connectToSavedDevice();
     }
   }
 
@@ -523,7 +553,8 @@ class HeartRateSensorService {
   void _setState(HeartRateSensorState nextState) {
     state.value = nextState;
     final currentState = state.value;
-    if (shouldRetrySavedSensorConnection(
+    if (_allowSavedDeviceReconnect &&
+        shouldRetrySavedSensorConnection(
       deviceId: currentState.deviceId,
       isConnected: currentState.isConnected,
       isConnecting: currentState.isConnecting,
