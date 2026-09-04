@@ -157,6 +157,9 @@ class _HomeScreenState extends State<HomeScreen> {
   static const MethodChannel _fileExportChannel = MethodChannel(
     '$kAppChannelNamespace/file_export',
   );
+  static const MethodChannel _backgroundNotificationChannel = MethodChannel(
+    '$kAppChannelNamespace/background_notification',
+  );
   bool _isRunning = false;
   bool _serviceConfigured = false;
   Future<void>? _backgroundServiceConfigurationFuture;
@@ -191,7 +194,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool get _isMobileTrackingPlatform =>
       !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
-  bool get _supportsBackgroundRideService => !kIsWeb && io.Platform.isIOS;
+  bool get _supportsBackgroundRideService =>
+      !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
 
   @override
   void initState() {
@@ -524,6 +528,11 @@ class _HomeScreenState extends State<HomeScreen> {
           throw Exception('Unable to start ride tracking service.');
         }
         _backgroundService.invoke('setAsForeground');
+        if (!kIsWeb && io.Platform.isAndroid) {
+          await _backgroundNotificationChannel.invokeMethod<void>(
+            'attachForegroundActionToRideNotification',
+          );
+        }
       } catch (error, stackTrace) {
         debugPrint('Failed to start ride tracking service: $error\n$stackTrace');
         if (!mounted) return;
