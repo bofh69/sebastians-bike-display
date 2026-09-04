@@ -258,35 +258,35 @@ class HeartRateSensorService {
     } on Exception {
       // Ignore transient read failures.
     }
+  }
 
-    Future<void> disconnectFromDeviceForBackgroundIdle() async {
-      await initialize();
-      _allowSavedDeviceReconnect = false;
-      SavedSensorReconnectCoordinator.instance.unregister(heartRateReconnectKey);
-      await _disconnectCurrentDevice();
-      _setState(
-        state.value.copyWith(
-          isConnected: false,
-          isConnecting: false,
-          isScanning: false,
-          heartRate: null,
-          batteryLevel: null,
-        ),
-      );
-    }
+  Future<void> disconnectFromDeviceForBackgroundIdle() async {
+    await initialize();
+    _allowSavedDeviceReconnect = false;
+    SavedSensorReconnectCoordinator.instance.unregister(heartRateReconnectKey);
+    await _disconnectCurrentDevice();
+    _setState(
+      state.value.copyWith(
+        isConnected: false,
+        isConnecting: false,
+        isScanning: false,
+        heartRate: null,
+        batteryLevel: null,
+      ),
+    );
+  }
 
-    Future<void> reconnectDeviceAfterBackgroundIdle() async {
-      await initialize();
-      _allowSavedDeviceReconnect = true;
-      final savedDeviceId = state.value.deviceId;
-      if (savedDeviceId == null ||
-          savedDeviceId.isEmpty ||
-          state.value.isConnected ||
-          state.value.isConnecting) {
-        return;
-      }
-      await _connectToSavedDevice();
+  Future<void> reconnectDeviceAfterBackgroundIdle() async {
+    await initialize();
+    _allowSavedDeviceReconnect = true;
+    final savedDeviceId = state.value.deviceId;
+    if (savedDeviceId == null ||
+        savedDeviceId.isEmpty ||
+        state.value.isConnected ||
+        state.value.isConnecting) {
+      return;
     }
+    await _connectToSavedDevice();
   }
 
   Future<void> _connectToSavedDevice() async {
