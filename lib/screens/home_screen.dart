@@ -1171,7 +1171,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       backgroundColor: _isRunning
           ? colorScheme.surface
           : Color.alphaBlend(
-              colorScheme.error.withOpacity(0.04),
+              colorScheme.error.withOpacity(0.30),
               colorScheme.surface,
             ),
       appBar: AppBar(
@@ -1190,6 +1190,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            const SizedBox(height: 16),
+            PowerBar(
+              power: _isPowerSensorConnected ? _data.power3s : null,
+              ftp: _ftp.toDouble(),
+            ),
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
@@ -1253,11 +1258,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   unit: 'm',
                 ),
               ],
-            ),
-            const SizedBox(height: 16),
-            PowerBar(
-              power: _isPowerSensorConnected ? _data.power3s : null,
-              ftp: _ftp.toDouble(),
             ),
             const SizedBox(height: 24),
             SizedBox(
