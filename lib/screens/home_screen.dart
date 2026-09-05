@@ -190,7 +190,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   );
   bool _isRunning = false;
   bool _isBackgroundNotificationVisible = false;
-  bool _isEnteringBackgroundRideMode = false;
   bool _isAppInForeground = true;
   bool _serviceConfigured = false;
   Future<void>? _backgroundServiceConfigurationFuture;
@@ -226,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool get _isMobileTrackingPlatform =>
       !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
   bool get _supportsBackgroundRideService =>
-      !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
+      !kIsWeb && io.Platform.isIOS;
 
   @override
   void initState() {
@@ -278,47 +277,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (!kIsWeb && io.Platform.isAndroid) {
       if (state == AppLifecycleState.resumed) {
-        unawaited(_exitBackgroundRideMode());
+        unawaited(_hideBackgroundRideNotification(force: true));
         return;
       }
       if (state == AppLifecycleState.paused ||
           state == AppLifecycleState.hidden ||
           state == AppLifecycleState.detached) {
-        unawaited(_enterBackgroundRideMode());
+        unawaited(_showBackgroundRideNotification());
       }
-    }
-  }
-
-  Future<void> _enterBackgroundRideMode() async {
-    if (kIsWeb || !io.Platform.isAndroid || !_isRunning || _isAppInForeground) {
-      return;
-    }
-    if (_isEnteringBackgroundRideMode) return;
-    _isEnteringBackgroundRideMode = true;
-    try {
-      await _configureBackgroundService();
-      final serviceRunning = await _backgroundService.isRunning();
-      if (!serviceRunning) {
-        final started = await _backgroundService.startService();
-        if (!started) {
-          throw Exception('Unable to start ride tracking service.');
-        }
-      }
-      _backgroundService.invoke('setAsForeground');
-    } catch (error, stackTrace) {
-      debugPrint(
-        'Failed to enter Android background ride mode: $error\n$stackTrace',
-      );
-    } finally {
-      _isEnteringBackgroundRideMode = false;
-    }
-    await _showBackgroundRideNotification();
-  }
-
-  Future<void> _exitBackgroundRideMode() async {
-    await _hideBackgroundRideNotification(force: true);
-    if (_serviceConfigured && !kIsWeb && io.Platform.isAndroid) {
-      _backgroundService.invoke('setAsBackground');
     }
   }
 
@@ -478,12 +444,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final hasPermission = await _ensureLocationPermission();
     if (!hasPermission) return;
 
-    await _positionSubscription?.cancel();
-    _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
+    final LocationSettings settings;
+    if (!kIsWeb && io.Platform.isAndroid) {
+      settings = AndroidSettings(
         accuracy: LocationAccuracy.bestForNavigation,
         distanceFilter: 0,
-      ),
+        foregroundNotificationConfig: const ForegroundNotificationConfig(
+          notificationTitle: kAppDisplayName,
+          notificationText: _rideTrackingNotificationContent,
+          enableWakeLock: true,
+        ),
+      );
+    } else {
+      settings = const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 0,
+      );
+    }
+
+    await _positionSubscription?.cancel();
+    _positionSubscription = Geolocator.getPositionStream(
+      locationSettings: settings,
     ).listen(_handlePosition);
   }
 
@@ -678,7 +659,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    if (_supportsBackgroundRideService && !kIsWeb && io.Platform.isIOS) {
+    if (_supportsBackgroundRideService) {
       try {
         await _configureBackgroundService();
         final started = await _backgroundService.startService();
@@ -736,7 +717,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (_isAppInForeground) {
         unawaited(_hideBackgroundRideNotification(force: true));
       } else {
-        unawaited(_enterBackgroundRideMode());
+        unawaited(_showBackgroundRideNotification());
       }
     }
   }
