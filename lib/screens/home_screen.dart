@@ -413,10 +413,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final hasPermission = await _ensureLocationPermission();
     if (!hasPermission) return;
 
-    const settings = LocationSettings(
-      accuracy: LocationAccuracy.bestForNavigation,
-      distanceFilter: 0,
-    );
+    final LocationSettings settings;
+    if (!kIsWeb && io.Platform.isAndroid) {
+      settings = const AndroidSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 0,
+        foregroundNotificationConfig: ForegroundNotificationConfig(
+          notificationTitle: kAppDisplayName,
+          notificationText: _rideTrackingNotificationContent,
+          enableWakeLock: true,
+        ),
+      );
+    } else {
+      settings = const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 0,
+      );
+    }
 
     await _positionSubscription?.cancel();
     _positionSubscription = Geolocator.getPositionStream(
