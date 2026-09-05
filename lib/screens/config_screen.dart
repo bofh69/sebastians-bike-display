@@ -7,6 +7,8 @@ import '../services/heart_rate_sensor_service.dart';
 import '../services/power_cadence_sensor_service.dart';
 import '../services/strava_upload_service.dart';
 
+const bool _hasBuildTimeStravaClientSecret = buildTimeStravaClientSecret.isNotEmpty;
+
 class ConfigScreen extends StatefulWidget {
   const ConfigScreen({super.key});
 
@@ -143,20 +145,31 @@ class _ConfigScreenState extends State<ConfigScreen> {
             TextField(
               controller: _stravaClientIdController,
               keyboardType: TextInputType.number,
+              enabled: false,
               decoration: const InputDecoration(
                 labelText: 'Strava Client ID',
+                helperText: 'Fixed in app build configuration.',
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _stravaClientSecretController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Strava Client Secret',
-                border: OutlineInputBorder(),
+            if (_hasBuildTimeStravaClientSecret)
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Strava Client Secret'),
+                subtitle: Text(
+                  'Provided at build time via STRAVA_CLIENT_SECRET.',
+                ),
+              )
+            else
+              TextField(
+                controller: _stravaClientSecretController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Strava Client Secret',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
             const SizedBox(height: 12),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,

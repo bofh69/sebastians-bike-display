@@ -10,6 +10,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const String stravaCallbackScheme = 'sebastiansbikedisplay';
 const String stravaCallbackHost = 'sebastiansbikedisplay';
+const String defaultStravaClientId = '276719';
+const String buildTimeStravaClientSecret = String.fromEnvironment(
+  'STRAVA_CLIENT_SECRET',
+);
 
 String buildStravaAccountLabel({
   String? firstName,
@@ -171,19 +175,26 @@ class StravaUploadService {
   }) async {
     await initialize();
     final previous = state.value;
-    final nextClientId = clientId.trim();
+    final nextClientId = defaultStravaClientId;
+    final nextClientSecret = buildTimeStravaClientSecret.isNotEmpty
+        ? buildTimeStravaClientSecret
+        : clientSecret;
     final resetAuthentication = shouldResetStravaAuthentication(
       previousClientId: previous.clientId,
       nextClientId: nextClientId,
       previousClientSecret: previous.clientSecret,
-      nextClientSecret: clientSecret,
+      nextClientSecret: nextClientSecret,
     );
     _setState(state.value.copyWith(isBusy: true, clearError: true));
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_clientIdKey, nextClientId);
       await prefs.setBool(_autoUploadKey, autoUploadEnabled);
-      await _secureStorage.write(key: _clientSecretKey, value: clientSecret);
+      if (buildTimeStravaClientSecret.isEmpty) {
+        await _secureStorage.write(key: _clientSecretKey, value: nextClientSecret);
+      } else {
+        await _secureStorage.delete(key: _clientSecretKey);
+      }
       if (resetAuthentication) {
         await _clearAuthentication(preserveCredentials: true);
       }
@@ -191,7 +202,7 @@ class StravaUploadService {
         state.value.copyWith(
           isBusy: false,
           clientId: nextClientId,
-          clientSecret: clientSecret,
+          clientSecret: nextClientSecret,
           autoUploadEnabled: autoUploadEnabled,
           clearAthlete: resetAuthentication,
           clearError: true,
@@ -373,12 +384,15 @@ class StravaUploadService {
 
   Future<void> _loadState() async {
     final prefs = await SharedPreferences.getInstance();
-    final clientSecret = await _secureStorage.read(key: _clientSecretKey) ?? '';
+    final storedClientSecret = await _secureStorage.read(key: _clientSecretKey) ?? '';
+    final clientSecret = buildTimeStravaClientSecret.isNotEmpty
+        ? buildTimeStravaClientSecret
+        : storedClientSecret;
     final currentState = StravaUploadState(
       initialized: true,
       isBusy: false,
       autoUploadEnabled: prefs.getBool(_autoUploadKey) ?? false,
-      clientId: prefs.getString(_clientIdKey) ?? '',
+      clientId: defaultStravaClientId,
       clientSecret: clientSecret,
       athleteId: prefs.getString(_athleteIdKey),
       athleteName: prefs.getString(_athleteNameKey),
