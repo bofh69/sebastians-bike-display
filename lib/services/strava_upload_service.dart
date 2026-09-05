@@ -150,7 +150,7 @@ class StravaUploadService {
   static const _refreshTokenKey = 'strava_refresh_token';
   static const _expiresAtKey = 'strava_expires_at';
   static const _oauthBaseUrl = 'https://www.strava.com';
-  static const _apiBaseUrl = 'https://api-v3.strava.com';
+  static const _apiBaseUrl = 'https://www.strava.com/api/v3';
   static const _secureStorage = FlutterSecureStorage();
 
   final ValueNotifier<StravaUploadState> state = ValueNotifier(
