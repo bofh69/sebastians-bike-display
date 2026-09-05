@@ -30,6 +30,10 @@ const int _fitActivityTypeManual = 0;
 const double _minimumPowerForBalanceAverageWatts = 10;
 const double _climbAltitudeSmoothingFactor = 0.25;
 const double _minimumClimbGainMeters = 0.75;
+const String _rideTrackingNotificationChannelId = 'ride_tracking';
+const int _rideTrackingForegroundServiceNotificationId = 888;
+const String _rideTrackingNotificationContent =
+    'Ride recording active in background';
 
 String formatPowerBalance(double? leftBalance, double? rightBalance) {
   if (leftBalance == null || rightBalance == null) return 'N/A';
@@ -153,11 +157,16 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   static const MethodChannel _fileExportChannel = MethodChannel(
     '$kAppChannelNamespace/file_export',
   );
+  static const MethodChannel _backgroundNotificationChannel = MethodChannel(
+    '$kAppChannelNamespace/background_notification',
+  );
   bool _isRunning = false;
+  bool _isBackgroundNotificationVisible = false;
+  bool _isAppInForeground = true;
   bool _serviceConfigured = false;
   Future<void>? _backgroundServiceConfigurationFuture;
   int _ftp = 200;
@@ -191,11 +200,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool get _isMobileTrackingPlatform =>
       !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
-  bool get _supportsBackgroundRideService => !kIsWeb && io.Platform.isIOS;
+  bool get _supportsBackgroundRideService =>
+      !kIsWeb && io.Platform.isIOS;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadPreferences();
     if (_supportsBackgroundRideService) {
       unawaited(_preconfigureBackgroundService());
@@ -210,6 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _positionSubscription?.cancel();
     _recordingTimer?.cancel();
     _heartRateSensorService.state.removeListener(_syncHeartRateData);
@@ -221,6 +233,71 @@ class _HomeScreenState extends State<HomeScreen> {
       _backgroundService.invoke('stopService');
     }
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _isAppInForeground = state == AppLifecycleState.resumed;
+
+    if (!_isRunning && _isMobileTrackingPlatform) {
+      if (_isAppInForeground) {
+        unawaited(_resumeSensorsAndLocationWhileIdle());
+      } else if (state == AppLifecycleState.paused ||
+          state == AppLifecycleState.hidden ||
+          state == AppLifecycleState.detached) {
+        unawaited(_pauseSensorsAndLocationWhileIdle());
+      }
+      return;
+    }
+
+    if (!kIsWeb && io.Platform.isAndroid) {
+      if (state == AppLifecycleState.resumed) {
+        unawaited(_hideBackgroundRideNotification());
+        return;
+      }
+      if (state == AppLifecycleState.paused) {
+        unawaited(_showBackgroundRideNotification());
+      }
+    }
+  }
+
+  Future<void> _showBackgroundRideNotification() async {
+    if (_isBackgroundNotificationVisible || kIsWeb || !io.Platform.isAndroid) {
+      return;
+    }
+    _isBackgroundNotificationVisible = true;
+    try {
+      await _backgroundNotificationChannel.invokeMethod<void>(
+        'showRideNotification',
+        <String, Object>{
+          'channelId': _rideTrackingNotificationChannelId,
+          'notificationId': _rideTrackingForegroundServiceNotificationId,
+          'title': kAppDisplayName,
+          'content': _rideTrackingNotificationContent,
+        },
+      );
+    } catch (error, stackTrace) {
+      _isBackgroundNotificationVisible = false;
+      debugPrint('Failed to show background notification: $error\n$stackTrace');
+    }
+  }
+
+  Future<void> _hideBackgroundRideNotification() async {
+    if (!_isBackgroundNotificationVisible || kIsWeb || !io.Platform.isAndroid) {
+      return;
+    }
+    _isBackgroundNotificationVisible = false;
+    try {
+      await _backgroundNotificationChannel.invokeMethod<void>(
+        'hideRideNotification',
+        <String, Object>{
+          'notificationId': _rideTrackingForegroundServiceNotificationId,
+        },
+      );
+    } catch (error, stackTrace) {
+      _isBackgroundNotificationVisible = true;
+      debugPrint('Failed to hide background notification: $error\n$stackTrace');
+    }
   }
 
   void _syncHeartRateData() {
@@ -313,10 +390,11 @@ class _HomeScreenState extends State<HomeScreen> {
           onStart: rideBackgroundServiceStart,
           autoStart: false,
           isForegroundMode: true,
-          notificationChannelId: 'ride_tracking',
+          notificationChannelId: _rideTrackingNotificationChannelId,
           initialNotificationTitle: kAppDisplayName,
-          initialNotificationContent: 'Ride recording active in background',
-          foregroundServiceNotificationId: 888,
+          initialNotificationContent: _rideTrackingNotificationContent,
+          foregroundServiceNotificationId:
+              _rideTrackingForegroundServiceNotificationId,
         ),
         iosConfiguration: IosConfiguration(
           autoStart: false,
@@ -331,6 +409,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _startLocationStream() async {
     if (!_isMobileTrackingPlatform) return;
+    if (!_isRunning && !_isAppInForeground) return;
     final hasPermission = await _ensureLocationPermission();
     if (!hasPermission) return;
 
@@ -343,6 +422,23 @@ class _HomeScreenState extends State<HomeScreen> {
     _positionSubscription = Geolocator.getPositionStream(
       locationSettings: settings,
     ).listen(_handlePosition);
+  }
+
+  Future<void> _stopLocationStream() async {
+    await _positionSubscription?.cancel();
+    _positionSubscription = null;
+  }
+
+  Future<void> _pauseSensorsAndLocationWhileIdle() async {
+    await _stopLocationStream();
+    await _heartRateSensorService.disconnectFromDeviceForBackgroundIdle();
+    await _powerCadenceSensorService.disconnectFromDeviceForBackgroundIdle();
+  }
+
+  Future<void> _resumeSensorsAndLocationWhileIdle() async {
+    await _heartRateSensorService.reconnectDeviceAfterBackgroundIdle();
+    await _powerCadenceSensorService.reconnectDeviceAfterBackgroundIdle();
+    await _startLocationStream();
   }
 
   Future<bool> _ensureLocationPermission() async {
@@ -585,6 +681,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_isMobileTrackingPlatform) {
       await WakelockPlus.disable();
     }
+    await _hideBackgroundRideNotification();
     if (_supportsBackgroundRideService && _serviceConfigured) {
       _backgroundService.invoke('stopService');
     }
@@ -592,8 +689,22 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _isRunning = false;
     });
+    if (!_isAppInForeground && _isMobileTrackingPlatform) {
+      await _pauseSensorsAndLocationWhileIdle();
+    }
 
     final rideStartTime = _startTime;
+    final rideMidpointTime = _samples.isEmpty
+        ? rideStartTime
+        : _samples.first.timestamp.add(
+            Duration(
+              milliseconds:
+                  _samples.last.timestamp
+                      .difference(_samples.first.timestamp)
+                      .inMilliseconds ~/
+                  2,
+            ),
+          );
     final fitFile = await _writeFitFile();
     final gpxFile = await _writeGpxFile();
     final uploadResult = fitFile == null
@@ -601,7 +712,7 @@ class _HomeScreenState extends State<HomeScreen> {
         : await _stravaUploadService.uploadFinishedRide(
             fileName: fitFile.fileName,
             fileBytes: fitFile.bytes,
-            startedAt: rideStartTime,
+            midpointAt: rideMidpointTime,
           );
     if (!mounted) return;
     final rideSavedMessage = fitFile == null && gpxFile == null

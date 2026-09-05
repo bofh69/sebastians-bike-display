@@ -16,8 +16,6 @@ class ConfigScreen extends StatefulWidget {
 
 class _ConfigScreenState extends State<ConfigScreen> {
   final _ftpController = TextEditingController();
-  final _stravaClientIdController = TextEditingController();
-  final _stravaClientSecretController = TextEditingController();
   final HeartRateSensorService _heartRateSensorService =
       HeartRateSensorService.instance;
   final PowerCadenceSensorService _powerCadenceSensorService =
@@ -43,8 +41,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
       final state = _stravaUploadService.state.value;
       if (!mounted) return;
       setState(() {
-        _stravaClientIdController.text = state.clientId;
-        _stravaClientSecretController.text = state.clientSecret;
         _stravaAutoUploadEnabled = state.autoUploadEnabled;
       });
     }));
@@ -61,8 +57,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('ftp', int.tryParse(_ftpController.text) ?? 200);
     await _stravaUploadService.saveConfiguration(
-      clientId: _stravaClientIdController.text,
-      clientSecret: _stravaClientSecretController.text,
       autoUploadEnabled: _stravaAutoUploadEnabled,
     );
     if (mounted) {
@@ -77,8 +71,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
   @override
   void dispose() {
     _ftpController.dispose();
-    _stravaClientIdController.dispose();
-    _stravaClientSecretController.dispose();
     super.dispose();
   }
 
@@ -140,24 +132,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
             const SizedBox(height: 24),
             Text('Strava', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            TextField(
-              controller: _stravaClientIdController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Strava Client ID',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _stravaClientSecretController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Strava Client Secret',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Automatically upload finished rides'),

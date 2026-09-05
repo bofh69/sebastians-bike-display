@@ -275,6 +275,19 @@ void main() {
     );
   });
 
+  test('buildStravaRideNameForMidpoint maps time buckets', () {
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 6)), 'Morning ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 10, 59)), 'Morning ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 11)), 'Lunch ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 13, 59)), 'Lunch ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 14)), 'Afternoon ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 17, 59)), 'Afternoon ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 18)), 'Evening ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 21, 59)), 'Evening ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 22)), 'Night ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 5, 59)), 'Night ride');
+  });
+
   testWidgets('Home screen shows Start button', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
     expect(find.text('Start'), findsOneWidget);

@@ -41,7 +41,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
       - name: Build APK
-        run: flutter build apk --debug
+        env:
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+        run: |
+          if [ -n "${STRAVA_CLIENT_SECRET}" ]; then
+            flutter build apk --debug --dart-define=STRAVA_CLIENT_SECRET="${STRAVA_CLIENT_SECRET}"
+          else
+            flutter build apk --debug
+          fi
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:

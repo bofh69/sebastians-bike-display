@@ -10,6 +10,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const String stravaCallbackScheme = 'sebastiansbikedisplay';
 const String stravaCallbackHost = 'sebastiansbikedisplay';
+const String defaultStravaClientId = '276719';
+const String buildTimeStravaClientSecret = String.fromEnvironment(
+  'STRAVA_CLIENT_SECRET',
+);
 
 String buildStravaAccountLabel({
   String? firstName,
@@ -41,6 +45,15 @@ bool shouldResetStravaAuthentication({
 }) {
   return previousClientId.trim() != nextClientId.trim() ||
       previousClientSecret != nextClientSecret;
+}
+
+String buildStravaRideNameForMidpoint(DateTime midpointLocalTime) {
+  final hour = midpointLocalTime.hour;
+  if (hour >= 6 && hour < 11) return 'Morning ride';
+  if (hour >= 11 && hour < 14) return 'Lunch ride';
+  if (hour >= 14 && hour < 18) return 'Afternoon ride';
+  if (hour >= 18 && hour < 22) return 'Evening ride';
+  return 'Night ride';
 }
 
 class StravaUploadState {
@@ -150,7 +163,7 @@ class StravaUploadService {
   static const _refreshTokenKey = 'strava_refresh_token';
   static const _expiresAtKey = 'strava_expires_at';
   static const _oauthBaseUrl = 'https://www.strava.com';
-  static const _apiBaseUrl = 'https://api-v3.strava.com';
+  static const _apiBaseUrl = 'https://www.strava.com/api/v3';
   static const _secureStorage = FlutterSecureStorage();
 
   final ValueNotifier<StravaUploadState> state = ValueNotifier(
@@ -165,25 +178,30 @@ class StravaUploadService {
   }
 
   Future<void> saveConfiguration({
-    required String clientId,
-    required String clientSecret,
     required bool autoUploadEnabled,
   }) async {
     await initialize();
     final previous = state.value;
-    final nextClientId = clientId.trim();
+    const nextClientId = defaultStravaClientId;
+    final nextClientSecret = buildTimeStravaClientSecret.isNotEmpty
+        ? buildTimeStravaClientSecret
+        : previous.clientSecret;
     final resetAuthentication = shouldResetStravaAuthentication(
       previousClientId: previous.clientId,
       nextClientId: nextClientId,
       previousClientSecret: previous.clientSecret,
-      nextClientSecret: clientSecret,
+      nextClientSecret: nextClientSecret,
     );
     _setState(state.value.copyWith(isBusy: true, clearError: true));
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_clientIdKey, nextClientId);
       await prefs.setBool(_autoUploadKey, autoUploadEnabled);
-      await _secureStorage.write(key: _clientSecretKey, value: clientSecret);
+      if (buildTimeStravaClientSecret.isEmpty) {
+        await _secureStorage.write(key: _clientSecretKey, value: nextClientSecret);
+      } else {
+        await _secureStorage.delete(key: _clientSecretKey);
+      }
       if (resetAuthentication) {
         await _clearAuthentication(preserveCredentials: true);
       }
@@ -191,7 +209,7 @@ class StravaUploadService {
         state.value.copyWith(
           isBusy: false,
           clientId: nextClientId,
-          clientSecret: clientSecret,
+          clientSecret: nextClientSecret,
           autoUploadEnabled: autoUploadEnabled,
           clearAthlete: resetAuthentication,
           clearError: true,
@@ -212,7 +230,9 @@ class StravaUploadService {
     await initialize();
     final current = state.value;
     if (!current.hasCredentials) {
-      throw StateError('Set the Strava client ID and client secret first.');
+      throw StateError(
+        'Set STRAVA_CLIENT_SECRET at build time before connecting Strava.',
+      );
     }
     _setState(current.copyWith(isBusy: true, clearError: true));
     try {
@@ -282,7 +302,7 @@ class StravaUploadService {
   Future<StravaUploadResult> uploadFinishedRide({
     required String fileName,
     required Uint8List fileBytes,
-    DateTime? startedAt,
+    DateTime? midpointAt,
   }) async {
     await initialize();
     final current = state.value;
@@ -309,9 +329,9 @@ class StravaUploadService {
         ..headers['Authorization'] = authorizationHeader
         ..fields['data_type'] = 'fit'
         ..fields['external_id'] = fileName
-        ..fields['name'] = startedAt == null
-            ? 'Simple Bike Display ride'
-            : 'Ride ${startedAt.toLocal().toIso8601String()}'
+        ..fields['name'] = buildStravaRideNameForMidpoint(
+          (midpointAt ?? DateTime.now()).toLocal(),
+        )
         ..files.add(
           http.MultipartFile.fromBytes(
             'file',
@@ -373,12 +393,15 @@ class StravaUploadService {
 
   Future<void> _loadState() async {
     final prefs = await SharedPreferences.getInstance();
-    final clientSecret = await _secureStorage.read(key: _clientSecretKey) ?? '';
+    final storedClientSecret = await _secureStorage.read(key: _clientSecretKey) ?? '';
+    final clientSecret = buildTimeStravaClientSecret.isNotEmpty
+        ? buildTimeStravaClientSecret
+        : storedClientSecret;
     final currentState = StravaUploadState(
       initialized: true,
       isBusy: false,
       autoUploadEnabled: prefs.getBool(_autoUploadKey) ?? false,
-      clientId: prefs.getString(_clientIdKey) ?? '',
+      clientId: defaultStravaClientId,
       clientSecret: clientSecret,
       athleteId: prefs.getString(_athleteIdKey),
       athleteName: prefs.getString(_athleteNameKey),
