@@ -755,14 +755,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     await _hideBackgroundRideNotification(force: true);
     if (_supportsBackgroundRideService && _serviceConfigured) {
-      _backgroundService.invoke('stopService');
+      try {
+        _backgroundService.invoke('stopService');
+      } catch (error, stackTrace) {
+        debugPrint('Failed to stop ride service: $error\n$stackTrace');
+      }
     }
 
     setState(() {
       _isRunning = false;
     });
     if (!_isAppInForeground && _isMobileTrackingPlatform) {
-      await _pauseSensorsAndLocationWhileIdle();
+      try {
+        await _pauseSensorsAndLocationWhileIdle();
+      } catch (error, stackTrace) {
+        debugPrint(
+          'Failed to pause sensors/location after ride end: $error\n$stackTrace',
+        );
+      }
     }
 
     final rideStartTime = _startTime;
@@ -777,37 +787,49 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   2,
             ),
           );
-    final fitFile = await _writeFitFile();
-    final gpxFile = await _writeGpxFile();
+    _ExportedRideFile? fitFile;
+    _ExportedRideFile? gpxFile;
+    try {
+      fitFile = await _writeFitFile();
+    } catch (error, stackTrace) {
+      debugPrint('Failed to export FIT file: $error\n$stackTrace');
+    }
+    try {
+      gpxFile = await _writeGpxFile();
+    } catch (error, stackTrace) {
+      debugPrint('Failed to export GPX file: $error\n$stackTrace');
+    }
     StravaUploadResult uploadResult = const StravaUploadResult.skipped();
     if (fitFile != null) {
       final stravaState = _stravaUploadService.state.value;
       if (stravaState.autoUploadEnabled && stravaState.isAuthenticated) {
-        final decision = await _selectStravaUploadDecision();
-        if (!mounted) return;
-        final resolvedDecision = resolveStravaUploadDecision(decision);
-        if (!resolvedDecision.shouldUpload) {
-          uploadResult = const StravaUploadResult(
-            attempted: false,
-            succeeded: false,
-            message: 'Strava upload canceled.',
-            activityId: null,
-          );
-          if (decision != null && decision.skipUpload) {
+        try {
+          final decision = await _selectStravaUploadDecision();
+          if (!mounted) return;
+          final resolvedDecision = resolveStravaUploadDecision(decision);
+          if (!resolvedDecision.shouldUpload) {
             uploadResult = const StravaUploadResult(
               attempted: false,
               succeeded: false,
               message: 'Strava upload skipped.',
               activityId: null,
             );
+          } else {
+            uploadResult = await _stravaUploadService.uploadFinishedRide(
+              fileName: fitFile.fileName,
+              fileBytes: fitFile.bytes,
+              midpointAt: rideMidpointTime,
+              selectedGearId: resolvedDecision.selectedGearId,
+              clearGear: resolvedDecision.clearGear,
+            );
           }
-        } else {
-          uploadResult = await _stravaUploadService.uploadFinishedRide(
-            fileName: fitFile.fileName,
-            fileBytes: fitFile.bytes,
-            midpointAt: rideMidpointTime,
-            selectedGearId: resolvedDecision.selectedGearId,
-            clearGear: resolvedDecision.clearGear,
+        } catch (error, stackTrace) {
+          debugPrint('Strava upload flow failed: $error\n$stackTrace');
+          uploadResult = const StravaUploadResult(
+            attempted: true,
+            succeeded: false,
+            message: 'Strava upload failed.',
+            activityId: null,
           );
         }
       }
