@@ -124,9 +124,10 @@ class MainActivity : FlutterActivity() {
                 .setSmallIcon(R.drawable.ic_stat_ride)
             .setContentTitle(title ?: getString(R.string.app_name))
                 .setContentText(content ?: getString(R.string.ride_notification_content))
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(launchPendingIntent)
             .addAction(
                 android.R.drawable.ic_menu_view,

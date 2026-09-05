@@ -150,6 +150,18 @@ class _ExportedRideFile {
   });
 }
 
+class _StravaUploadDecision {
+  final bool skipUpload;
+  final String? selectedGearId;
+  final bool clearGear;
+
+  const _StravaUploadDecision({
+    required this.skipUpload,
+    required this.selectedGearId,
+    required this.clearGear,
+  });
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -201,7 +213,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool get _isMobileTrackingPlatform =>
       !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
   bool get _supportsBackgroundRideService =>
-      !kIsWeb && io.Platform.isIOS;
+      !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
 
   @override
   void initState() {
@@ -216,6 +228,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     unawaited(_powerCadenceSensorService.initialize());
     _powerCadenceSensorService.state.addListener(_syncPowerCadenceData);
     unawaited(_stravaUploadService.initialize());
+    unawaited(_hideBackgroundRideNotification(force: true));
     _startLocationStream();
   }
 
@@ -252,20 +265,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (!kIsWeb && io.Platform.isAndroid) {
       if (state == AppLifecycleState.resumed) {
-        unawaited(_hideBackgroundRideNotification());
+        if (_serviceConfigured) {
+          _backgroundService.invoke('setAsBackground');
+        }
+        unawaited(_hideBackgroundRideNotification(force: true));
         return;
       }
-      if (state == AppLifecycleState.paused) {
+      if (state == AppLifecycleState.paused ||
+          state == AppLifecycleState.hidden ||
+          state == AppLifecycleState.detached) {
+        if (_serviceConfigured) {
+          _backgroundService.invoke('setAsForeground');
+        }
         unawaited(_showBackgroundRideNotification());
       }
     }
   }
 
   Future<void> _showBackgroundRideNotification() async {
-    if (_isBackgroundNotificationVisible || kIsWeb || !io.Platform.isAndroid) {
+    if (kIsWeb || !io.Platform.isAndroid || _isAppInForeground || !_isRunning) {
       return;
     }
-    _isBackgroundNotificationVisible = true;
+    final content = _buildBackgroundRideNotificationContent();
     try {
       await _backgroundNotificationChannel.invokeMethod<void>(
         'showRideNotification',
@@ -273,17 +294,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           'channelId': _rideTrackingNotificationChannelId,
           'notificationId': _rideTrackingForegroundServiceNotificationId,
           'title': kAppDisplayName,
-          'content': _rideTrackingNotificationContent,
+          'content': content,
         },
       );
+      _isBackgroundNotificationVisible = true;
     } catch (error, stackTrace) {
       _isBackgroundNotificationVisible = false;
       debugPrint('Failed to show background notification: $error\n$stackTrace');
     }
   }
 
-  Future<void> _hideBackgroundRideNotification() async {
-    if (!_isBackgroundNotificationVisible || kIsWeb || !io.Platform.isAndroid) {
+  Future<void> _hideBackgroundRideNotification({bool force = false}) async {
+    if (kIsWeb || !io.Platform.isAndroid) {
+      return;
+    }
+    if (!force && !_isBackgroundNotificationVisible) {
       return;
     }
     _isBackgroundNotificationVisible = false;
@@ -389,7 +414,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         androidConfiguration: AndroidConfiguration(
           onStart: rideBackgroundServiceStart,
           autoStart: false,
-          isForegroundMode: true,
+          isForegroundMode: false,
           notificationChannelId: _rideTrackingNotificationChannelId,
           initialNotificationTitle: kAppDisplayName,
           initialNotificationContent: _rideTrackingNotificationContent,
@@ -413,27 +438,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final hasPermission = await _ensureLocationPermission();
     if (!hasPermission) return;
 
-    final LocationSettings settings;
-    if (!kIsWeb && io.Platform.isAndroid) {
-      settings = AndroidSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 0,
-        foregroundNotificationConfig: const ForegroundNotificationConfig(
-          notificationTitle: kAppDisplayName,
-          notificationText: _rideTrackingNotificationContent,
-          enableWakeLock: true,
-        ),
-      );
-    } else {
-      settings = const LocationSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 0,
-      );
-    }
-
     await _positionSubscription?.cancel();
     _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: settings,
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 0,
+      ),
     ).listen(_handlePosition);
   }
 
@@ -599,6 +609,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         speedMps: (_data.speed ?? 0) / 3.6,
       ),
     );
+    if (!kIsWeb && io.Platform.isAndroid && !_isAppInForeground) {
+      unawaited(_showBackgroundRideNotification());
+    }
   }
 
   Future<void> _toggleRunState() async {
@@ -632,7 +645,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         if (!started) {
           throw Exception('Unable to start ride tracking service.');
         }
-        _backgroundService.invoke('setAsForeground');
+        if (!kIsWeb && io.Platform.isAndroid) {
+          _backgroundService.invoke(
+            _isAppInForeground ? 'setAsBackground' : 'setAsForeground',
+          );
+        }
       } catch (error, stackTrace) {
         debugPrint('Failed to start ride tracking service: $error\n$stackTrace');
         if (!mounted) return;
@@ -680,6 +697,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       _recordSample();
     });
+    if (!kIsWeb && io.Platform.isAndroid) {
+      if (_isAppInForeground) {
+        unawaited(_hideBackgroundRideNotification(force: true));
+      }
+      unawaited(_showBackgroundRideNotification());
+    }
   }
 
   Future<bool> _ensureForegroundTrackingPermission() async {
@@ -694,7 +717,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_isMobileTrackingPlatform) {
       await WakelockPlus.disable();
     }
-    await _hideBackgroundRideNotification();
+    await _hideBackgroundRideNotification(force: true);
     if (_supportsBackgroundRideService && _serviceConfigured) {
       _backgroundService.invoke('stopService');
     }
@@ -720,13 +743,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           );
     final fitFile = await _writeFitFile();
     final gpxFile = await _writeGpxFile();
-    final uploadResult = fitFile == null
-        ? const StravaUploadResult.skipped()
-        : await _stravaUploadService.uploadFinishedRide(
+    StravaUploadResult uploadResult = const StravaUploadResult.skipped();
+    if (fitFile != null) {
+      final stravaState = _stravaUploadService.state.value;
+      if (stravaState.autoUploadEnabled && stravaState.isAuthenticated) {
+        final decision = await _selectStravaUploadDecision();
+        if (!mounted) return;
+        if (decision == null || decision.skipUpload) {
+          uploadResult = const StravaUploadResult(
+            attempted: false,
+            succeeded: false,
+            message: 'Strava upload skipped.',
+            activityId: null,
+          );
+        } else {
+          uploadResult = await _stravaUploadService.uploadFinishedRide(
             fileName: fitFile.fileName,
             fileBytes: fitFile.bytes,
             midpointAt: rideMidpointTime,
+            selectedGearId: decision.selectedGearId,
+            clearGear: decision.clearGear,
           );
+        }
+      }
+    }
     if (!mounted) return;
     final rideSavedMessage = fitFile == null && gpxFile == null
         ? 'Ride ended. No files written (no samples).'
@@ -915,6 +955,61 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return formatPowerBalance(_data.leftBalance, _data.rightBalance);
   }
 
+  String _buildBackgroundRideNotificationContent() {
+    return 'Duration ${_formatDuration(_data.duration)} · Distance ${(_data.distance ?? 0).toStringAsFixed(2)} km';
+  }
+
+  Future<_StravaUploadDecision?> _selectStravaUploadDecision() async {
+    final bikes = await _stravaUploadService.listAthleteBikes();
+    if (!mounted) return null;
+    return showDialog<_StravaUploadDecision>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Upload to Strava'),
+        children: [
+          if (bikes.isNotEmpty)
+            for (final bike in bikes)
+              SimpleDialogOption(
+                onPressed: () {
+                  Navigator.of(context).pop(
+                    _StravaUploadDecision(
+                      skipUpload: false,
+                      selectedGearId: bike.gearId,
+                      clearGear: false,
+                    ),
+                  );
+                },
+                child: Text(bike.isDefault ? '${bike.name} (default)' : bike.name),
+              ),
+          SimpleDialogOption(
+            onPressed: () {
+              Navigator.of(context).pop(
+                const _StravaUploadDecision(
+                  skipUpload: false,
+                  selectedGearId: null,
+                  clearGear: true,
+                ),
+              );
+            },
+            child: const Text('None'),
+          ),
+          SimpleDialogOption(
+            onPressed: () {
+              Navigator.of(context).pop(
+                const _StravaUploadDecision(
+                  skipUpload: true,
+                  selectedGearId: null,
+                  clearGear: false,
+                ),
+              );
+            },
+            child: const Text("Don't send to Strava"),
+          ),
+        ],
+      ),
+    );
+  }
+
   bool get _isPowerSensorConnected => _powerCadenceSensorService.state.value.isConnected;
 
   bool get _hasReliableGpsForSpeed {
@@ -987,6 +1082,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
+      backgroundColor: _isRunning
+          ? colorScheme.surface
+          : Color.lerp(colorScheme.surface, colorScheme.errorContainer, 0.08),
       appBar: AppBar(
         title: const Text(kAppDisplayName),
         actions: [
