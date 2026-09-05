@@ -158,7 +158,6 @@ class MainActivity : FlutterActivity() {
             put(MediaStore.Downloads.DISPLAY_NAME, fileName)
             put(MediaStore.Downloads.MIME_TYPE, mimeType)
             put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-            put(MediaStore.Downloads.IS_PENDING, 1)
         }
 
         val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
@@ -167,10 +166,6 @@ class MainActivity : FlutterActivity() {
         resolver.openOutputStream(uri)?.use { output ->
             output.write(bytes)
         } ?: throw IllegalStateException("Unable to open download output stream.")
-
-        values.clear()
-        values.put(MediaStore.Downloads.IS_PENDING, 0)
-        resolver.update(uri, values, null, null)
         return uri.toString()
     }
 
