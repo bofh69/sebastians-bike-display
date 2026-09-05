@@ -415,7 +415,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     final LocationSettings settings;
     if (!kIsWeb && io.Platform.isAndroid) {
-      settings = const AndroidSettings(
+      settings = AndroidSettings(
         accuracy: LocationAccuracy.bestForNavigation,
         distanceFilter: 0,
         foregroundNotificationConfig: ForegroundNotificationConfig(
