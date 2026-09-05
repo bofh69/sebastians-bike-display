@@ -1055,6 +1055,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 },
                 child: Text(bike.isDefault ? '${bike.name} (default)' : bike.name),
               ),
+          if (bikes.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: Text(
+                'No Strava bikes found. Reconnect Strava if you recently updated the app.',
+              ),
+            ),
           SimpleDialogOption(
             onPressed: () {
               Navigator.of(context).pop(
@@ -1078,12 +1085,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               );
             },
             child: const Text("Don't send to Strava"),
-          ),
-          SimpleDialogOption(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('Cancel'),
           ),
         ],
       ),

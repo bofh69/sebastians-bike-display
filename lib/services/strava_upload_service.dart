@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 const String stravaCallbackScheme = 'sebastiansbikedisplay';
 const String stravaCallbackHost = 'sebastiansbikedisplay';
 const String defaultStravaClientId = '276719';
+const String requiredStravaOauthScope = 'activity:write,activity:read,profile:read_all';
 const String buildTimeStravaClientSecret = String.fromEnvironment(
   'STRAVA_CLIENT_SECRET',
 );
@@ -242,6 +243,7 @@ class StravaUploadService {
   static const _accessTokenKey = 'strava_access_token';
   static const _refreshTokenKey = 'strava_refresh_token';
   static const _expiresAtKey = 'strava_expires_at';
+  static const _oauthScopeKey = 'strava_oauth_scope';
   static const _oauthBaseUrl = 'https://www.strava.com';
   static const _apiBaseUrl = 'https://www.strava.com/api/v3';
   static const _secureStorage = FlutterSecureStorage();
@@ -266,17 +268,23 @@ class StravaUploadService {
     final nextClientSecret = buildTimeStravaClientSecret.isNotEmpty
         ? buildTimeStravaClientSecret
         : previous.clientSecret;
+    final savedScope = (await SharedPreferences.getInstance()).getString(
+          _oauthScopeKey,
+        ) ??
+        '';
+    final scopeChanged = savedScope != requiredStravaOauthScope;
     final resetAuthentication = shouldResetStravaAuthentication(
       previousClientId: previous.clientId,
       nextClientId: nextClientId,
       previousClientSecret: previous.clientSecret,
       nextClientSecret: nextClientSecret,
-    );
+    ) || scopeChanged;
     _setState(state.value.copyWith(isBusy: true, clearError: true));
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_clientIdKey, nextClientId);
       await prefs.setBool(_autoUploadKey, autoUploadEnabled);
+      await prefs.setString(_oauthScopeKey, requiredStravaOauthScope);
       if (buildTimeStravaClientSecret.isEmpty) {
         await _secureStorage.write(key: _clientSecretKey, value: nextClientSecret);
       } else {
@@ -330,7 +338,7 @@ class StravaUploadService {
           'redirect_uri': callbackUri.toString(),
           'response_type': 'code',
           'approval_prompt': 'auto',
-          'scope': 'activity:write,activity:read',
+          'scope': requiredStravaOauthScope,
           'code_challenge': codeChallenge,
           'code_challenge_method': 'S256',
         },
@@ -501,6 +509,11 @@ class StravaUploadService {
 
   Future<void> _loadState() async {
     final prefs = await SharedPreferences.getInstance();
+    final savedScope = prefs.getString(_oauthScopeKey) ?? '';
+    if (savedScope != requiredStravaOauthScope) {
+      await _clearAuthentication(preserveCredentials: true);
+      await prefs.setString(_oauthScopeKey, requiredStravaOauthScope);
+    }
     final storedClientSecret = await _secureStorage.read(key: _clientSecretKey) ?? '';
     final clientSecret = buildTimeStravaClientSecret.isNotEmpty
         ? buildTimeStravaClientSecret
