@@ -317,6 +317,32 @@ void main() {
     expect(fields.containsKey('gear_id'), isFalse);
   });
 
+  test('parseStravaBikeOptions prioritizes default and filters malformed bikes', () {
+    final bikes = parseStravaBikeOptions(<String, dynamic>{
+      'default_bike': '2',
+      'bikes': <dynamic>[
+        <String, dynamic>{'id': '1', 'name': 'Road'},
+        <String, dynamic>{'id': '2', 'name': 'Gravel'},
+        <String, dynamic>{'id': null, 'name': 'Missing ID'},
+        'not-a-map',
+      ],
+    });
+
+    expect(bikes, hasLength(2));
+    expect(bikes.first.gearId, '2');
+    expect(bikes.first.isDefault, isTrue);
+    expect(bikes.last.gearId, '1');
+  });
+
+  test('parseStravaBikeOptions provides fallback bike names', () {
+    final bikes = parseStravaBikeOptions(<String, dynamic>{
+      'bikes': <dynamic>[
+        <String, dynamic>{'id': '9', 'name': ''},
+      ],
+    });
+    expect(bikes.single.name, 'Bike 9');
+  });
+
   test('resolveStravaUploadDecision handles dismissal/skip/none/bike', () {
     expect(
       resolveStravaUploadDecision(null),

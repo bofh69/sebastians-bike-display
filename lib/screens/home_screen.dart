@@ -1038,6 +1038,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             },
             child: const Text("Don't send to Strava"),
           ),
+          SimpleDialogOption(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text('Cancel'),
+          ),
         ],
       ),
     );

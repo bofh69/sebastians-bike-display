@@ -179,6 +179,35 @@ class StravaBikeOption {
   });
 }
 
+List<StravaBikeOption> parseStravaBikeOptions(Map<String, dynamic> payload) {
+  final defaultBikeId = payload['default_bike']?.toString();
+  final bikesPayload = payload['bikes'];
+  if (bikesPayload is! List) return const <StravaBikeOption>[];
+  final options = <StravaBikeOption>[];
+  for (final bike in bikesPayload) {
+    if (bike is! Map) continue;
+    final bikeMap = Map<String, dynamic>.from(bike);
+    final id = bikeMap['id']?.toString();
+    if (id == null || id.isEmpty) continue;
+    final rawName = bikeMap['name']?.toString().trim();
+    final name = rawName != null && rawName.isNotEmpty ? rawName : 'Bike $id';
+    options.add(
+      StravaBikeOption(
+        gearId: id,
+        name: name,
+        isDefault: id == defaultBikeId,
+      ),
+    );
+  }
+  options.sort((a, b) {
+    if (a.isDefault != b.isDefault) {
+      return a.isDefault ? -1 : 1;
+    }
+    return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+  });
+  return options;
+}
+
 class StravaUploadService {
   StravaUploadService._();
 
@@ -444,33 +473,8 @@ class StravaUploadService {
       }
       final payload = response.body.isEmpty
           ? <String, dynamic>{}
-          : jsonDecode(response.body) as Map<String, dynamic>;
-      final defaultBikeId = payload['default_bike']?.toString();
-      final bikesPayload = payload['bikes'];
-      if (bikesPayload is! List) return const <StravaBikeOption>[];
-      final options = <StravaBikeOption>[];
-      for (final bike in bikesPayload) {
-        if (bike is! Map<String, dynamic>) continue;
-        final id = bike['id']?.toString();
-        if (id == null || id.isEmpty) continue;
-        final rawName = bike['name']?.toString().trim();
-        final name =
-            rawName != null && rawName.isNotEmpty ? rawName : 'Bike $id';
-        options.add(
-          StravaBikeOption(
-            gearId: id,
-            name: name,
-            isDefault: id == defaultBikeId,
-          ),
-        );
-      }
-      options.sort((a, b) {
-        if (a.isDefault != b.isDefault) {
-          return a.isDefault ? -1 : 1;
-        }
-        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-      });
-      return options;
+          : Map<String, dynamic>.from(jsonDecode(response.body) as Map);
+      return parseStravaBikeOptions(payload);
     } catch (_) {
       return const <StravaBikeOption>[];
     }
