@@ -1060,10 +1060,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               label:
                   'No Strava bikes found. Reconnect Strava if you recently updated the app.',
               liveRegion: true,
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                child: Text(
-                  'No Strava bikes found. Reconnect Strava if you recently updated the app.',
+              child: ExcludeSemantics(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  child: Text(
+                    'No Strava bikes found. Reconnect Strava if you recently updated the app.',
+                  ),
                 ),
               ),
             ),

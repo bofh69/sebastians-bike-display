@@ -11,7 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 const String stravaCallbackScheme = 'sebastiansbikedisplay';
 const String stravaCallbackHost = 'sebastiansbikedisplay';
 const String defaultStravaClientId = '276719';
-const String requiredStravaOauthScope = 'activity:write,activity:read,profile:read_all';
+const String requiredStravaOauthScope =
+    'read,activity:write,activity:read_all,profile:read_all';
 const String buildTimeStravaClientSecret = String.fromEnvironment(
   'STRAVA_CLIENT_SECRET',
 );
