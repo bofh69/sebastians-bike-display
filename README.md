@@ -30,4 +30,5 @@ Build & test with:
 - `flutter pub get`
 - `flutter analyze`
 - `flutter test`
-- `flutter build apk --debug`
+- `flutter build apk --debug --dart-define=STRAVA_CLIENT_SECRET=...`
+- Or: `flutter build apk --debug --dart-define-from-file=.env.json` with `.env.json` containing `{"STRAVA_CLIENT_SECRET":"..."}`.
