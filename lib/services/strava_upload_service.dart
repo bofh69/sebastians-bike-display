@@ -645,6 +645,15 @@ class StravaUploadService {
         athleteName: athleteName,
         username: username,
       );
+    } else {
+      final persistedAthleteId = prefs.getString(_athleteIdKey);
+      final persistedAthleteName = prefs.getString(_athleteNameKey);
+      final persistedUsername = prefs.getString(_usernameKey);
+      nextState = nextState.copyWith(
+        athleteId: persistedAthleteId,
+        athleteName: persistedAthleteName,
+        username: persistedUsername,
+      );
     }
     await Future.wait<dynamic>(writes);
     _setState(nextState);
