@@ -175,7 +175,7 @@ class StravaUploadService {
   }) async {
     await initialize();
     final previous = state.value;
-    final nextClientId = defaultStravaClientId;
+    const nextClientId = defaultStravaClientId;
     final nextClientSecret = buildTimeStravaClientSecret.isNotEmpty
         ? buildTimeStravaClientSecret
         : clientSecret;
