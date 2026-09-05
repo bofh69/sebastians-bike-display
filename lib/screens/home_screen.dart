@@ -768,13 +768,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (stravaState.autoUploadEnabled && stravaState.isAuthenticated) {
         final decision = await _selectStravaUploadDecision();
         if (!mounted) return;
-        if (decision == null) {
-          uploadResult = await _stravaUploadService.uploadFinishedRide(
-            fileName: fitFile.fileName,
-            fileBytes: fitFile.bytes,
-            midpointAt: rideMidpointTime,
-          );
-        } else if (decision.skipUpload) {
+        if (decision == null || decision.skipUpload) {
           uploadResult = const StravaUploadResult(
             attempted: false,
             succeeded: false,
@@ -981,7 +975,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   String _buildBackgroundRideNotificationContent() {
-    return 'Duration ${_formatDuration(_data.duration)} · Distance ${(_data.distance ?? 0).toStringAsFixed(2)} km';
+    final distanceKm = _data.distance ?? 0;
+    return 'Duration ${_formatDuration(_data.duration)} · Distance ${distanceKm.toStringAsFixed(2)} km';
   }
 
   Future<_StravaUploadDecision?> _selectStravaUploadDecision() async {
@@ -989,48 +984,52 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!mounted) return null;
     return showDialog<_StravaUploadDecision>(
       context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Upload to Strava'),
-        children: [
-          if (bikes.isNotEmpty)
-            for (final bike in bikes)
-              SimpleDialogOption(
-                onPressed: () {
-                  Navigator.of(context).pop(
-                    _StravaUploadDecision(
-                      skipUpload: false,
-                      selectedGearId: bike.gearId,
-                      clearGear: false,
-                    ),
-                  );
-                },
-                child: Text(bike.isDefault ? '${bike.name} (default)' : bike.name),
-              ),
-          SimpleDialogOption(
-            onPressed: () {
-              Navigator.of(context).pop(
-                const _StravaUploadDecision(
-                  skipUpload: false,
-                  selectedGearId: null,
-                  clearGear: true,
+      barrierDismissible: false,
+      builder: (context) => WillPopScope(
+        onWillPop: () async => false,
+        child: SimpleDialog(
+          title: const Text('Upload to Strava'),
+          children: [
+            if (bikes.isNotEmpty)
+              for (final bike in bikes)
+                SimpleDialogOption(
+                  onPressed: () {
+                    Navigator.of(context).pop(
+                      _StravaUploadDecision(
+                        skipUpload: false,
+                        selectedGearId: bike.gearId,
+                        clearGear: false,
+                      ),
+                    );
+                  },
+                  child: Text(bike.isDefault ? '${bike.name} (default)' : bike.name),
                 ),
-              );
-            },
-            child: const Text('None'),
-          ),
-          SimpleDialogOption(
-            onPressed: () {
-              Navigator.of(context).pop(
-                const _StravaUploadDecision(
-                  skipUpload: true,
-                  selectedGearId: null,
-                  clearGear: false,
-                ),
-              );
-            },
-            child: const Text("Don't send to Strava"),
-          ),
-        ],
+            SimpleDialogOption(
+              onPressed: () {
+                Navigator.of(context).pop(
+                  const _StravaUploadDecision(
+                    skipUpload: false,
+                    selectedGearId: null,
+                    clearGear: true,
+                  ),
+                );
+              },
+              child: const Text('None'),
+            ),
+            SimpleDialogOption(
+              onPressed: () {
+                Navigator.of(context).pop(
+                  const _StravaUploadDecision(
+                    skipUpload: true,
+                    selectedGearId: null,
+                    clearGear: false,
+                  ),
+                );
+              },
+              child: const Text("Don't send to Strava"),
+            ),
+          ],
+        ),
       ),
     );
   }

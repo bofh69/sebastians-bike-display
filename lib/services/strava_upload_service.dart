@@ -56,6 +56,25 @@ String buildStravaRideNameForMidpoint(DateTime midpointLocalTime) {
   return 'Night ride';
 }
 
+Map<String, String> buildStravaUploadFields({
+  required String fileName,
+  required DateTime midpointLocalTime,
+  String? selectedGearId,
+  bool clearGear = false,
+}) {
+  final fields = <String, String>{
+    'data_type': 'fit',
+    'external_id': fileName,
+    'name': buildStravaRideNameForMidpoint(midpointLocalTime),
+  };
+  if (clearGear) {
+    fields['gear_id'] = 'none';
+  } else if (selectedGearId != null && selectedGearId.isNotEmpty) {
+    fields['gear_id'] = selectedGearId;
+  }
+  return fields;
+}
+
 class StravaUploadState {
   final bool initialized;
   final bool isBusy;
@@ -340,17 +359,15 @@ class StravaUploadService {
         'POST',
         Uri.parse('$_apiBaseUrl/uploads'),
       )
-        ..headers['Authorization'] = authorizationHeader
-        ..fields['data_type'] = 'fit'
-        ..fields['external_id'] = fileName
-        ..fields['name'] = buildStravaRideNameForMidpoint(
-          (midpointAt ?? DateTime.now()).toLocal(),
-        );
-      if (clearGear) {
-        request.fields['gear_id'] = 'none';
-      } else if (selectedGearId != null && selectedGearId.isNotEmpty) {
-        request.fields['gear_id'] = selectedGearId;
-      }
+        ..headers['Authorization'] = authorizationHeader;
+      request.fields.addAll(
+        buildStravaUploadFields(
+          fileName: fileName,
+          midpointLocalTime: (midpointAt ?? DateTime.now()).toLocal(),
+          selectedGearId: selectedGearId,
+          clearGear: clearGear,
+        ),
+      );
       request
         ..files.add(
           http.MultipartFile.fromBytes(

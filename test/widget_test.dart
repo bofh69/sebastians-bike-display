@@ -288,6 +288,35 @@ void main() {
     expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 5, 59)), 'Night ride');
   });
 
+  test('buildStravaUploadFields applies selected bike', () {
+    final fields = buildStravaUploadFields(
+      fileName: 'ride.fit',
+      midpointLocalTime: DateTime(2026, 1, 1, 7),
+      selectedGearId: 'b123',
+    );
+    expect(fields['external_id'], 'ride.fit');
+    expect(fields['data_type'], 'fit');
+    expect(fields['gear_id'], 'b123');
+  });
+
+  test('buildStravaUploadFields supports none bike selection', () {
+    final fields = buildStravaUploadFields(
+      fileName: 'ride.fit',
+      midpointLocalTime: DateTime(2026, 1, 1, 7),
+      clearGear: true,
+      selectedGearId: 'ignored',
+    );
+    expect(fields['gear_id'], 'none');
+  });
+
+  test('buildStravaUploadFields omits bike when not selected', () {
+    final fields = buildStravaUploadFields(
+      fileName: 'ride.fit',
+      midpointLocalTime: DateTime(2026, 1, 1, 7),
+    );
+    expect(fields.containsKey('gear_id'), isFalse);
+  });
+
   testWidgets('Home screen shows Start button', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
     expect(find.text('Start'), findsOneWidget);
