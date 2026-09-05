@@ -457,10 +457,10 @@ class StravaUploadService {
   }
 
   Future<List<StravaBikeOption>> listAthleteBikes() async {
-    await initialize();
-    final accessToken = await _ensureValidAccessToken();
-    if (accessToken == null) return const <StravaBikeOption>[];
     try {
+      await initialize();
+      final accessToken = await _ensureValidAccessToken();
+      if (accessToken == null) return const <StravaBikeOption>[];
       final response = await http.get(
         Uri.parse('$_apiBaseUrl/athlete'),
         headers: <String, String>{
@@ -536,17 +536,23 @@ class StravaUploadService {
       return null;
     }
 
-    final response = await http.post(
-      Uri.parse('$_oauthBaseUrl/oauth/token'),
-      body: <String, String>{
-        'client_id': current.clientId,
-        'client_secret': current.clientSecret,
-        'grant_type': 'refresh_token',
-        'refresh_token': refreshToken,
-      },
-    );
-    await _handleTokenResponse(response);
-    return _secureStorage.read(key: _accessTokenKey);
+    try {
+      final response = await http.post(
+        Uri.parse('$_oauthBaseUrl/oauth/token'),
+        body: <String, String>{
+          'client_id': current.clientId,
+          'client_secret': current.clientSecret,
+          'grant_type': 'refresh_token',
+          'refresh_token': refreshToken,
+        },
+      );
+      await _handleTokenResponse(response);
+      return _secureStorage.read(key: _accessTokenKey);
+    } catch (_) {
+      await _clearAuthentication(preserveCredentials: true);
+      _setState(state.value.copyWith(clearAthlete: true, clearError: true));
+      return null;
+    }
   }
 
   Future<void> _handleTokenResponse(http.Response response) async {
@@ -566,40 +572,47 @@ class StravaUploadService {
     final accessToken = payload['access_token']?.toString();
     final refreshToken = payload['refresh_token']?.toString();
     final expiresAt = _parseInt(payload['expires_at']);
-    final athlete = payload['athlete'];
+    final athletePayload = payload['athlete'];
+    final athlete = athletePayload is Map
+        ? Map<String, dynamic>.from(athletePayload)
+        : null;
     if (accessToken == null ||
         accessToken.isEmpty ||
         refreshToken == null ||
         refreshToken.isEmpty ||
-        expiresAt == null ||
-        athlete is! Map<String, dynamic>) {
+        expiresAt == null) {
       throw StateError('Strava returned an incomplete authentication response.');
     }
 
-    final athleteId = athlete['id']?.toString();
-    final athleteName = buildStravaAccountLabel(
-      firstName: athlete['firstname']?.toString(),
-      lastName: athlete['lastname']?.toString(),
-      username: athlete['username']?.toString(),
-      athleteId: athleteId,
-    );
     final prefs = await SharedPreferences.getInstance();
-    await Future.wait<dynamic>(<Future<dynamic>>[
+    final writes = <Future<dynamic>>[
       _secureStorage.write(key: _accessTokenKey, value: accessToken),
       _secureStorage.write(key: _refreshTokenKey, value: refreshToken),
       _secureStorage.write(key: _expiresAtKey, value: expiresAt.toString()),
-      prefs.setString(_athleteIdKey, athleteId ?? ''),
-      prefs.setString(_athleteNameKey, athleteName),
-      prefs.setString(_usernameKey, athlete['username']?.toString() ?? ''),
-    ]);
-    _setState(
-      state.value.copyWith(
+    ];
+    StravaUploadState nextState = state.value.copyWith(clearError: true);
+    if (athlete != null) {
+      final athleteId = athlete['id']?.toString();
+      final username = athlete['username']?.toString();
+      final athleteName = buildStravaAccountLabel(
+        firstName: athlete['firstname']?.toString(),
+        lastName: athlete['lastname']?.toString(),
+        username: username,
+        athleteId: athleteId,
+      );
+      writes.addAll(<Future<dynamic>>[
+        prefs.setString(_athleteIdKey, athleteId ?? ''),
+        prefs.setString(_athleteNameKey, athleteName),
+        prefs.setString(_usernameKey, username ?? ''),
+      ]);
+      nextState = nextState.copyWith(
         athleteId: athleteId,
         athleteName: athleteName,
-        username: athlete['username']?.toString(),
-        clearError: true,
-      ),
-    );
+        username: username,
+      );
+    }
+    await Future.wait<dynamic>(writes);
+    _setState(nextState);
   }
 
   Future<void> _clearAuthentication({required bool preserveCredentials}) async {
