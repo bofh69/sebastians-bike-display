@@ -47,6 +47,15 @@ bool shouldResetStravaAuthentication({
       previousClientSecret != nextClientSecret;
 }
 
+String buildStravaRideNameForMidpoint(DateTime midpointLocalTime) {
+  final hour = midpointLocalTime.hour;
+  if (hour >= 6 && hour < 11) return 'Morning ride';
+  if (hour >= 11 && hour < 14) return 'Lunch ride';
+  if (hour >= 14 && hour < 18) return 'Afternoon ride';
+  if (hour >= 18 && hour < 22) return 'Evening ride';
+  return 'Night ride';
+}
+
 class StravaUploadState {
   final bool initialized;
   final bool isBusy;
@@ -293,7 +302,7 @@ class StravaUploadService {
   Future<StravaUploadResult> uploadFinishedRide({
     required String fileName,
     required Uint8List fileBytes,
-    DateTime? startedAt,
+    DateTime? midpointAt,
   }) async {
     await initialize();
     final current = state.value;
@@ -320,9 +329,9 @@ class StravaUploadService {
         ..headers['Authorization'] = authorizationHeader
         ..fields['data_type'] = 'fit'
         ..fields['external_id'] = fileName
-        ..fields['name'] = startedAt == null
-            ? 'Simple Bike Display ride'
-            : 'Ride ${startedAt.toLocal().toIso8601String()}'
+        ..fields['name'] = buildStravaRideNameForMidpoint(
+          (midpointAt ?? DateTime.now()).toLocal(),
+        )
         ..files.add(
           http.MultipartFile.fromBytes(
             'file',

@@ -694,6 +694,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
 
     final rideStartTime = _startTime;
+    final rideMidpointTime = _samples.isEmpty
+        ? rideStartTime
+        : _samples.first.timestamp.add(
+            Duration(
+              milliseconds:
+                  _samples.last.timestamp
+                      .difference(_samples.first.timestamp)
+                      .inMilliseconds ~/
+                  2,
+            ),
+          );
     final fitFile = await _writeFitFile();
     final gpxFile = await _writeGpxFile();
     final uploadResult = fitFile == null
@@ -701,7 +712,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         : await _stravaUploadService.uploadFinishedRide(
             fileName: fitFile.fileName,
             fileBytes: fitFile.bytes,
-            startedAt: rideStartTime,
+            midpointAt: rideMidpointTime,
           );
     if (!mounted) return;
     final rideSavedMessage = fitFile == null && gpxFile == null
