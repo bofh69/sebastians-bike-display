@@ -265,20 +265,43 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (!kIsWeb && io.Platform.isAndroid) {
       if (state == AppLifecycleState.resumed) {
-        if (_serviceConfigured) {
-          _backgroundService.invoke('setAsBackground');
-        }
-        unawaited(_hideBackgroundRideNotification(force: true));
+        unawaited(_exitBackgroundRideMode());
         return;
       }
       if (state == AppLifecycleState.paused ||
           state == AppLifecycleState.hidden ||
           state == AppLifecycleState.detached) {
-        if (_serviceConfigured) {
-          _backgroundService.invoke('setAsForeground');
-        }
-        unawaited(_showBackgroundRideNotification());
+        unawaited(_enterBackgroundRideMode());
       }
+    }
+  }
+
+  Future<void> _enterBackgroundRideMode() async {
+    if (kIsWeb || !io.Platform.isAndroid || !_isRunning || _isAppInForeground) {
+      return;
+    }
+    try {
+      await _configureBackgroundService();
+      final serviceRunning = await _backgroundService.isRunning();
+      if (!serviceRunning) {
+        final started = await _backgroundService.startService();
+        if (!started) {
+          throw Exception('Unable to start ride tracking service.');
+        }
+      }
+      _backgroundService.invoke('setAsForeground');
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Failed to enter Android background ride mode: $error\n$stackTrace',
+      );
+    }
+    await _showBackgroundRideNotification();
+  }
+
+  Future<void> _exitBackgroundRideMode() async {
+    await _hideBackgroundRideNotification(force: true);
+    if (_serviceConfigured) {
+      _backgroundService.invoke('stopService');
     }
   }
 
@@ -638,17 +661,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    if (_supportsBackgroundRideService) {
+    if (_supportsBackgroundRideService && !kIsWeb && io.Platform.isIOS) {
       try {
         await _configureBackgroundService();
         final started = await _backgroundService.startService();
         if (!started) {
           throw Exception('Unable to start ride tracking service.');
-        }
-        if (!kIsWeb && io.Platform.isAndroid) {
-          _backgroundService.invoke(
-            _isAppInForeground ? 'setAsBackground' : 'setAsForeground',
-          );
         }
       } catch (error, stackTrace) {
         debugPrint('Failed to start ride tracking service: $error\n$stackTrace');
@@ -699,9 +717,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
     if (!kIsWeb && io.Platform.isAndroid) {
       if (_isAppInForeground) {
-        unawaited(_hideBackgroundRideNotification(force: true));
+        unawaited(_exitBackgroundRideMode());
+      } else {
+        unawaited(_enterBackgroundRideMode());
       }
-      unawaited(_showBackgroundRideNotification());
     }
   }
 
@@ -749,7 +768,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (stravaState.autoUploadEnabled && stravaState.isAuthenticated) {
         final decision = await _selectStravaUploadDecision();
         if (!mounted) return;
-        if (decision == null || decision.skipUpload) {
+        if (decision == null) {
+          uploadResult = await _stravaUploadService.uploadFinishedRide(
+            fileName: fitFile.fileName,
+            fileBytes: fitFile.bytes,
+            midpointAt: rideMidpointTime,
+          );
+        } else if (decision.skipUpload) {
           uploadResult = const StravaUploadResult(
             attempted: false,
             succeeded: false,
