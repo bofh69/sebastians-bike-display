@@ -7,8 +7,6 @@ import '../services/heart_rate_sensor_service.dart';
 import '../services/power_cadence_sensor_service.dart';
 import '../services/strava_upload_service.dart';
 
-const bool _hasBuildTimeStravaClientSecret = buildTimeStravaClientSecret != '';
-
 class ConfigScreen extends StatefulWidget {
   const ConfigScreen({super.key});
 
@@ -18,8 +16,6 @@ class ConfigScreen extends StatefulWidget {
 
 class _ConfigScreenState extends State<ConfigScreen> {
   final _ftpController = TextEditingController();
-  final _stravaClientIdController = TextEditingController();
-  final _stravaClientSecretController = TextEditingController();
   final HeartRateSensorService _heartRateSensorService =
       HeartRateSensorService.instance;
   final PowerCadenceSensorService _powerCadenceSensorService =
@@ -45,8 +41,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
       final state = _stravaUploadService.state.value;
       if (!mounted) return;
       setState(() {
-        _stravaClientIdController.text = state.clientId;
-        _stravaClientSecretController.text = state.clientSecret;
         _stravaAutoUploadEnabled = state.autoUploadEnabled;
       });
     }));
@@ -63,8 +57,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('ftp', int.tryParse(_ftpController.text) ?? 200);
     await _stravaUploadService.saveConfiguration(
-      clientId: _stravaClientIdController.text,
-      clientSecret: _stravaClientSecretController.text,
       autoUploadEnabled: _stravaAutoUploadEnabled,
     );
     if (mounted) {
@@ -79,8 +71,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
   @override
   void dispose() {
     _ftpController.dispose();
-    _stravaClientIdController.dispose();
-    _stravaClientSecretController.dispose();
     super.dispose();
   }
 
@@ -142,34 +132,13 @@ class _ConfigScreenState extends State<ConfigScreen> {
             const SizedBox(height: 24),
             Text('Strava', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            TextField(
-              controller: _stravaClientIdController,
-              keyboardType: TextInputType.number,
-              enabled: false,
-              decoration: const InputDecoration(
-                labelText: 'Strava Client ID',
-                helperText: 'Fixed in app build configuration.',
-                border: OutlineInputBorder(),
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('Client credentials'),
+              subtitle: Text(
+                'Configured at build time (client ID is fixed, secret comes from STRAVA_CLIENT_SECRET).',
               ),
             ),
-            const SizedBox(height: 12),
-            if (_hasBuildTimeStravaClientSecret)
-              const ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text('Strava Client Secret'),
-                subtitle: Text(
-                  'Provided at build time via STRAVA_CLIENT_SECRET.',
-                ),
-              )
-            else
-              TextField(
-                controller: _stravaClientSecretController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Strava Client Secret',
-                  border: OutlineInputBorder(),
-                ),
-              ),
             const SizedBox(height: 12),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,

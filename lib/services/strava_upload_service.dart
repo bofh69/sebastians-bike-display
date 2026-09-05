@@ -178,8 +178,6 @@ class StravaUploadService {
   }
 
   Future<void> saveConfiguration({
-    required String clientId,
-    required String clientSecret,
     required bool autoUploadEnabled,
   }) async {
     await initialize();
@@ -187,7 +185,7 @@ class StravaUploadService {
     const nextClientId = defaultStravaClientId;
     final nextClientSecret = buildTimeStravaClientSecret.isNotEmpty
         ? buildTimeStravaClientSecret
-        : clientSecret;
+        : previous.clientSecret;
     final resetAuthentication = shouldResetStravaAuthentication(
       previousClientId: previous.clientId,
       nextClientId: nextClientId,
@@ -232,7 +230,9 @@ class StravaUploadService {
     await initialize();
     final current = state.value;
     if (!current.hasCredentials) {
-      throw StateError('Set the Strava client ID and client secret first.');
+      throw StateError(
+        'Set STRAVA_CLIENT_SECRET at build time before connecting Strava.',
+      );
     }
     _setState(current.copyWith(isBusy: true, clearError: true));
     try {
