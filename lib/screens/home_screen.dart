@@ -277,12 +277,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (!kIsWeb && io.Platform.isAndroid) {
       if (state == AppLifecycleState.resumed) {
+        unawaited(_startLocationStream());
         unawaited(_hideBackgroundRideNotification(force: true));
         return;
       }
       if (state == AppLifecycleState.paused ||
           state == AppLifecycleState.hidden ||
           state == AppLifecycleState.detached) {
+        unawaited(_startLocationStream());
         unawaited(_showBackgroundRideNotification());
       }
     }
@@ -445,7 +447,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!hasPermission) return;
 
     final LocationSettings settings;
-    if (!kIsWeb && io.Platform.isAndroid) {
+    if (!kIsWeb &&
+        io.Platform.isAndroid &&
+        _isRunning &&
+        !_isAppInForeground) {
       settings = AndroidSettings(
         accuracy: LocationAccuracy.bestForNavigation,
         distanceFilter: 0,
