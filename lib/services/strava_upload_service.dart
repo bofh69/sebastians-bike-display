@@ -397,14 +397,13 @@ class StravaUploadService {
           clearGear: clearGear,
         ),
       );
-      request
-        ..files.add(
-          http.MultipartFile.fromBytes(
-            'file',
-            fileBytes,
-            filename: fileName,
-          ),
-        );
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          fileBytes,
+          filename: fileName,
+        ),
+      );
 
       final response = await request.send();
       final body = await response.stream.bytesToString();
