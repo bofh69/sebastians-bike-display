@@ -14,7 +14,7 @@ Finished rides can be uploaded to Strava automatically.
 3. Provide the client secret at build time using `STRAVA_CLIENT_SECRET`:
    - CI: pass `--dart-define=STRAVA_CLIENT_SECRET=...`
    - Local: pass `--dart-define=STRAVA_CLIENT_SECRET=...` or
-    `--dart-define-from-file=<file>` where the file contains
+    use `--dart-define-from-file=<file>` where the file contains
     `{"STRAVA_CLIENT_SECRET":"..."}`.
 4. Connect the Strava account that should receive uploads.
 5. Enable automatic uploads for finished rides.
