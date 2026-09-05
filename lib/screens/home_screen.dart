@@ -318,7 +318,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _exitBackgroundRideMode() async {
     await _hideBackgroundRideNotification(force: true);
     if (_serviceConfigured && !kIsWeb && io.Platform.isAndroid) {
-      _backgroundService.invoke('stopService');
+      _backgroundService.invoke('setAsBackground');
     }
   }
 
@@ -790,9 +790,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           uploadResult = const StravaUploadResult(
             attempted: false,
             succeeded: false,
-            message: 'Strava upload skipped.',
+            message: 'Strava upload canceled.',
             activityId: null,
           );
+          if (decision != null && decision.skipUpload) {
+            uploadResult = const StravaUploadResult(
+              attempted: false,
+              succeeded: false,
+              message: 'Strava upload skipped.',
+              activityId: null,
+            );
+          }
         } else {
           uploadResult = await _stravaUploadService.uploadFinishedRide(
             fileName: fitFile.fileName,
