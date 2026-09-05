@@ -7,7 +7,7 @@ import '../services/heart_rate_sensor_service.dart';
 import '../services/power_cadence_sensor_service.dart';
 import '../services/strava_upload_service.dart';
 
-const bool _hasBuildTimeStravaClientSecret = buildTimeStravaClientSecret.isNotEmpty;
+const bool _hasBuildTimeStravaClientSecret = buildTimeStravaClientSecret != '';
 
 class ConfigScreen extends StatefulWidget {
   const ConfigScreen({super.key});
