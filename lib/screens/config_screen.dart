@@ -132,14 +132,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
             const SizedBox(height: 24),
             Text('Strava', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            const ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text('Client credentials'),
-              subtitle: Text(
-                'Configured at build time (client ID is fixed, secret comes from STRAVA_CLIENT_SECRET).',
-              ),
-            ),
-            const SizedBox(height: 12),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Automatically upload finished rides'),
