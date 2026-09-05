@@ -1056,7 +1056,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 child: Text(bike.isDefault ? '${bike.name} (default)' : bike.name),
               ),
           if (bikes.isEmpty)
-            const Semantics(
+            Semantics(
               label:
                   'No Strava bikes found. Reconnect Strava if you recently updated the app.',
               liveRegion: true,
