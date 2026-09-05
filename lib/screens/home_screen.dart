@@ -833,17 +833,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
       }
     }
-    if (!mounted) return;
-    final rideSavedMessage = fitFile == null && gpxFile == null
-        ? 'Ride ended. No files written (no samples).'
-        : 'Ride saved. FIT: ${fitFile?.path ?? 'N/A'} GPX: ${gpxFile?.path ?? 'N/A'}';
-    final uploadMessage =
-        uploadResult.message == null ? '' : ' ${uploadResult.message}';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$rideSavedMessage$uploadMessage'),
-      ),
-    );
+    if (mounted) {
+      final rideSavedMessage = fitFile == null && gpxFile == null
+          ? 'Ride ended. No files written (no samples).'
+          : 'Ride saved. FIT: ${fitFile?.path ?? 'N/A'} GPX: ${gpxFile?.path ?? 'N/A'}';
+      final uploadMessage =
+          uploadResult.message == null ? '' : ' ${uploadResult.message}';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$rideSavedMessage$uploadMessage'),
+        ),
+      );
+    }
   }
 
   int _fitTimestamp(DateTime dt) {
@@ -1026,10 +1027,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return 'Duration ${_formatDuration(_data.duration)} · Distance ${distanceKm.toStringAsFixed(2)} km';
   }
 
-  Future<StravaUploadDecision?> _selectStravaUploadDecision() async {
+  Future<StravaUploadDecision> _selectStravaUploadDecision() async {
     final bikes = await _stravaUploadService.listAthleteBikes();
-    if (!mounted) return null;
-    return showDialog<StravaUploadDecision>(
+    if (!mounted) {
+      return const StravaUploadDecision(
+        skipUpload: true,
+        selectedGearId: null,
+        clearGear: false,
+      );
+    }
+    final decision = await showDialog<StravaUploadDecision>(
       context: context,
       builder: (context) => SimpleDialog(
         title: const Text('Upload to Strava'),
@@ -1081,6 +1088,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ],
       ),
     );
+    return decision ??
+        const StravaUploadDecision(
+          skipUpload: true,
+          selectedGearId: null,
+          clearGear: false,
+        );
   }
 
   bool get _isPowerSensorConnected => _powerCadenceSensorService.state.value.isConnected;

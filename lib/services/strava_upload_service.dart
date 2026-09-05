@@ -566,11 +566,14 @@ class StravaUploadService {
           'refresh_token': refreshToken,
         },
       );
+      if (response.statusCode == 400 || response.statusCode == 401) {
+        await _clearAuthentication(preserveCredentials: true);
+        _setState(state.value.copyWith(clearAthlete: true, clearError: true));
+        return null;
+      }
       await _handleTokenResponse(response);
       return _secureStorage.read(key: _accessTokenKey);
     } catch (_) {
-      await _clearAuthentication(preserveCredentials: true);
-      _setState(state.value.copyWith(clearAthlete: true, clearError: true));
       return null;
     }
   }
