@@ -150,16 +150,28 @@ class _ExportedRideFile {
   });
 }
 
-class _StravaUploadDecision {
+class StravaUploadDecision {
   final bool skipUpload;
   final String? selectedGearId;
   final bool clearGear;
 
-  const _StravaUploadDecision({
+  const StravaUploadDecision({
     required this.skipUpload,
     required this.selectedGearId,
     required this.clearGear,
   });
+}
+
+({bool shouldUpload, String? selectedGearId, bool clearGear})
+resolveStravaUploadDecision(StravaUploadDecision? decision) {
+  if (decision == null || decision.skipUpload) {
+    return (shouldUpload: false, selectedGearId: null, clearGear: false);
+  }
+  return (
+    shouldUpload: true,
+    selectedGearId: decision.selectedGearId,
+    clearGear: decision.clearGear,
+  );
 }
 
 class HomeScreen extends StatefulWidget {
@@ -717,7 +729,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
     if (!kIsWeb && io.Platform.isAndroid) {
       if (_isAppInForeground) {
-        unawaited(_exitBackgroundRideMode());
+        unawaited(_hideBackgroundRideNotification(force: true));
       } else {
         unawaited(_enterBackgroundRideMode());
       }
@@ -768,7 +780,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (stravaState.autoUploadEnabled && stravaState.isAuthenticated) {
         final decision = await _selectStravaUploadDecision();
         if (!mounted) return;
-        if (decision == null || decision.skipUpload) {
+        final resolvedDecision = resolveStravaUploadDecision(decision);
+        if (!resolvedDecision.shouldUpload) {
           uploadResult = const StravaUploadResult(
             attempted: false,
             succeeded: false,
@@ -780,8 +793,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             fileName: fitFile.fileName,
             fileBytes: fitFile.bytes,
             midpointAt: rideMidpointTime,
-            selectedGearId: decision.selectedGearId,
-            clearGear: decision.clearGear,
+            selectedGearId: resolvedDecision.selectedGearId,
+            clearGear: resolvedDecision.clearGear,
           );
         }
       }
@@ -979,10 +992,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return 'Duration ${_formatDuration(_data.duration)} · Distance ${distanceKm.toStringAsFixed(2)} km';
   }
 
-  Future<_StravaUploadDecision?> _selectStravaUploadDecision() async {
+  Future<StravaUploadDecision?> _selectStravaUploadDecision() async {
     final bikes = await _stravaUploadService.listAthleteBikes();
     if (!mounted) return null;
-    return showDialog<_StravaUploadDecision>(
+    return showDialog<StravaUploadDecision>(
       context: context,
       barrierDismissible: false,
       builder: (context) => WillPopScope(
@@ -995,7 +1008,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 SimpleDialogOption(
                   onPressed: () {
                     Navigator.of(context).pop(
-                      _StravaUploadDecision(
+                      StravaUploadDecision(
                         skipUpload: false,
                         selectedGearId: bike.gearId,
                         clearGear: false,
@@ -1007,7 +1020,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             SimpleDialogOption(
               onPressed: () {
                 Navigator.of(context).pop(
-                  const _StravaUploadDecision(
+                  const StravaUploadDecision(
                     skipUpload: false,
                     selectedGearId: null,
                     clearGear: true,
@@ -1019,7 +1032,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             SimpleDialogOption(
               onPressed: () {
                 Navigator.of(context).pop(
-                  const _StravaUploadDecision(
+                  const StravaUploadDecision(
                     skipUpload: true,
                     selectedGearId: null,
                     clearGear: false,
@@ -1108,7 +1121,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Scaffold(
       backgroundColor: _isRunning
           ? colorScheme.surface
-          : Color.lerp(colorScheme.surface, colorScheme.errorContainer, 0.08),
+          : Color.lerp(colorScheme.surface, colorScheme.errorContainer, 0.08)!,
       appBar: AppBar(
         title: const Text(kAppDisplayName),
         actions: [

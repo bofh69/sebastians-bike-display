@@ -317,6 +317,43 @@ void main() {
     expect(fields.containsKey('gear_id'), isFalse);
   });
 
+  test('resolveStravaUploadDecision handles dismissal/skip/none/bike', () {
+    expect(
+      resolveStravaUploadDecision(null),
+      (shouldUpload: false, selectedGearId: null, clearGear: false),
+    );
+    expect(
+      resolveStravaUploadDecision(
+        const StravaUploadDecision(
+          skipUpload: true,
+          selectedGearId: 'bike-1',
+          clearGear: false,
+        ),
+      ),
+      (shouldUpload: false, selectedGearId: null, clearGear: false),
+    );
+    expect(
+      resolveStravaUploadDecision(
+        const StravaUploadDecision(
+          skipUpload: false,
+          selectedGearId: null,
+          clearGear: true,
+        ),
+      ),
+      (shouldUpload: true, selectedGearId: null, clearGear: true),
+    );
+    expect(
+      resolveStravaUploadDecision(
+        const StravaUploadDecision(
+          skipUpload: false,
+          selectedGearId: 'bike-42',
+          clearGear: false,
+        ),
+      ),
+      (shouldUpload: true, selectedGearId: 'bike-42', clearGear: false),
+    );
+  });
+
   testWidgets('Home screen shows Start button', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
     expect(find.text('Start'), findsOneWidget);
