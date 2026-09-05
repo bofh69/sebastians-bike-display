@@ -312,8 +312,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _exitBackgroundRideMode() async {
     await _hideBackgroundRideNotification(force: true);
-    if (_serviceConfigured) {
-      _backgroundService.invoke('stopService');
+    if (_serviceConfigured && !kIsWeb && io.Platform.isAndroid) {
+      _backgroundService.invoke('setAsBackground');
     }
   }
 
@@ -1121,7 +1121,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Scaffold(
       backgroundColor: _isRunning
           ? colorScheme.surface
-          : Color.lerp(colorScheme.surface, colorScheme.errorContainer, 0.08)!,
+          : Color.alphaBlend(
+              colorScheme.error.withOpacity(0.04),
+              colorScheme.surface,
+            ),
       appBar: AppBar(
         title: const Text(kAppDisplayName),
         actions: [
