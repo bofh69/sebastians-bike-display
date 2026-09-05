@@ -418,7 +418,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       settings = AndroidSettings(
         accuracy: LocationAccuracy.bestForNavigation,
         distanceFilter: 0,
-        foregroundNotificationConfig: ForegroundNotificationConfig(
+        foregroundNotificationConfig: const ForegroundNotificationConfig(
           notificationTitle: kAppDisplayName,
           notificationText: _rideTrackingNotificationContent,
           enableWakeLock: true,
