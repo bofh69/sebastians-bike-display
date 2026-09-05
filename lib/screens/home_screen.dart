@@ -1056,10 +1056,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 child: Text(bike.isDefault ? '${bike.name} (default)' : bike.name),
               ),
           if (bikes.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: Text(
-                'No Strava bikes found. Reconnect Strava if you recently updated the app.',
+            const Semantics(
+              label:
+                  'No Strava bikes found. Reconnect Strava if you recently updated the app.',
+              liveRegion: true,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                child: Text(
+                  'No Strava bikes found. Reconnect Strava if you recently updated the app.',
+                ),
               ),
             ),
           SimpleDialogOption(
