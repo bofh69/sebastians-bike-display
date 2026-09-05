@@ -190,6 +190,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   );
   bool _isRunning = false;
   bool _isBackgroundNotificationVisible = false;
+  bool _isEnteringBackgroundRideMode = false;
   bool _isAppInForeground = true;
   bool _serviceConfigured = false;
   Future<void>? _backgroundServiceConfigurationFuture;
@@ -292,6 +293,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (kIsWeb || !io.Platform.isAndroid || !_isRunning || _isAppInForeground) {
       return;
     }
+    if (_isEnteringBackgroundRideMode) return;
+    _isEnteringBackgroundRideMode = true;
     try {
       await _configureBackgroundService();
       final serviceRunning = await _backgroundService.isRunning();
@@ -306,6 +309,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       debugPrint(
         'Failed to enter Android background ride mode: $error\n$stackTrace',
       );
+    } finally {
+      _isEnteringBackgroundRideMode = false;
     }
     await _showBackgroundRideNotification();
   }
