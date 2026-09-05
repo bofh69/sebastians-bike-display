@@ -75,6 +75,26 @@ Map<String, String> buildStravaUploadFields({
   return fields;
 }
 
+({
+  String? accessToken,
+  String? refreshToken,
+  int? expiresAt,
+  Map<String, dynamic>? athlete,
+})
+parseStravaAuthenticationPayload(Map<String, dynamic> payload) {
+  final athletePayload = payload['athlete'];
+  return (
+    accessToken: payload['access_token']?.toString(),
+    refreshToken: payload['refresh_token']?.toString(),
+    expiresAt: int.tryParse(payload['expires_at']?.toString() ?? ''),
+    athlete: athletePayload is Map<String, dynamic>
+        ? athletePayload
+        : athletePayload is Map
+        ? Map<String, dynamic>.from(athletePayload)
+        : null,
+  );
+}
+
 class StravaUploadState {
   final bool initialized;
   final bool isBusy;
@@ -569,13 +589,11 @@ class StravaUploadService {
   }
 
   Future<void> _persistAuthenticationPayload(Map<String, dynamic> payload) async {
-    final accessToken = payload['access_token']?.toString();
-    final refreshToken = payload['refresh_token']?.toString();
-    final expiresAt = _parseInt(payload['expires_at']);
-    final athletePayload = payload['athlete'];
-    final athlete = athletePayload is Map
-        ? Map<String, dynamic>.from(athletePayload)
-        : null;
+    final parsedPayload = parseStravaAuthenticationPayload(payload);
+    final accessToken = parsedPayload.accessToken;
+    final refreshToken = parsedPayload.refreshToken;
+    final expiresAt = parsedPayload.expiresAt;
+    final athlete = parsedPayload.athlete;
     if (accessToken == null ||
         accessToken.isEmpty ||
         refreshToken == null ||

@@ -343,6 +343,31 @@ void main() {
     expect(bikes.single.name, 'Bike 9');
   });
 
+  test('parseStravaAuthenticationPayload accepts token refresh without athlete', () {
+    final parsed = parseStravaAuthenticationPayload(<String, dynamic>{
+      'access_token': 'a',
+      'refresh_token': 'r',
+      'expires_at': 12345,
+    });
+    expect(parsed.accessToken, 'a');
+    expect(parsed.refreshToken, 'r');
+    expect(parsed.expiresAt, 12345);
+    expect(parsed.athlete, isNull);
+  });
+
+  test('parseStravaAuthenticationPayload normalizes athlete map shape', () {
+    final parsed = parseStravaAuthenticationPayload(<String, dynamic>{
+      'access_token': 'a',
+      'refresh_token': 'r',
+      'expires_at': '12345',
+      'athlete': <Object?, Object?>{'id': 7, 'username': 'rider'},
+    });
+    expect(parsed.expiresAt, 12345);
+    expect(parsed.athlete, isNotNull);
+    expect(parsed.athlete!['id'].toString(), '7');
+    expect(parsed.athlete!['username'], 'rider');
+  });
+
   test('resolveStravaUploadDecision handles dismissal/skip/none/bike', () {
     expect(
       resolveStravaUploadDecision(null),

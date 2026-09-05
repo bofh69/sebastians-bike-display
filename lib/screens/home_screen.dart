@@ -805,7 +805,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (stravaState.autoUploadEnabled && stravaState.isAuthenticated) {
         try {
           final decision = await _selectStravaUploadDecision();
-          if (!mounted) return;
           final resolvedDecision = resolveStravaUploadDecision(decision);
           if (!resolvedDecision.shouldUpload) {
             uploadResult = const StravaUploadResult(
