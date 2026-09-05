@@ -1137,7 +1137,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       backgroundColor: _isRunning
           ? colorScheme.surface
           : Color.alphaBlend(
-              colorScheme.error.withValues(alpha: 0.04),
+              colorScheme.error.withOpacity(0.04),
               colorScheme.surface,
             ),
       appBar: AppBar(
