@@ -318,7 +318,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _exitBackgroundRideMode() async {
     await _hideBackgroundRideNotification(force: true);
     if (_serviceConfigured && !kIsWeb && io.Platform.isAndroid) {
-      _backgroundService.invoke('setAsBackground');
+      _backgroundService.invoke('stopService');
     }
   }
 
