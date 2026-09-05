@@ -1,6 +1,7 @@
 package com.diegeekdie.sebastians_bike_display
 
 import android.Manifest
+import android.app.Notification
 import android.content.ContentValues
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -99,9 +100,15 @@ class MainActivity : FlutterActivity() {
                 val channel = NotificationChannel(
                     effectiveChannelId,
                     rideTrackingChannelName,
-                    NotificationManager.IMPORTANCE_LOW
+                    NotificationManager.IMPORTANCE_DEFAULT
                 )
+                channel.lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                channel.enableVibration(false)
+                channel.setSound(null, null)
                 manager.createNotificationChannel(channel)
+            } else {
+                existingChannel.lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                manager.createNotificationChannel(existingChannel)
             }
         }
 
@@ -127,7 +134,9 @@ class MainActivity : FlutterActivity() {
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setSilent(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setContentIntent(launchPendingIntent)
             .addAction(
                 android.R.drawable.ic_menu_view,

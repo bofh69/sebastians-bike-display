@@ -30,7 +30,7 @@ const int _fitActivityTypeManual = 0;
 const double _minimumPowerForBalanceAverageWatts = 10;
 const double _climbAltitudeSmoothingFactor = 0.25;
 const double _minimumClimbGainMeters = 0.75;
-const String _rideTrackingNotificationChannelId = 'ride_tracking';
+const String _rideTrackingNotificationChannelId = 'ride_tracking_lockscreen';
 const int _rideTrackingForegroundServiceNotificationId = 888;
 const String _rideTrackingNotificationContent =
     'Ride recording active in background';
