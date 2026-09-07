@@ -288,6 +288,123 @@ void main() {
     expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 5, 59)), 'Night ride');
   });
 
+  test('buildStravaUploadFields applies selected bike', () {
+    final fields = buildStravaUploadFields(
+      fileName: 'ride.fit',
+      midpointLocalTime: DateTime(2026, 1, 1, 7),
+      selectedGearId: 'b123',
+    );
+    expect(fields['external_id'], 'ride.fit');
+    expect(fields['data_type'], 'fit');
+    expect(fields['gear_id'], 'b123');
+  });
+
+  test('buildStravaUploadFields supports none bike selection', () {
+    final fields = buildStravaUploadFields(
+      fileName: 'ride.fit',
+      midpointLocalTime: DateTime(2026, 1, 1, 7),
+      clearGear: true,
+      selectedGearId: 'ignored',
+    );
+    expect(fields['gear_id'], 'none');
+  });
+
+  test('buildStravaUploadFields omits bike when not selected', () {
+    final fields = buildStravaUploadFields(
+      fileName: 'ride.fit',
+      midpointLocalTime: DateTime(2026, 1, 1, 7),
+    );
+    expect(fields.containsKey('gear_id'), isFalse);
+  });
+
+  test('parseStravaBikeOptions prioritizes default and filters malformed bikes', () {
+    final bikes = parseStravaBikeOptions(<String, dynamic>{
+      'default_bike': '2',
+      'bikes': <dynamic>[
+        <String, dynamic>{'id': '1', 'name': 'Road'},
+        <String, dynamic>{'id': '2', 'name': 'Gravel'},
+        <String, dynamic>{'id': null, 'name': 'Missing ID'},
+        'not-a-map',
+      ],
+    });
+
+    expect(bikes, hasLength(2));
+    expect(bikes.first.gearId, '2');
+    expect(bikes.first.isDefault, isTrue);
+    expect(bikes.last.gearId, '1');
+  });
+
+  test('parseStravaBikeOptions provides fallback bike names', () {
+    final bikes = parseStravaBikeOptions(<String, dynamic>{
+      'bikes': <dynamic>[
+        <String, dynamic>{'id': '9', 'name': ''},
+      ],
+    });
+    expect(bikes.single.name, 'Bike 9');
+  });
+
+  test('parseStravaAuthenticationPayload accepts token refresh without athlete', () {
+    final parsed = parseStravaAuthenticationPayload(<String, dynamic>{
+      'access_token': 'a',
+      'refresh_token': 'r',
+      'expires_at': 12345,
+    });
+    expect(parsed.accessToken, 'a');
+    expect(parsed.refreshToken, 'r');
+    expect(parsed.expiresAt, 12345);
+    expect(parsed.athlete, isNull);
+  });
+
+  test('parseStravaAuthenticationPayload normalizes athlete map shape', () {
+    final parsed = parseStravaAuthenticationPayload(<String, dynamic>{
+      'access_token': 'a',
+      'refresh_token': 'r',
+      'expires_at': '12345',
+      'athlete': <Object?, Object?>{'id': 7, 'username': 'rider'},
+    });
+    expect(parsed.expiresAt, 12345);
+    expect(parsed.athlete, isNotNull);
+    expect(parsed.athlete!['id'].toString(), '7');
+    expect(parsed.athlete!['username'], 'rider');
+  });
+
+  test('resolveStravaUploadDecision handles dismissal/skip/none/bike', () {
+    expect(
+      resolveStravaUploadDecision(null),
+      (shouldUpload: false, selectedGearId: null, clearGear: false),
+    );
+    expect(
+      resolveStravaUploadDecision(
+        const StravaUploadDecision(
+          skipUpload: true,
+          selectedGearId: 'bike-1',
+          clearGear: false,
+        ),
+      ),
+      (shouldUpload: false, selectedGearId: null, clearGear: false),
+    );
+    expect(
+      resolveStravaUploadDecision(
+        const StravaUploadDecision(
+          skipUpload: false,
+          selectedGearId: null,
+          clearGear: true,
+        ),
+      ),
+      (shouldUpload: true, selectedGearId: null, clearGear: true),
+    );
+    expect(
+      resolveStravaUploadDecision(
+        const StravaUploadDecision(
+          skipUpload: false,
+          selectedGearId: 'bike-42',
+          clearGear: false,
+        ),
+      ),
+      (shouldUpload: true, selectedGearId: 'bike-42', clearGear: false),
+    );
+  });
+
   testWidgets('Home screen shows Start button', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
     expect(find.text('Start'), findsOneWidget);

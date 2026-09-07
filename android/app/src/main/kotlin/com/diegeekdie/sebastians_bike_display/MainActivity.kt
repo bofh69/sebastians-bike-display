@@ -1,6 +1,7 @@
 package com.diegeekdie.sebastians_bike_display
 
 import android.Manifest
+import android.app.Notification
 import android.content.ContentValues
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -99,8 +100,11 @@ class MainActivity : FlutterActivity() {
                 val channel = NotificationChannel(
                     effectiveChannelId,
                     rideTrackingChannelName,
-                    NotificationManager.IMPORTANCE_LOW
+                    NotificationManager.IMPORTANCE_DEFAULT
                 )
+                channel.lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                channel.enableVibration(false)
+                channel.setSound(null, null)
                 manager.createNotificationChannel(channel)
             }
         }
@@ -124,9 +128,12 @@ class MainActivity : FlutterActivity() {
                 .setSmallIcon(R.drawable.ic_stat_ride)
             .setContentTitle(title ?: getString(R.string.app_name))
                 .setContentText(content ?: getString(R.string.ride_notification_content))
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .setSilent(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setContentIntent(launchPendingIntent)
             .addAction(
                 android.R.drawable.ic_menu_view,
@@ -157,7 +164,6 @@ class MainActivity : FlutterActivity() {
             put(MediaStore.Downloads.DISPLAY_NAME, fileName)
             put(MediaStore.Downloads.MIME_TYPE, mimeType)
             put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-            put(MediaStore.Downloads.IS_PENDING, 1)
         }
 
         val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
@@ -166,10 +172,6 @@ class MainActivity : FlutterActivity() {
         resolver.openOutputStream(uri)?.use { output ->
             output.write(bytes)
         } ?: throw IllegalStateException("Unable to open download output stream.")
-
-        values.clear()
-        values.put(MediaStore.Downloads.IS_PENDING, 0)
-        resolver.update(uri, values, null, null)
         return uri.toString()
     }
 
