@@ -266,6 +266,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (!_isRunning && _isMobileTrackingPlatform) {
       if (_isAppInForeground) {
+        if (!kIsWeb && io.Platform.isAndroid) {
+          unawaited(_hideBackgroundRideNotification(force: true));
+        }
         unawaited(_resumeSensorsAndLocationWhileIdle());
       } else if (state == AppLifecycleState.paused ||
           state == AppLifecycleState.hidden ||
@@ -751,6 +754,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     setState(() {
       _isRunning = false;
     });
+    if (!kIsWeb && io.Platform.isAndroid && _isAppInForeground) {
+      try {
+        await _startLocationStream();
+      } catch (error, stackTrace) {
+        debugPrint(
+          'Failed to reconfigure location stream after ride end: $error\n$stackTrace',
+        );
+      }
+    }
     if (!_isAppInForeground && _isMobileTrackingPlatform) {
       try {
         await _pauseSensorsAndLocationWhileIdle();
