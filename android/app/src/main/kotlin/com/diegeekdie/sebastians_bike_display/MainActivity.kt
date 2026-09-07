@@ -106,9 +106,6 @@ class MainActivity : FlutterActivity() {
                 channel.enableVibration(false)
                 channel.setSound(null, null)
                 manager.createNotificationChannel(channel)
-            } else {
-                existingChannel.lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-                manager.createNotificationChannel(existingChannel)
             }
         }
 
