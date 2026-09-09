@@ -15,7 +15,7 @@ Finished rides can be uploaded to Strava automatically.
    `STRAVA_CLIENT_SECRET` only on that server.
 4. (Optional for non-production environments) point the app to a different
    proxy by passing
-   `--dart-define=STRAVA_PROXY_BASE_URL=https://your-proxy.example.com`.
+   `--dart-define=STRAVA_PROXY_BASE_URL=https://your-proxy.example.com/api/`.
 5. Connect the Strava account that should receive uploads.
 6. Enable automatic uploads for finished rides.
 
@@ -27,10 +27,12 @@ This repository now includes a Python 3 Strava proxy server so the Strava client
 secret can be kept on the server side instead of in the app build:
 
 - Server code: `/home/runner/work/sebastians-bike-display/sebastians-bike-display/server/strava_proxy_server.py`
-- Nginx bootstrap config (HTTP): `/home/runner/work/sebastians-bike-display/sebastians-bike-display/deploy/nginx/sbc.diegeekdie.com.conf`
-- Nginx TLS config (HTTPS): `/home/runner/work/sebastians-bike-display/sebastians-bike-display/deploy/nginx/sbc.diegeekdie.com.tls.conf`
-- Systemd unit: `/home/runner/work/sebastians-bike-display/sebastians-bike-display/deploy/systemd/strava-upload-proxy.service`
-- Deployment guide (Debian Trixie + Let's Encrypt): `/home/runner/work/sebastians-bike-display/sebastians-bike-display/deploy/strava-proxy-deployment.md`
+- Deploy assets root: `/home/runner/work/sebastians-bike-display/sebastians-bike-display/server/deploy`
+- Nginx bootstrap config (HTTP): `/home/runner/work/sebastians-bike-display/sebastians-bike-display/server/deploy/nginx/sbc.diegeekdie.com.conf`
+- Nginx TLS config (HTTPS): `/home/runner/work/sebastians-bike-display/sebastians-bike-display/server/deploy/nginx/sbc.diegeekdie.com.tls.conf`
+- Landing page template: `/home/runner/work/sebastians-bike-display/sebastians-bike-display/server/deploy/www/index.html`
+- Systemd unit: `/home/runner/work/sebastians-bike-display/sebastians-bike-display/server/deploy/systemd/strava-upload-proxy.service`
+- Deployment guide (Debian Trixie + Let's Encrypt): `/home/runner/work/sebastians-bike-display/sebastians-bike-display/server/deploy/strava-proxy-deployment.md`
 
 ## Development
 
@@ -42,4 +44,4 @@ Build & test with:
 - `flutter analyze`
 - `flutter test`
 - `flutter build apk --debug`
-- Or with custom proxy: `flutter build apk --debug --dart-define=STRAVA_PROXY_BASE_URL=https://your-proxy.example.com`
+- Or with custom proxy: `flutter build apk --debug --dart-define=STRAVA_PROXY_BASE_URL=https://your-proxy.example.com/api/`

@@ -15,7 +15,7 @@ const String requiredStravaOauthScope =
     'read,activity:write,activity:read_all,profile:read_all';
 const String defaultStravaProxyBaseUrl = String.fromEnvironment(
   'STRAVA_PROXY_BASE_URL',
-  defaultValue: 'https://sbc.diegeekdie.com',
+  defaultValue: 'https://sbc.diegeekdie.com/api/',
 );
 
 String buildStravaAccountLabel({
@@ -399,7 +399,7 @@ class StravaUploadService {
         clearGear: clearGear,
       );
       final response = await http.post(
-        _stravaProxyUri('/api/strava/upload'),
+        _stravaProxyUri('strava/upload'),
         headers: const <String, String>{'Content-Type': 'application/json'},
         body: jsonEncode(<String, dynamic>{
           'access_token': accessToken,
@@ -465,7 +465,7 @@ class StravaUploadService {
       final accessToken = await _ensureValidAccessToken();
       if (accessToken == null) return const <StravaBikeOption>[];
       final response = await http.post(
-        _stravaProxyUri('/api/strava/athlete'),
+        _stravaProxyUri('strava/athlete'),
         headers: const <String, String>{'Content-Type': 'application/json'},
         body: jsonEncode(<String, dynamic>{'access_token': accessToken}),
       );
@@ -507,7 +507,7 @@ class StravaUploadService {
     Uri redirectUri,
   ) async {
     final response = await http.post(
-      _stravaProxyUri('/api/strava/oauth/token'),
+      _stravaProxyUri('strava/oauth/token'),
       headers: const <String, String>{'Content-Type': 'application/json'},
       body: jsonEncode(<String, String>{
         'code': code,
@@ -534,7 +534,7 @@ class StravaUploadService {
 
     try {
       final response = await http.post(
-        _stravaProxyUri('/api/strava/oauth/refresh'),
+        _stravaProxyUri('strava/oauth/refresh'),
         headers: const <String, String>{'Content-Type': 'application/json'},
         body: jsonEncode(<String, String>{'refresh_token': refreshToken}),
       );
@@ -630,9 +630,12 @@ class StravaUploadService {
   }
 
   Uri _stravaProxyUri(String path) {
-    final baseUri = Uri.parse(defaultStravaProxyBaseUrl);
-    final normalizedPath = path.startsWith('/') ? path : '/$path';
-    return baseUri.resolve(normalizedPath);
+    var base = defaultStravaProxyBaseUrl.trim();
+    if (!base.endsWith('/')) {
+      base = '$base/';
+    }
+    final normalizedPath = path.startsWith('/') ? path.substring(1) : path;
+    return Uri.parse(base).resolve(normalizedPath);
   }
 
   String _createRandomToken([int length = 48]) {

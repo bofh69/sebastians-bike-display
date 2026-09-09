@@ -1,6 +1,6 @@
 # Strava proxy deployment (Debian Trixie)
 
-This deploys a Python 3 server at `https://sbc.diegeekdie.com/` so the Strava client secret stays on the server.
+This deploys a Python 3 server at `https://sbc.diegeekdie.com/api/` so the Strava client secret stays on the server.
 
 ## 1) Install packages
 
@@ -48,7 +48,7 @@ sudo chmod 600 /etc/default/strava-upload-proxy
 ## 4) Install and start systemd service
 
 ```bash
-sudo cp /opt/strava-upload-proxy/deploy/systemd/strava-upload-proxy.service /etc/systemd/system/
+sudo cp /opt/strava-upload-proxy/server/deploy/systemd/strava-upload-proxy.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now strava-upload-proxy
 sudo systemctl status strava-upload-proxy
@@ -64,13 +64,21 @@ curl http://127.0.0.1:8080/healthz
 
 ```bash
 sudo mkdir -p /var/www/certbot
-sudo cp /opt/strava-upload-proxy/deploy/nginx/sbc.diegeekdie.com.conf /etc/nginx/sites-available/sbc.diegeekdie.com.conf
+sudo mkdir -p /var/www/sbc/downloads
+sudo cp /opt/strava-upload-proxy/server/deploy/www/index.html /var/www/sbc/index.html
+sudo cp /opt/strava-upload-proxy/server/deploy/nginx/sbc.diegeekdie.com.conf /etc/nginx/sites-available/sbc.diegeekdie.com.conf
 sudo ln -sf /etc/nginx/sites-available/sbc.diegeekdie.com.conf /etc/nginx/sites-enabled/sbc.diegeekdie.com.conf
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-This bootstrap config only uses port 80 and proxies traffic to the app, so `nginx -t` works before certificates exist.
+Place the APK where the landing page expects it:
+
+```bash
+sudo cp /path/to/simple-bike-display.apk /var/www/sbc/downloads/sebastians-bike-display.apk
+```
+
+This bootstrap config serves the website at `/` and proxies API traffic from `/api/` to the Python service, so `nginx -t` works before certificates exist.
 
 ## 6) Issue Let's Encrypt certificate
 
@@ -83,7 +91,7 @@ sudo certbot certonly --webroot -w /var/www/certbot -d sbc.diegeekdie.com
 ## 7) Enable HTTPS nginx config
 
 ```bash
-sudo cp /opt/strava-upload-proxy/deploy/nginx/sbc.diegeekdie.com.tls.conf /etc/nginx/sites-available/sbc.diegeekdie.com.conf
+sudo cp /opt/strava-upload-proxy/server/deploy/nginx/sbc.diegeekdie.com.tls.conf /etc/nginx/sites-available/sbc.diegeekdie.com.conf
 sudo nginx -t
 sudo systemctl reload nginx
 ```
@@ -107,4 +115,4 @@ sudo certbot renew --dry-run
 - `POST /api/strava/athlete`
 - `POST /api/strava/upload`
 
-All POST endpoints expect `application/json` payloads.
+All POST endpoints expect `application/json` payloads and are exposed under `https://sbc.diegeekdie.com/api/`.
