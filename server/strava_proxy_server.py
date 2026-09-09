@@ -321,12 +321,8 @@ class StravaProxyHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _send_cors_headers(self) -> None:
-        origin = self.headers.get("Origin")
-        if not origin:
-            return
-        if origin in ALLOWED_ORIGINS:
-            self.send_header("Access-Control-Allow-Origin", origin)
-            self.send_header("Vary", "Origin")
+        if ALLOWED_ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
             self.send_header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
 
