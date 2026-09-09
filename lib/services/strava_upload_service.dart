@@ -13,8 +13,9 @@ const String stravaCallbackHost = 'sebastiansbikedisplay';
 const String defaultStravaClientId = '276719';
 const String requiredStravaOauthScope =
     'read,activity:write,activity:read_all,profile:read_all';
-const String buildTimeStravaClientSecret = String.fromEnvironment(
-  'STRAVA_CLIENT_SECRET',
+const String defaultStravaProxyBaseUrl = String.fromEnvironment(
+  'STRAVA_PROXY_BASE_URL',
+  defaultValue: 'https://sbc.diegeekdie.com/api/',
 );
 
 String buildStravaAccountLabel({
@@ -42,11 +43,8 @@ String buildStravaAccountLabel({
 bool shouldResetStravaAuthentication({
   required String previousClientId,
   required String nextClientId,
-  required String previousClientSecret,
-  required String nextClientSecret,
 }) {
-  return previousClientId.trim() != nextClientId.trim() ||
-      previousClientSecret != nextClientSecret;
+  return previousClientId.trim() != nextClientId.trim();
 }
 
 String buildStravaRideNameForMidpoint(DateTime midpointLocalTime) {
@@ -102,7 +100,6 @@ class StravaUploadState {
   final bool isBusy;
   final bool autoUploadEnabled;
   final String clientId;
-  final String clientSecret;
   final String? athleteId;
   final String? athleteName;
   final String? username;
@@ -113,7 +110,6 @@ class StravaUploadState {
     required this.isBusy,
     required this.autoUploadEnabled,
     required this.clientId,
-    required this.clientSecret,
     required this.athleteId,
     required this.athleteName,
     required this.username,
@@ -125,13 +121,12 @@ class StravaUploadState {
       isBusy = false,
       autoUploadEnabled = false,
       clientId = '',
-      clientSecret = '',
       athleteId = null,
       athleteName = null,
       username = null,
       errorMessage = null;
 
-  bool get hasCredentials => clientId.trim().isNotEmpty && clientSecret.isNotEmpty;
+  bool get hasCredentials => clientId.trim().isNotEmpty;
   bool get isAuthenticated => athleteId != null && athleteId!.isNotEmpty;
 
   String get accountLabel {
@@ -147,7 +142,6 @@ class StravaUploadState {
     bool? isBusy,
     bool? autoUploadEnabled,
     String? clientId,
-    String? clientSecret,
     String? athleteId,
     String? athleteName,
     String? username,
@@ -160,7 +154,6 @@ class StravaUploadState {
       isBusy: isBusy ?? this.isBusy,
       autoUploadEnabled: autoUploadEnabled ?? this.autoUploadEnabled,
       clientId: clientId ?? this.clientId,
-      clientSecret: clientSecret ?? this.clientSecret,
       athleteId: clearAthlete ? null : athleteId ?? this.athleteId,
       athleteName: clearAthlete ? null : athleteName ?? this.athleteName,
       username: clearAthlete ? null : username ?? this.username,
@@ -240,13 +233,11 @@ class StravaUploadService {
   static const _athleteIdKey = 'strava_athlete_id';
   static const _athleteNameKey = 'strava_athlete_name';
   static const _usernameKey = 'strava_username';
-  static const _clientSecretKey = 'strava_client_secret';
   static const _accessTokenKey = 'strava_access_token';
   static const _refreshTokenKey = 'strava_refresh_token';
   static const _expiresAtKey = 'strava_expires_at';
   static const _oauthScopeKey = 'strava_oauth_scope';
   static const _oauthBaseUrl = 'https://www.strava.com';
-  static const _apiBaseUrl = 'https://www.strava.com/api/v3';
   static const _secureStorage = FlutterSecureStorage();
 
   final ValueNotifier<StravaUploadState> state = ValueNotifier(
@@ -266,9 +257,6 @@ class StravaUploadService {
     await initialize();
     final previous = state.value;
     const nextClientId = defaultStravaClientId;
-    final nextClientSecret = buildTimeStravaClientSecret.isNotEmpty
-        ? buildTimeStravaClientSecret
-        : previous.clientSecret;
     final savedScope = (await SharedPreferences.getInstance()).getString(
           _oauthScopeKey,
         ) ??
@@ -277,8 +265,6 @@ class StravaUploadService {
     final resetAuthentication = shouldResetStravaAuthentication(
       previousClientId: previous.clientId,
       nextClientId: nextClientId,
-      previousClientSecret: previous.clientSecret,
-      nextClientSecret: nextClientSecret,
     ) || scopeChanged;
     _setState(state.value.copyWith(isBusy: true, clearError: true));
     try {
@@ -286,19 +272,13 @@ class StravaUploadService {
       await prefs.setString(_clientIdKey, nextClientId);
       await prefs.setBool(_autoUploadKey, autoUploadEnabled);
       await prefs.setString(_oauthScopeKey, requiredStravaOauthScope);
-      if (buildTimeStravaClientSecret.isEmpty) {
-        await _secureStorage.write(key: _clientSecretKey, value: nextClientSecret);
-      } else {
-        await _secureStorage.delete(key: _clientSecretKey);
-      }
       if (resetAuthentication) {
-        await _clearAuthentication(preserveCredentials: true);
+        await _clearAuthentication();
       }
       _setState(
         state.value.copyWith(
           isBusy: false,
           clientId: nextClientId,
-          clientSecret: nextClientSecret,
           autoUploadEnabled: autoUploadEnabled,
           clearAthlete: resetAuthentication,
           clearError: true,
@@ -320,7 +300,7 @@ class StravaUploadService {
     final current = state.value;
     if (!current.hasCredentials) {
       throw StateError(
-        'Set STRAVA_CLIENT_SECRET at build time before connecting Strava.',
+        'Strava client ID is missing.',
       );
     }
     _setState(current.copyWith(isBusy: true, clearError: true));
@@ -358,7 +338,7 @@ class StravaUploadService {
       if (code == null || code.isEmpty) {
         throw StateError('Strava did not return an authorization code.');
       }
-      await _exchangeAuthorizationCode(code, codeVerifier);
+      await _exchangeAuthorizationCode(code, codeVerifier, callbackUri);
       _setState(state.value.copyWith(isBusy: false, clearError: true));
     } catch (error) {
       _setState(
@@ -375,7 +355,7 @@ class StravaUploadService {
     await initialize();
     _setState(state.value.copyWith(isBusy: true, clearError: true));
     try {
-      await _clearAuthentication(preserveCredentials: true);
+      await _clearAuthentication();
       _setState(state.value.copyWith(isBusy: false, clearAthlete: true));
     } catch (error) {
       _setState(
@@ -412,31 +392,25 @@ class StravaUploadService {
         );
       }
 
-      final authorizationHeader = ['Bearer', accessToken].join(' ');
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$_apiBaseUrl/uploads'),
-      )
-        ..headers['Authorization'] = authorizationHeader;
-      request.fields.addAll(
-        buildStravaUploadFields(
-          fileName: fileName,
-          midpointLocalTime: (midpointAt ?? DateTime.now()).toLocal(),
-          selectedGearId: selectedGearId,
-          clearGear: clearGear,
-        ),
+      final uploadFields = buildStravaUploadFields(
+        fileName: fileName,
+        midpointLocalTime: (midpointAt ?? DateTime.now()).toLocal(),
+        selectedGearId: selectedGearId,
+        clearGear: clearGear,
       );
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          fileBytes,
-          filename: fileName,
-        ),
+      final response = await http.post(
+        _stravaProxyUri('strava/upload'),
+        headers: const <String, String>{'Content-Type': 'application/json'},
+        body: jsonEncode(<String, dynamic>{
+          'access_token': accessToken,
+          'file_name': fileName,
+          'file_base64': base64Encode(fileBytes),
+          ...uploadFields,
+        }),
       );
-
-      final response = await request.send();
-      final body = await response.stream.bytesToString();
-      final payload = body.isEmpty ? <String, dynamic>{} : jsonDecode(body) as Map<String, dynamic>;
+      final payload = response.body.isEmpty
+          ? <String, dynamic>{}
+          : jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode < 200 || response.statusCode >= 300) {
         final message = _extractUploadError(payload) ??
             'Strava upload failed with HTTP ${response.statusCode}.';
@@ -490,11 +464,10 @@ class StravaUploadService {
       await initialize();
       final accessToken = await _ensureValidAccessToken();
       if (accessToken == null) return const <StravaBikeOption>[];
-      final response = await http.get(
-        Uri.parse('$_apiBaseUrl/athlete'),
-        headers: <String, String>{
-          'Authorization': ['Bearer', accessToken].join(' '),
-        },
+      final response = await http.post(
+        _stravaProxyUri('strava/athlete'),
+        headers: const <String, String>{'Content-Type': 'application/json'},
+        body: jsonEncode(<String, dynamic>{'access_token': accessToken}),
       );
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return const <StravaBikeOption>[];
@@ -512,19 +485,14 @@ class StravaUploadService {
     final prefs = await SharedPreferences.getInstance();
     final savedScope = prefs.getString(_oauthScopeKey) ?? '';
     if (savedScope != requiredStravaOauthScope) {
-      await _clearAuthentication(preserveCredentials: true);
+      await _clearAuthentication();
       await prefs.setString(_oauthScopeKey, requiredStravaOauthScope);
     }
-    final storedClientSecret = await _secureStorage.read(key: _clientSecretKey) ?? '';
-    final clientSecret = buildTimeStravaClientSecret.isNotEmpty
-        ? buildTimeStravaClientSecret
-        : storedClientSecret;
     final currentState = StravaUploadState(
       initialized: true,
       isBusy: false,
       autoUploadEnabled: prefs.getBool(_autoUploadKey) ?? false,
       clientId: defaultStravaClientId,
-      clientSecret: clientSecret,
       athleteId: prefs.getString(_athleteIdKey),
       athleteName: prefs.getString(_athleteNameKey),
       username: prefs.getString(_usernameKey),
@@ -536,17 +504,16 @@ class StravaUploadService {
   Future<void> _exchangeAuthorizationCode(
     String code,
     String codeVerifier,
+    Uri redirectUri,
   ) async {
-    final current = state.value;
     final response = await http.post(
-      Uri.parse('$_oauthBaseUrl/oauth/token'),
-      body: <String, String>{
-        'client_id': current.clientId,
-        'client_secret': current.clientSecret,
+      _stravaProxyUri('strava/oauth/token'),
+      headers: const <String, String>{'Content-Type': 'application/json'},
+      body: jsonEncode(<String, String>{
         'code': code,
-        'grant_type': 'authorization_code',
         'code_verifier': codeVerifier,
-      },
+        'redirect_uri': redirectUri.toString(),
+      }),
     );
     await _handleTokenResponse(response);
   }
@@ -565,23 +532,14 @@ class StravaUploadService {
       return accessToken;
     }
 
-    final current = state.value;
-    if (!current.hasCredentials) {
-      return null;
-    }
-
     try {
       final response = await http.post(
-        Uri.parse('$_oauthBaseUrl/oauth/token'),
-        body: <String, String>{
-          'client_id': current.clientId,
-          'client_secret': current.clientSecret,
-          'grant_type': 'refresh_token',
-          'refresh_token': refreshToken,
-        },
+        _stravaProxyUri('strava/oauth/refresh'),
+        headers: const <String, String>{'Content-Type': 'application/json'},
+        body: jsonEncode(<String, String>{'refresh_token': refreshToken}),
       );
       if (response.statusCode == 400 || response.statusCode == 401) {
-        await _clearAuthentication(preserveCredentials: true);
+        await _clearAuthentication();
         _setState(state.value.copyWith(clearAthlete: true, clearError: true));
         return null;
       }
@@ -659,19 +617,25 @@ class StravaUploadService {
     _setState(nextState);
   }
 
-  Future<void> _clearAuthentication({required bool preserveCredentials}) async {
+  Future<void> _clearAuthentication() async {
     final prefs = await SharedPreferences.getInstance();
     await Future.wait<dynamic>(<Future<dynamic>>[
       _secureStorage.delete(key: _accessTokenKey),
       _secureStorage.delete(key: _refreshTokenKey),
       _secureStorage.delete(key: _expiresAtKey),
-      if (!preserveCredentials) _secureStorage.delete(key: _clientSecretKey),
       prefs.remove(_athleteIdKey),
       prefs.remove(_athleteNameKey),
       prefs.remove(_usernameKey),
-      if (!preserveCredentials) prefs.remove(_clientIdKey),
-      if (!preserveCredentials) prefs.remove(_autoUploadKey),
     ]);
+  }
+
+  Uri _stravaProxyUri(String path) {
+    var base = defaultStravaProxyBaseUrl.trim();
+    if (!base.endsWith('/')) {
+      base = '$base/';
+    }
+    final normalizedPath = path.startsWith('/') ? path.substring(1) : path;
+    return Uri.parse(base).resolve(normalizedPath);
   }
 
   String _createRandomToken([int length = 48]) {
