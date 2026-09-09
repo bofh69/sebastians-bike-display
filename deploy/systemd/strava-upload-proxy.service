@@ -1,0 +1,22 @@
+[Unit]
+Description=Strava upload proxy service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=strava-proxy
+Group=strava-proxy
+WorkingDirectory=/opt/strava-upload-proxy
+EnvironmentFile=/etc/default/strava-upload-proxy
+ExecStart=/usr/bin/python3 /opt/strava-upload-proxy/server/strava_proxy_server.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/strava-upload-proxy
+
+[Install]
+WantedBy=multi-user.target

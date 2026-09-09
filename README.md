@@ -21,6 +21,16 @@ Finished rides can be uploaded to Strava automatically.
 
 The app uploads the generated FIT file after each ride when auto-upload is enabled.
 
+## Strava proxy server
+
+This repository now includes a Python 3 Strava proxy server so the Strava client
+secret can be kept on the server side instead of in the app build:
+
+- Server code: `/home/runner/work/sebastians-bike-display/sebastians-bike-display/server/strava_proxy_server.py`
+- Nginx site config: `/home/runner/work/sebastians-bike-display/sebastians-bike-display/deploy/nginx/sbc.diegeekdie.com.conf`
+- Systemd unit: `/home/runner/work/sebastians-bike-display/sebastians-bike-display/deploy/systemd/strava-upload-proxy.service`
+- Deployment guide (Debian Trixie + Let's Encrypt): `/home/runner/work/sebastians-bike-display/sebastians-bike-display/deploy/strava-proxy-deployment.md`
+
 ## Development
 
 There is a dev container with the needed tools for development.
