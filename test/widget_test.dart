@@ -245,13 +245,11 @@ void main() {
     );
   });
 
-  test('shouldResetStravaAuthentication detects credential changes', () {
+  test('shouldResetStravaAuthentication detects client ID changes', () {
     expect(
       shouldResetStravaAuthentication(
         previousClientId: '123',
         nextClientId: '123',
-        previousClientSecret: 'secret',
-        nextClientSecret: 'secret',
       ),
       isFalse,
     );
@@ -259,17 +257,6 @@ void main() {
       shouldResetStravaAuthentication(
         previousClientId: '123',
         nextClientId: '456',
-        previousClientSecret: 'secret',
-        nextClientSecret: 'secret',
-      ),
-      isTrue,
-    );
-    expect(
-      shouldResetStravaAuthentication(
-        previousClientId: '123',
-        nextClientId: '123',
-        previousClientSecret: 'secret',
-        nextClientSecret: 'other',
       ),
       isTrue,
     );

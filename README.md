@@ -11,13 +11,13 @@ Finished rides can be uploaded to Strava automatically.
    In Strava, set the authorization callback domain to `sebastiansbikedisplay`.
    The app uses the redirect URI `sebastiansbikedisplay://sebastiansbikedisplay`.
 2. The app client ID is hardcoded to `276719`.
-3. Provide the client secret at build time using `STRAVA_CLIENT_SECRET`:
-   - CI: pass `--dart-define=STRAVA_CLIENT_SECRET=...`
-   - Local: pass `--dart-define=STRAVA_CLIENT_SECRET=...` or
-    use `--dart-define-from-file=<file>` where the file contains
-    `{"STRAVA_CLIENT_SECRET":"..."}`.
-4. Connect the Strava account that should receive uploads.
-5. Enable automatic uploads for finished rides.
+3. Deploy the Strava proxy server from this repository and set
+   `STRAVA_CLIENT_SECRET` only on that server.
+4. (Optional for non-production environments) point the app to a different
+   proxy by passing
+   `--dart-define=STRAVA_PROXY_BASE_URL=https://your-proxy.example.com`.
+5. Connect the Strava account that should receive uploads.
+6. Enable automatic uploads for finished rides.
 
 The app uploads the generated FIT file after each ride when auto-upload is enabled.
 
@@ -41,5 +41,5 @@ Build & test with:
 - `flutter pub get`
 - `flutter analyze`
 - `flutter test`
-- `flutter build apk --debug --dart-define=STRAVA_CLIENT_SECRET=...`
-- Or: `flutter build apk --debug --dart-define-from-file=.env.json` with `.env.json` containing `{"STRAVA_CLIENT_SECRET":"..."}`.
+- `flutter build apk --debug`
+- Or with custom proxy: `flutter build apk --debug --dart-define=STRAVA_PROXY_BASE_URL=https://your-proxy.example.com`
