@@ -27,7 +27,8 @@ This repository now includes a Python 3 Strava proxy server so the Strava client
 secret can be kept on the server side instead of in the app build:
 
 - Server code: `/home/runner/work/sebastians-bike-display/sebastians-bike-display/server/strava_proxy_server.py`
-- Nginx site config: `/home/runner/work/sebastians-bike-display/sebastians-bike-display/deploy/nginx/sbc.diegeekdie.com.conf`
+- Nginx bootstrap config (HTTP): `/home/runner/work/sebastians-bike-display/sebastians-bike-display/deploy/nginx/sbc.diegeekdie.com.conf`
+- Nginx TLS config (HTTPS): `/home/runner/work/sebastians-bike-display/sebastians-bike-display/deploy/nginx/sbc.diegeekdie.com.tls.conf`
 - Systemd unit: `/home/runner/work/sebastians-bike-display/sebastians-bike-display/deploy/systemd/strava-upload-proxy.service`
 - Deployment guide (Debian Trixie + Let's Encrypt): `/home/runner/work/sebastians-bike-display/sebastians-bike-display/deploy/strava-proxy-deployment.md`
 

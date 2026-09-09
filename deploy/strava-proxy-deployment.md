@@ -60,7 +60,7 @@ Health check:
 curl http://127.0.0.1:8080/healthz
 ```
 
-## 5) Configure nginx
+## 5) Configure nginx (bootstrap HTTP config)
 
 ```bash
 sudo mkdir -p /var/www/certbot
@@ -70,17 +70,27 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
+This bootstrap config only uses port 80 and proxies traffic to the app, so `nginx -t` works before certificates exist.
+
 ## 6) Issue Let's Encrypt certificate
 
 With DNS for `sbc.diegeekdie.com` already pointing to the server:
 
 ```bash
-sudo certbot --nginx -d sbc.diegeekdie.com
+sudo certbot certonly --webroot -w /var/www/certbot -d sbc.diegeekdie.com
 ```
 
-Choose redirect to HTTPS when prompted.
+## 7) Enable HTTPS nginx config
 
-## 7) Verify renewal
+```bash
+sudo cp /opt/strava-upload-proxy/deploy/nginx/sbc.diegeekdie.com.tls.conf /etc/nginx/sites-available/sbc.diegeekdie.com.conf
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+The TLS config uses `http2 on;` and avoids deprecated `listen ... http2` syntax.
+
+## 8) Verify renewal
 
 ```bash
 sudo systemctl status certbot.timer
