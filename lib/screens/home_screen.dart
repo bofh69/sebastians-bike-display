@@ -338,7 +338,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   double? _climbReferenceAltitude;
   DateTime? _lastCheckpointSavedAt;
   Future<void> _rideCheckpointWriteQueue = Future<void>.value();
-  bool _hasHandledInterruptedRideRecovery = false;
+  Future<void>? _restoreInterruptedRideFuture;
 
   bool get _isMobileTrackingPlatform =>
       !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
@@ -1169,10 +1169,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _restoreInterruptedRideIfNeeded() async {
-    if (_hasHandledInterruptedRideRecovery) return;
+    _restoreInterruptedRideFuture ??= _restoreInterruptedRideIfNeededInternal();
+    await _restoreInterruptedRideFuture;
+  }
+
+  Future<void> _restoreInterruptedRideIfNeededInternal() async {
     final checkpoint = await _loadRideCheckpoint();
     if (checkpoint == null || !mounted) return;
-    _hasHandledInterruptedRideRecovery = true;
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
