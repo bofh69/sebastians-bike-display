@@ -23,6 +23,13 @@ if (flutterVersionName == null) {
     flutterVersionName = "1.0"
 }
 
+def keystoreProperties = new Properties()
+def keystorePropertiesPath = System.getenv("KEY_PROPERTIES_PATH")
+def keystorePropertiesFile = keystorePropertiesPath ? file(keystorePropertiesPath) : rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.diegeekdie.sebastians_bike_display"
     compileSdk = 36
@@ -48,11 +55,25 @@ android {
         versionName = flutterVersionName
     }
 
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties["keyAlias"]
+                keyPassword = keystoreProperties["keyPassword"]
+                def storeFilePath = keystoreProperties["storeFile"]
+                def resolvedStoreFile = new File(storeFilePath)
+                if (!resolvedStoreFile.isAbsolute()) {
+                    resolvedStoreFile = new File(keystorePropertiesFile.parentFile, storeFilePath)
+                }
+                storeFile = resolvedStoreFile
+                storePassword = keystoreProperties["storePassword"]
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            signingConfig = keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
         }
     }
 }

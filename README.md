@@ -53,3 +53,25 @@ Build & test with:
 - `flutter test`
 - `flutter build apk --debug`
 - Or with custom proxy: `flutter build apk --debug --dart-define=STRAVA_PROXY_BASE_URL=https://your-proxy.example.com/api/`
+
+## Android release signing for CI
+
+Release builds are created automatically when a GitHub Release is published.
+The workflow builds a signed `*-release.apk` and uploads it to the release assets.
+
+Set these repository secrets before publishing a release:
+
+- `ANDROID_KEYSTORE_BASE64`: Base64 encoded content of your `.jks`/`.keystore` file.
+- `ANDROID_KEY_ALIAS`: Key alias in the keystore.
+- `ANDROID_KEY_PASSWORD`: Key password for the alias.
+- `ANDROID_STORE_PASSWORD`: Keystore password.
+
+Generate and configure the key once:
+
+1. Generate a keystore if you don't have one yet:
+   - `keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload`
+2. Base64 encode it for GitHub secrets:
+   - GNU/Linux: `base64 -w 0 upload-keystore.jks`
+   - macOS: `base64 upload-keystore.jks | tr -d '\n'`
+3. Add the output and the passwords/alias above as GitHub repository secrets.
+4. Reuse the same keystore and alias for all future releases to keep APK signatures consistent.
