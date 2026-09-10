@@ -35,6 +35,10 @@ const int _rideTrackingForegroundServiceNotificationId = 888;
 const String _rideTrackingNotificationContent =
     'Ride recording active in background';
 const String _rideCheckpointFileName = 'active_ride_checkpoint.json';
+const String _rideCheckpointMetadataFileName =
+    'active_ride_checkpoint.metadata.json';
+const String _rideCheckpointSamplesFileName =
+    'active_ride_checkpoint.samples.jsonl';
 const Duration _rideCheckpointWriteInterval = Duration(minutes: 1);
 const Duration _interruptedRideResumeWindow = Duration(minutes: 10);
 
@@ -208,6 +212,7 @@ class _InterruptedRideCheckpoint {
   final double smoothedSpeedMps;
   final double? filteredAltitudeForClimb;
   final double? climbReferenceAltitude;
+  final int sampleCount;
 
   const _InterruptedRideCheckpoint({
     required this.startTime,
@@ -224,6 +229,7 @@ class _InterruptedRideCheckpoint {
     required this.smoothedSpeedMps,
     required this.filteredAltitudeForClimb,
     required this.climbReferenceAltitude,
+    required this.sampleCount,
   });
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -240,7 +246,25 @@ class _InterruptedRideCheckpoint {
         'smoothedSpeedMps': smoothedSpeedMps,
         'filteredAltitudeForClimb': filteredAltitudeForClimb,
         'climbReferenceAltitude': climbReferenceAltitude,
+        'sampleCount': sampleCount,
         'samples': samples.map((sample) => sample.toJson()).toList(),
+      };
+
+  Map<String, dynamic> toMetadataJson() => <String, dynamic>{
+        'startTime': startTime.toIso8601String(),
+        'lastSavedAt': lastSavedAt.toIso8601String(),
+        'distanceKm': distanceKm,
+        'totalClimbMeters': totalClimbMeters,
+        'speedKph': speedKph,
+        'avgSpeedKph': avgSpeedKph,
+        'cadence': cadence,
+        'heartRate': heartRate,
+        'leftBalance': leftBalance,
+        'rightBalance': rightBalance,
+        'smoothedSpeedMps': smoothedSpeedMps,
+        'filteredAltitudeForClimb': filteredAltitudeForClimb,
+        'climbReferenceAltitude': climbReferenceAltitude,
+        'sampleCount': sampleCount,
       };
 
   factory _InterruptedRideCheckpoint.fromJson(Map<String, dynamic> json) {
@@ -263,6 +287,32 @@ class _InterruptedRideCheckpoint {
           (json['filteredAltitudeForClimb'] as num?)?.toDouble(),
       climbReferenceAltitude:
           (json['climbReferenceAltitude'] as num?)?.toDouble(),
+      sampleCount: (json['sampleCount'] as num?)?.toInt() ?? rawSamples.length,
+    );
+  }
+
+  factory _InterruptedRideCheckpoint.fromMetadataJson({
+    required Map<String, dynamic> json,
+    required List<_RideSample> samples,
+  }) {
+    return _InterruptedRideCheckpoint(
+      startTime: DateTime.parse(json['startTime'] as String),
+      lastSavedAt: DateTime.parse(json['lastSavedAt'] as String),
+      samples: samples,
+      distanceKm: (json['distanceKm'] as num?)?.toDouble() ?? 0,
+      totalClimbMeters: (json['totalClimbMeters'] as num?)?.toDouble() ?? 0,
+      speedKph: (json['speedKph'] as num?)?.toDouble(),
+      avgSpeedKph: (json['avgSpeedKph'] as num?)?.toDouble(),
+      cadence: (json['cadence'] as num?)?.toDouble(),
+      heartRate: (json['heartRate'] as num?)?.toDouble(),
+      leftBalance: (json['leftBalance'] as num?)?.toDouble(),
+      rightBalance: (json['rightBalance'] as num?)?.toDouble(),
+      smoothedSpeedMps: (json['smoothedSpeedMps'] as num?)?.toDouble() ?? 0,
+      filteredAltitudeForClimb:
+          (json['filteredAltitudeForClimb'] as num?)?.toDouble(),
+      climbReferenceAltitude:
+          (json['climbReferenceAltitude'] as num?)?.toDouble(),
+      sampleCount: (json['sampleCount'] as num?)?.toInt() ?? samples.length,
     );
   }
 }
@@ -337,12 +387,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   double? _filteredAltitudeForClimb;
   double? _climbReferenceAltitude;
   DateTime? _lastCheckpointSavedAt;
+  int _lastCheckpointSampleCount = 0;
   Future<void> _rideCheckpointWriteQueue = Future<void>.value();
   Future<void>? _restoreInterruptedRideFuture;
 
   bool get _isMobileTrackingPlatform =>
       !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
   bool get _supportsBackgroundRideService => !kIsWeb && io.Platform.isIOS;
+  bool get _supportsRideCheckpointing => _isMobileTrackingPlatform;
 
   @override
   void initState() {
@@ -359,7 +411,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     unawaited(_stravaUploadService.initialize());
     unawaited(_hideBackgroundRideNotification(force: true));
     _startLocationStream();
-    if (!kIsWeb) {
+    if (_supportsRideCheckpointing) {
       unawaited(_restoreInterruptedRideIfNeeded());
     }
   }
@@ -799,6 +851,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     final readyToRun = await _prepareRideRuntime();
     if (!readyToRun) return;
+    await _clearRideCheckpoint();
 
     setState(() {
       _isRunning = true;
@@ -822,6 +875,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _power3sAverage.reset();
       _power20MinAverage.reset();
       _lastCheckpointSavedAt = null;
+      _lastCheckpointSampleCount = 0;
     });
 
     _recordSample();
@@ -1114,8 +1168,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return io.File('${docsDir.path}/$_rideCheckpointFileName');
   }
 
+  Future<io.File> _rideCheckpointMetadataFile() async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    await docsDir.create(recursive: true);
+    return io.File('${docsDir.path}/$_rideCheckpointMetadataFileName');
+  }
+
+  Future<io.File> _rideCheckpointSamplesFile() async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    await docsDir.create(recursive: true);
+    return io.File('${docsDir.path}/$_rideCheckpointSamplesFileName');
+  }
+
   Future<void> _persistRideCheckpoint({bool force = false}) async {
-    if (kIsWeb || !_isRunning) return;
+    if (!_supportsRideCheckpointing || !_isRunning) return;
     _rideCheckpointWriteQueue = _rideCheckpointWriteQueue.then((_) async {
       final startTime = _startTime;
       if (!_isRunning || startTime == null) {
@@ -1133,17 +1199,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         lastSavedAt: now,
       );
       try {
-        final file = await _rideCheckpointFile();
-        final tempFile = io.File('${file.path}.tmp');
-        if (await tempFile.exists()) {
-          await tempFile.delete();
+        final samplesFile = await _rideCheckpointSamplesFile();
+        final pendingSamples = _samples
+            .skip(_lastCheckpointSampleCount)
+            .map((sample) => jsonEncode(sample.toJson()))
+            .join('\n');
+        if (pendingSamples.isNotEmpty) {
+          await samplesFile.writeAsString(
+            '$pendingSamples\n',
+            mode: io.FileMode.append,
+            flush: true,
+          );
         }
+        final metadataFile = await _rideCheckpointMetadataFile();
+        final tempFile = io.File(
+          '${metadataFile.path}.${checkpoint.lastSavedAt.microsecondsSinceEpoch}.tmp',
+        );
         await tempFile.writeAsString(
-          jsonEncode(checkpoint.toJson()),
+          jsonEncode(checkpoint.toMetadataJson()),
           flush: true,
         );
-        await tempFile.rename(file.path);
+        if (await metadataFile.exists()) {
+          await metadataFile.delete();
+        }
+        await tempFile.rename(metadataFile.path);
         _lastCheckpointSavedAt = checkpoint.lastSavedAt;
+        _lastCheckpointSampleCount = checkpoint.sampleCount;
       } catch (error, stackTrace) {
         debugPrint('Failed to persist ride checkpoint: $error\n$stackTrace');
       }
@@ -1152,13 +1233,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _clearRideCheckpoint() async {
-    if (kIsWeb) return;
+    if (!_supportsRideCheckpointing) return;
     _lastCheckpointSavedAt = null;
+    _lastCheckpointSampleCount = 0;
     _rideCheckpointWriteQueue = _rideCheckpointWriteQueue.then((_) async {
       try {
-        final file = await _rideCheckpointFile();
-        if (await file.exists()) {
-          await file.delete();
+        final files = <io.File>[
+          await _rideCheckpointFile(),
+          await _rideCheckpointMetadataFile(),
+          await _rideCheckpointSamplesFile(),
+        ];
+        for (final file in files) {
+          if (await file.exists()) {
+            await file.delete();
+          }
         }
       } catch (error, stackTrace) {
         debugPrint('Failed to clear ride checkpoint: $error\n$stackTrace');
@@ -1168,8 +1256,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<_InterruptedRideCheckpoint?> _loadRideCheckpoint() async {
-    if (kIsWeb) return null;
+    if (!_supportsRideCheckpointing) return null;
     try {
+      final metadataFile = await _rideCheckpointMetadataFile();
+      if (await metadataFile.exists()) {
+        final metadataRaw = await metadataFile.readAsString();
+        if (metadataRaw.trim().isEmpty) {
+          await _clearRideCheckpoint();
+          return null;
+        }
+        final metadataDecoded = jsonDecode(metadataRaw);
+        if (metadataDecoded is! Map<String, dynamic>) {
+          await _clearRideCheckpoint();
+          return null;
+        }
+        final samples = await _loadRideCheckpointSamples(
+          await _rideCheckpointSamplesFile(),
+        );
+        return _InterruptedRideCheckpoint.fromMetadataJson(
+          json: metadataDecoded,
+          samples: samples,
+        );
+      }
       final file = await _rideCheckpointFile();
       if (!await file.exists()) {
         return null;
@@ -1192,6 +1300,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<List<_RideSample>> _loadRideCheckpointSamples(io.File file) async {
+    if (!await file.exists()) {
+      return <_RideSample>[];
+    }
+    final lines = await file.readAsLines();
+    final samples = <_RideSample>[];
+    for (final line in lines) {
+      final trimmedLine = line.trim();
+      if (trimmedLine.isEmpty) {
+        continue;
+      }
+      final decoded = jsonDecode(trimmedLine);
+      if (decoded is Map<String, dynamic>) {
+        samples.add(_RideSample.fromJson(decoded));
+      }
+    }
+    return samples;
+  }
+
   Future<void> _restoreInterruptedRideIfNeeded() async {
     _restoreInterruptedRideFuture ??= _restoreInterruptedRideIfNeededInternal();
     await _restoreInterruptedRideFuture;
@@ -1207,7 +1334,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (shouldOfferInterruptedRideResume(lastSavedAt: checkpoint.lastSavedAt)) {
       final resumeRide = await showDialog<bool>(
         context: context,
-        barrierDismissible: true,
+        barrierDismissible: false,
         builder: (context) => AlertDialog(
           title: const Text('Resume interrupted ride?'),
           content: const Text(
@@ -1225,6 +1352,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ],
         ),
       );
+      if (resumeRide == null) {
+        return;
+      }
       if (resumeRide == true) {
         final resumed = await _resumeInterruptedRide(checkpoint);
         if (resumed) {
@@ -1248,46 +1378,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_isRunning) return false;
     final hasPermission = await _ensureLocationPermission();
     if (!hasPermission) {
-      await _finalizeRide(
-        rideStartTime: checkpoint.startTime,
-        rideSamples: _samplesWithRecoveredEndTime(
-          checkpoint.samples,
-          checkpoint.lastSavedAt,
-        ),
-        completionPrefix:
-            'Location permission is required to resume. Recovered interrupted ride.',
-      );
       return false;
     }
 
     final canStartForegroundTracking =
         await _ensureForegroundTrackingPermission();
     if (!canStartForegroundTracking) {
-      await _finalizeRide(
-        rideStartTime: checkpoint.startTime,
-        rideSamples: _samplesWithRecoveredEndTime(
-          checkpoint.samples,
-          checkpoint.lastSavedAt,
-        ),
-        completionPrefix:
-            'Notification permission is required to resume. Recovered interrupted ride.',
-      );
       return false;
     }
 
     final readyToRun = await _prepareRideRuntime();
-    if (!readyToRun) {
-      await _finalizeRide(
-        rideStartTime: checkpoint.startTime,
-        rideSamples: _samplesWithRecoveredEndTime(
-          checkpoint.samples,
-          checkpoint.lastSavedAt,
-        ),
-        completionPrefix:
-            'Unable to restart ride tracking. Recovered interrupted ride.',
-      );
-      return false;
-    }
+    if (!readyToRun) return false;
     if (!mounted) return false;
     final restoredPosition = _positionFromSample(
       checkpoint.samples.isEmpty ? null : checkpoint.samples.last,
@@ -1363,6 +1464,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       smoothedSpeedMps: _smoothedSpeedMps,
       filteredAltitudeForClimb: _filteredAltitudeForClimb,
       climbReferenceAltitude: _climbReferenceAltitude,
+      sampleCount: _samples.length,
     );
   }
 
@@ -1506,17 +1608,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await _clearRideCheckpoint();
     if (!mounted) return;
     final route = ModalRoute.of(context);
-    if (route != null && !route.isCurrent) return;
-    final rideSavedMessage = fitFile == null && gpxFile == null
-        ? '$completionPrefix No files written (no samples).'
-        : '$completionPrefix FIT: ${fitFile?.path ?? 'N/A'} GPX: ${gpxFile?.path ?? 'N/A'}';
-    final uploadMessage =
-        uploadResult.message == null ? '' : ' ${uploadResult.message}';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$rideSavedMessage$uploadMessage'),
-      ),
-    );
+    if (route == null || route.isCurrent) {
+      final rideSavedMessage = fitFile == null && gpxFile == null
+          ? '$completionPrefix No files written (no samples).'
+          : '$completionPrefix FIT: ${fitFile?.path ?? 'N/A'} GPX: ${gpxFile?.path ?? 'N/A'}';
+      final uploadMessage =
+          uploadResult.message == null ? '' : ' ${uploadResult.message}';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$rideSavedMessage$uploadMessage'),
+        ),
+      );
+    }
   }
 
   String _formatDuration(Duration? d) {
