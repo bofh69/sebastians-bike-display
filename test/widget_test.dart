@@ -158,6 +158,13 @@ void main() {
       ),
       InterruptedRideRecoveryAction.finalizeRide,
     );
+    expect(
+      resolveInterruptedRideRecoveryAction(
+        wantsResume: null,
+        resumeStarted: false,
+      ),
+      InterruptedRideRecoveryAction.keepCheckpoint,
+    );
   });
 
   test('shouldRetrySavedSensorConnection only retries when idle and saved', () {

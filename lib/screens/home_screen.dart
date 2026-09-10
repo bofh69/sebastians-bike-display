@@ -1317,6 +1317,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         final samples = await _loadRideCheckpointSamples(
           await _rideCheckpointSamplesFile(),
         );
+        final persistedSampleCount =
+            (metadataDecoded['sampleCount'] as num?)?.toInt();
+        if (persistedSampleCount == null ||
+            samples.length > persistedSampleCount) {
+          metadataDecoded['sampleCount'] = samples.length;
+        }
         return _InterruptedRideCheckpoint.fromMetadataJson(
           json: metadataDecoded,
           samples: samples,
@@ -1468,6 +1474,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _data.heartRate = checkpoint.heartRate;
       _data.leftBalance = checkpoint.leftBalance;
       _data.rightBalance = checkpoint.rightBalance;
+      _currentPowerWatts = 0;
       _lastAcceptedPosition = restoredPosition;
       _lastAcceptedTimestamp = restoredPosition?.timestamp;
       _lastAcceptedBearingDegrees =
