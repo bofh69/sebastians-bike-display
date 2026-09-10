@@ -165,7 +165,8 @@ extension _HomeScreenExport on _HomeScreenState {
     String? uriOrPath;
     if (!kIsWeb && io.Platform.isAndroid) {
       try {
-        uriOrPath = await _fileExportChannel.invokeMethod<String>(
+        uriOrPath =
+            await _HomeScreenState._fileExportChannel.invokeMethod<String>(
           'saveToDownloads',
           <String, Object>{
             'fileName': fileName,

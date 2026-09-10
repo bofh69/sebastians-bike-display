@@ -392,7 +392,7 @@ extension _HomeScreenRecovery on _HomeScreenState {
         window: const Duration(minutes: 20),
       );
 
-      setState(() {
+      _applyState(() {
         _isRunning = true;
         _startTime = checkpoint.startTime;
         _samples

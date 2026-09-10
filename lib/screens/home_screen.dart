@@ -372,6 +372,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         permission == LocationPermission.whileInUse;
   }
 
+  void _applyState(VoidCallback updates) {
+    setState(updates);
+  }
+
   void _handlePosition(Position position) {
     final wasReliableGpsForSpeed = _hasReliableGpsForSpeed;
     _latestPosition = position;
