@@ -138,7 +138,10 @@ extension _HomeScreenRecovery on _HomeScreenState {
           ? publishedMetadataFiles
           : List<io.File>.from(metadataFiles);
       if (readableMetadataFiles.isNotEmpty) {
-        readableMetadataFiles.sort((a, b) => b.path.compareTo(a.path));
+        readableMetadataFiles.sort(
+          (a, b) => rideCheckpointMetadataSortKey(b)
+              .compareTo(rideCheckpointMetadataSortKey(a)),
+        );
         for (final metadataFile in readableMetadataFiles) {
           try {
             final metadataRaw = await metadataFile.readAsString();

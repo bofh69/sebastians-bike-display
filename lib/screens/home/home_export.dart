@@ -225,8 +225,20 @@ extension _HomeScreenExport on _HomeScreenState {
       final stravaState = _stravaUploadService.state.value;
       if (stravaState.autoUploadEnabled && stravaState.isAuthenticated) {
         try {
-          final decision = await _selectStravaUploadDecision();
-          final resolvedDecision = resolveStravaUploadDecision(decision);
+          var shouldPromptForUpload = false;
+          if (mounted) {
+            final route = ModalRoute.of(context);
+            shouldPromptForUpload = route == null || route.isCurrent;
+          }
+          final resolvedDecision = shouldPromptForUpload
+              ? resolveStravaUploadDecision(
+                  await _selectStravaUploadDecision(),
+                )
+              : (
+                  shouldUpload: false,
+                  selectedGearId: null,
+                  clearGear: false,
+                );
           if (!resolvedDecision.shouldUpload) {
             uploadResult = const StravaUploadResult(
               attempted: false,

@@ -412,6 +412,20 @@ bool shouldScheduleInterruptedRideRecoveryRetry({
       (wantsResume == null || wantsResume == true);
 }
 
+int rideCheckpointMetadataSortKey(io.File file) {
+  final name = file.uri.pathSegments.last;
+  if (name == _rideCheckpointMetadataFileName) {
+    return 0;
+  }
+  if (!name.startsWith('$_rideCheckpointMetadataFileName.')) {
+    return -1;
+  }
+  final suffix = name
+      .substring('$_rideCheckpointMetadataFileName.'.length)
+      .replaceFirst(RegExp(r'\.tmp$'), '');
+  return int.tryParse(suffix) ?? -1;
+}
+
 double restoreWindowedRollingAverage({
   required RollingAverage average,
   required Iterable<({DateTime timestamp, double value})> values,
