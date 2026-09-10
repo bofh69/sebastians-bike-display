@@ -1447,28 +1447,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           : List<io.File>.from(metadataFiles);
       if (readableMetadataFiles.isNotEmpty) {
         readableMetadataFiles.sort((a, b) => b.path.compareTo(a.path));
-        final metadataFile = readableMetadataFiles.first;
-        final metadataRaw = await metadataFile.readAsString();
-        if (metadataRaw.trim().isEmpty) {
-          await _clearRideCheckpoint();
-          return null;
+        for (final metadataFile in readableMetadataFiles) {
+          try {
+            final metadataRaw = await metadataFile.readAsString();
+            if (metadataRaw.trim().isEmpty) {
+              continue;
+            }
+            final metadataDecoded = jsonDecode(metadataRaw);
+            if (metadataDecoded is! Map<String, dynamic>) {
+              continue;
+            }
+            final samples = await _loadRideCheckpointSamples(
+              await _rideCheckpointSamplesFile(),
+            );
+            final reconciledMetadata = reconcileRecoveredCheckpointMetadata(
+              metadata: metadataDecoded,
+              parsedSampleCount: samples.length,
+            );
+            return _InterruptedRideCheckpoint.fromMetadataJson(
+              json: reconciledMetadata,
+              samples: samples,
+            );
+          } catch (error, stackTrace) {
+            debugPrint(
+              'Failed to read ride checkpoint metadata ${metadataFile.path}: '
+              '$error\n$stackTrace',
+            );
+          }
         }
-        final metadataDecoded = jsonDecode(metadataRaw);
-        if (metadataDecoded is! Map<String, dynamic>) {
-          await _clearRideCheckpoint();
-          return null;
-        }
-        final samples = await _loadRideCheckpointSamples(
-          await _rideCheckpointSamplesFile(),
-        );
-        final reconciledMetadata = reconcileRecoveredCheckpointMetadata(
-          metadata: metadataDecoded,
-          parsedSampleCount: samples.length,
-        );
-        return _InterruptedRideCheckpoint.fromMetadataJson(
-          json: reconciledMetadata,
-          samples: samples,
-        );
+        await _clearRideCheckpoint();
+        return null;
       }
       final file = await _rideCheckpointFile();
       if (!await file.exists()) {
