@@ -108,6 +108,25 @@ void main() {
     expect(totalClimb, greaterThan(0));
   });
 
+  test('shouldOfferInterruptedRideResume only allows recent rides', () {
+    final now = DateTime(2026, 1, 1, 12);
+
+    expect(
+      shouldOfferInterruptedRideResume(
+        lastSavedAt: now.subtract(const Duration(minutes: 9, seconds: 59)),
+        now: now,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldOfferInterruptedRideResume(
+        lastSavedAt: now.subtract(const Duration(minutes: 10)),
+        now: now,
+      ),
+      isFalse,
+    );
+  });
+
   test('shouldRetrySavedSensorConnection only retries when idle and saved', () {
     expect(
       shouldRetrySavedSensorConnection(
