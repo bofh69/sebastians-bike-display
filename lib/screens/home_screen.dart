@@ -1177,7 +1177,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final checkpoint = await _loadRideCheckpoint();
     if (checkpoint == null || !mounted) return;
     await WidgetsBinding.instance.endOfFrame;
-    if (!mounted) return;
+    if (!mounted || _isRunning) return;
     if (shouldOfferInterruptedRideResume(lastSavedAt: checkpoint.lastSavedAt)) {
       final resumeRide = await showDialog<bool>(
         context: context,
@@ -1214,6 +1214,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _resumeInterruptedRide(
     _InterruptedRideCheckpoint checkpoint,
   ) async {
+    if (_isRunning) return;
     final hasPermission = await _ensureLocationPermission();
     if (!hasPermission) {
       await _finalizeInterruptedRideWithoutResuming(
