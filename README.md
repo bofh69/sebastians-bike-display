@@ -3,9 +3,9 @@
 A simple bike computer app showing important stats and recording
 the ride.
 
-The app is tailored to my needs and I probably won't access PRs that changes
-how it works, except bug fixes. Feel free to fork the repo and do your own
-thing there.
+The app is tailored to my needs and I probably won't accept PRs that changes
+how it works, except bug fixes. However, feel free to fork the repo and do your own
+thing.
 
 ## Strava auto-upload
 
