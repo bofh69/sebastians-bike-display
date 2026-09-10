@@ -359,7 +359,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     unawaited(_stravaUploadService.initialize());
     unawaited(_hideBackgroundRideNotification(force: true));
     _startLocationStream();
-    unawaited(_restoreInterruptedRideIfNeeded());
+    if (!kIsWeb) {
+      unawaited(_restoreInterruptedRideIfNeeded());
+    }
   }
 
   @override
@@ -1090,34 +1092,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _persistRideCheckpoint({bool force = false}) async {
-    if (!_isRunning) return;
-    final startTime = _startTime;
-    if (startTime == null) return;
-    final now = DateTime.now();
-    final checkpoint = _InterruptedRideCheckpoint(
-      startTime: startTime,
-      lastSavedAt: now,
-      samples: List<_RideSample>.from(_samples),
-      distanceKm: _data.distance ?? 0,
-      totalClimbMeters: _data.totalClimb ?? 0,
-      speedKph: _data.speed,
-      avgSpeedKph: _data.avgSpeed,
-      cadence: _data.cadence,
-      heartRate: _data.heartRate,
-      leftBalance: _data.leftBalance,
-      rightBalance: _data.rightBalance,
-      smoothedSpeedMps: _smoothedSpeedMps,
-      filteredAltitudeForClimb: _filteredAltitudeForClimb,
-      climbReferenceAltitude: _climbReferenceAltitude,
-    );
+    if (kIsWeb || !_isRunning) return;
     _rideCheckpointWriteQueue = _rideCheckpointWriteQueue.then((_) async {
+      final startTime = _startTime;
+      if (!_isRunning || startTime == null) {
+        return;
+      }
+      final now = DateTime.now();
       final lastSavedAt = _lastCheckpointSavedAt;
       if (!force &&
           lastSavedAt != null &&
-          checkpoint.lastSavedAt.difference(lastSavedAt) <
-              _rideCheckpointWriteInterval) {
+          now.difference(lastSavedAt) < _rideCheckpointWriteInterval) {
         return;
       }
+      final checkpoint = _buildInterruptedRideCheckpoint(
+        startTime: startTime,
+        lastSavedAt: now,
+      );
       try {
         final file = await _rideCheckpointFile();
         final tempFile = io.File('${file.path}.tmp');
@@ -1135,6 +1126,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _clearRideCheckpoint() async {
+    if (kIsWeb) return;
     _lastCheckpointSavedAt = null;
     _rideCheckpointWriteQueue = _rideCheckpointWriteQueue.then((_) async {
       try {
@@ -1150,6 +1142,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<_InterruptedRideCheckpoint?> _loadRideCheckpoint() async {
+    if (kIsWeb) return null;
     try {
       final file = await _rideCheckpointFile();
       if (!await file.exists()) {
@@ -1205,7 +1198,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       );
       if (resumeRide == true) {
-        await _resumeInterruptedRide(checkpoint);
+        final resumed = await _resumeInterruptedRide(checkpoint);
+        if (resumed) {
+          return;
+        }
         return;
       }
     }
@@ -1216,36 +1212,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _resumeInterruptedRide(
+  Future<bool> _resumeInterruptedRide(
     _InterruptedRideCheckpoint checkpoint,
   ) async {
-    if (_isRunning) return;
+    if (_isRunning) return false;
     final hasPermission = await _ensureLocationPermission();
     if (!hasPermission) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Location permission is required to resume.'),
         ),
       );
-      return;
+      return false;
     }
 
     final canStartForegroundTracking =
         await _ensureForegroundTrackingPermission();
     if (!canStartForegroundTracking) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Notification permission is required to resume.'),
         ),
       );
-      return;
+      return false;
     }
 
     final readyToRun = await _prepareRideRuntime();
-    if (!readyToRun) return;
-    if (!mounted) return;
+    if (!readyToRun) return false;
+    if (!mounted) return false;
     final restoredPosition = _positionFromSample(
       checkpoint.samples.isEmpty ? null : checkpoint.samples.last,
     );
@@ -1294,9 +1290,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         unawaited(_showBackgroundRideNotification());
       }
     }
-    if (!mounted) return;
+    if (!mounted) return false;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Interrupted ride resumed.')),
+    );
+    return true;
+  }
+
+  _InterruptedRideCheckpoint _buildInterruptedRideCheckpoint({
+    required DateTime startTime,
+    required DateTime lastSavedAt,
+  }) {
+    return _InterruptedRideCheckpoint(
+      startTime: startTime,
+      lastSavedAt: lastSavedAt,
+      samples: List<_RideSample>.from(_samples),
+      distanceKm: _data.distance ?? 0,
+      totalClimbMeters: _data.totalClimb ?? 0,
+      speedKph: _data.speed,
+      avgSpeedKph: _data.avgSpeed,
+      cadence: _data.cadence,
+      heartRate: _data.heartRate,
+      leftBalance: _data.leftBalance,
+      rightBalance: _data.rightBalance,
+      smoothedSpeedMps: _smoothedSpeedMps,
+      filteredAltitudeForClimb: _filteredAltitudeForClimb,
+      climbReferenceAltitude: _climbReferenceAltitude,
     );
   }
 
