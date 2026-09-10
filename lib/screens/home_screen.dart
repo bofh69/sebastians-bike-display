@@ -1176,42 +1176,39 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _restoreInterruptedRideIfNeededInternal() async {
     final checkpoint = await _loadRideCheckpoint();
     if (checkpoint == null || !mounted) return;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      if (shouldOfferInterruptedRideResume(
-          lastSavedAt: checkpoint.lastSavedAt)) {
-        final resumeRide = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            title: const Text('Resume interrupted ride?'),
-            content: const Text(
-              'The previous ride was interrupted recently. Do you want to continue it?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('End ride'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Resume'),
-              ),
-            ],
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    if (shouldOfferInterruptedRideResume(lastSavedAt: checkpoint.lastSavedAt)) {
+      final resumeRide = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Resume interrupted ride?'),
+          content: const Text(
+            'The previous ride was interrupted recently. Do you want to continue it?',
           ),
-        );
-        if (resumeRide == true) {
-          await _resumeInterruptedRide(checkpoint);
-          return;
-        }
-      }
-      await _finalizeRide(
-        rideStartTime: checkpoint.startTime,
-        rideSamples: checkpoint.samples,
-        completionPrefix: 'Recovered interrupted ride.',
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('End ride'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Resume'),
+            ),
+          ],
+        ),
       );
-    });
+      if (resumeRide == true) {
+        await _resumeInterruptedRide(checkpoint);
+        return;
+      }
+    }
+    await _finalizeRide(
+      rideStartTime: checkpoint.startTime,
+      rideSamples: checkpoint.samples,
+      completionPrefix: 'Recovered interrupted ride.',
+    );
   }
 
   Future<void> _resumeInterruptedRide(
@@ -1413,6 +1410,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     await _clearRideCheckpoint();
     if (!mounted) return;
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return;
     final rideSavedMessage = fitFile == null && gpxFile == null
         ? '$completionPrefix No files written (no samples).'
         : '$completionPrefix FIT: ${fitFile?.path ?? 'N/A'} GPX: ${gpxFile?.path ?? 'N/A'}';
