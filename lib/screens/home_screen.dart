@@ -1333,14 +1333,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           now.difference(lastSavedAt) < _rideCheckpointWriteInterval) {
         return;
       }
+      final persistedSamplesSnapshot = List<_RideSample>.from(_samples);
       final checkpointMetadata = _buildInterruptedRideCheckpointMetadata(
         startTime: startTime,
         lastSavedAt: now,
+        sampleCount: persistedSamplesSnapshot.length,
       );
-      final sampleCount = _samples.length;
       try {
         final samplesFile = await _rideCheckpointSamplesFile();
-        final pendingSamples = _samples
+        final pendingSamples = persistedSamplesSnapshot
             .skip(_lastCheckpointSampleCount)
             .map((sample) => jsonEncode(sample.toJson()))
             .join('\n');
@@ -1372,7 +1373,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
         }
         _lastCheckpointSavedAt = now;
-        _lastCheckpointSampleCount = sampleCount;
+        _lastCheckpointSampleCount = persistedSamplesSnapshot.length;
       } catch (error, stackTrace) {
         debugPrint('Failed to persist ride checkpoint: $error\n$stackTrace');
       }
@@ -1580,13 +1581,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     var resumed = false;
     try {
       if (!mounted) return false;
+      final restoredSamples = List<_RideSample>.from(checkpoint.samples)
+        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
       final restoredPosition = _positionFromSample(
-        checkpoint.samples.isEmpty ? null : checkpoint.samples.last,
+        restoredSamples.isEmpty ? null : restoredSamples.last,
       );
-      final restoredPowerWindowEnd = checkpoint.samples.isEmpty
+      final restoredPowerWindowEnd = restoredSamples.isEmpty
           ? checkpoint.lastSavedAt
-          : checkpoint.samples.last.timestamp;
-      final restoredPowerSamples = checkpoint.samples.map(
+          : restoredSamples.last.timestamp;
+      final restoredPowerSamples = restoredSamples.map(
         (sample) => (
           timestamp: sample.timestamp,
           value: sample.power ?? 0.0,
@@ -1610,7 +1613,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _startTime = checkpoint.startTime;
         _samples
           ..clear()
-          ..addAll(checkpoint.samples);
+          ..addAll(restoredSamples);
         _data.distance = checkpoint.distanceKm;
         _data.duration = DateTime.now().difference(checkpoint.startTime);
         _data.avgSpeed = checkpoint.avgSpeedKph;
@@ -1626,7 +1629,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _lastAcceptedPosition = restoredPosition;
         _lastAcceptedTimestamp = restoredPosition?.timestamp;
         _lastAcceptedBearingDegrees =
-            _bearingFromRecentSamples(checkpoint.samples);
+            _bearingFromRecentSamples(restoredSamples);
         _smoothedSpeedMps = checkpoint.smoothedSpeedMps;
         _filteredAltitudeForClimb = checkpoint.filteredAltitudeForClimb;
         _climbReferenceAltitude = checkpoint.climbReferenceAltitude;
@@ -1662,6 +1665,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Map<String, dynamic> _buildInterruptedRideCheckpointMetadata({
     required DateTime startTime,
     required DateTime lastSavedAt,
+    required int sampleCount,
   }) {
     return <String, dynamic>{
       'startTime': startTime.toIso8601String(),
@@ -1677,7 +1681,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       'smoothedSpeedMps': _smoothedSpeedMps,
       'filteredAltitudeForClimb': _filteredAltitudeForClimb,
       'climbReferenceAltitude': _climbReferenceAltitude,
-      'sampleCount': _samples.length,
+      'sampleCount': sampleCount,
     };
   }
 
