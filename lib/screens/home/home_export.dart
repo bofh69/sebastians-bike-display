@@ -197,6 +197,7 @@ extension _HomeScreenExport on _HomeScreenState {
     required List<_RideSample> rideSamples,
     required String completionPrefix,
     bool preserveCheckpointOnFailure = true,
+    bool requireCurrentRouteForUpload = false,
   }) async {
     final rideMidpointTime = rideSamples.isEmpty
         ? rideStartTime
@@ -221,6 +222,7 @@ extension _HomeScreenExport on _HomeScreenState {
       debugPrint('Failed to export GPX file: $error\n$stackTrace');
     }
     StravaUploadResult uploadResult = const StravaUploadResult.skipped();
+    var deferredUploadUntilRouteReady = false;
     if (fitFile != null) {
       final stravaState = _stravaUploadService.state.value;
       if (stravaState.autoUploadEnabled && stravaState.isAuthenticated) {
@@ -230,30 +232,40 @@ extension _HomeScreenExport on _HomeScreenState {
             final route = ModalRoute.of(context);
             shouldPromptForUpload = route == null || route.isCurrent;
           }
-          final resolvedDecision = shouldPromptForUpload
-              ? resolveStravaUploadDecision(
-                  await _selectStravaUploadDecision(),
-                )
-              : (
-                  shouldUpload: false,
-                  selectedGearId: null,
-                  clearGear: false,
-                );
-          if (!resolvedDecision.shouldUpload) {
+          if (requireCurrentRouteForUpload && !shouldPromptForUpload) {
             uploadResult = const StravaUploadResult(
               attempted: false,
               succeeded: false,
-              message: 'Strava upload skipped.',
+              message: 'Strava upload deferred until the app is ready.',
               activityId: null,
             );
+            deferredUploadUntilRouteReady = true;
           } else {
-            uploadResult = await _stravaUploadService.uploadFinishedRide(
-              fileName: fitFile.fileName,
-              fileBytes: fitFile.bytes,
-              midpointAt: rideMidpointTime,
-              selectedGearId: resolvedDecision.selectedGearId,
-              clearGear: resolvedDecision.clearGear,
-            );
+            final resolvedDecision = shouldPromptForUpload
+                ? resolveStravaUploadDecision(
+                    await _selectStravaUploadDecision(),
+                  )
+                : (
+                    shouldUpload: false,
+                    selectedGearId: null,
+                    clearGear: false,
+                  );
+            if (!resolvedDecision.shouldUpload) {
+              uploadResult = const StravaUploadResult(
+                attempted: false,
+                succeeded: false,
+                message: 'Strava upload skipped.',
+                activityId: null,
+              );
+            } else {
+              uploadResult = await _stravaUploadService.uploadFinishedRide(
+                fileName: fitFile.fileName,
+                fileBytes: fitFile.bytes,
+                midpointAt: rideMidpointTime,
+                selectedGearId: resolvedDecision.selectedGearId,
+                clearGear: resolvedDecision.clearGear,
+              );
+            }
           }
         } catch (error, stackTrace) {
           debugPrint('Strava upload flow failed: $error\n$stackTrace');
@@ -267,12 +279,13 @@ extension _HomeScreenExport on _HomeScreenState {
       }
     }
     final completedSuccessfully = didRecoveredRideFinalizeCompletely(
-      hasSamples: rideSamples.isNotEmpty,
-      fitExported: fitFile != null,
-      gpxExported: gpxFile != null,
-      uploadAttempted: uploadResult.attempted,
-      uploadSucceeded: uploadResult.succeeded,
-    );
+          hasSamples: rideSamples.isNotEmpty,
+          fitExported: fitFile != null,
+          gpxExported: gpxFile != null,
+          uploadAttempted: uploadResult.attempted,
+          uploadSucceeded: uploadResult.succeeded,
+        ) &&
+        !deferredUploadUntilRouteReady;
     if (shouldClearRideCheckpointAfterFinalization(
       completedSuccessfully: completedSuccessfully,
       preserveCheckpointOnFailure: preserveCheckpointOnFailure,

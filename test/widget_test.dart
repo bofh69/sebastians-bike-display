@@ -331,6 +331,16 @@ void main() {
       didRecoveredRideFinalizeCompletely(
         hasSamples: true,
         fitExported: true,
+        gpxExported: true,
+        uploadAttempted: false,
+        uploadSucceeded: false,
+      ),
+      isTrue,
+    );
+    expect(
+      didRecoveredRideFinalizeCompletely(
+        hasSamples: true,
+        fitExported: true,
         gpxExported: false,
         uploadAttempted: false,
         uploadSucceeded: false,

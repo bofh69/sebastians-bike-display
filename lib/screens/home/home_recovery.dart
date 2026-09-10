@@ -294,6 +294,7 @@ extension _HomeScreenRecovery on _HomeScreenState {
         ),
         completionPrefix: 'Recovered interrupted ride.',
         preserveCheckpointOnFailure: true,
+        requireCurrentRouteForUpload: true,
       );
     } finally {
       _isFinalizingRecoveredRide = false;
@@ -445,6 +446,13 @@ extension _HomeScreenRecovery on _HomeScreenState {
       if (!resumed) {
         await _stopTemporaryRecoveryRuntime();
       }
+    }
+    try {
+      await _startLocationStream();
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Failed to restart location stream after ride resume: $error\n$stackTrace',
+      );
     }
     _recordingTimer?.cancel();
     _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
