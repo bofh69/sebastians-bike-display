@@ -3,6 +3,8 @@
 A simple bike computer app showing important stats and recording
 the ride.
 
+![Screenshot of main screen](images/main-screen.jpg)
+
 The app is tailored to my needs and I probably won't accept PRs that changes
 how it works, except bug fixes. However, feel free to fork the repo and do your own
 thing.
