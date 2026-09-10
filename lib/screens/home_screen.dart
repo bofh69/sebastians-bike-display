@@ -763,7 +763,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         speedMps: (_data.speed ?? 0) / 3.6,
       ),
     );
-    unawaited(_persistRideCheckpointIfDue());
+    unawaited(_persistRideCheckpoint());
     if (!kIsWeb && io.Platform.isAndroid && !_isAppInForeground) {
       unawaited(_showBackgroundRideNotification());
     }
@@ -1088,10 +1088,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return io.File('${docsDir.path}/$_rideCheckpointFileName');
   }
 
-  Future<void> _persistRideCheckpointIfDue() async {
-    await _persistRideCheckpoint();
-  }
-
   Future<void> _persistRideCheckpoint({bool force = false}) async {
     if (!_isRunning) return;
     final startTime = _startTime;
@@ -1235,7 +1231,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
 
     final readyToRun = await _prepareRideRuntime();
-    if (!readyToRun || !mounted) return;
+    if (!readyToRun) {
+      await _finalizeInterruptedRideWithoutResuming(
+        checkpoint,
+        reason: 'Unable to restart ride tracking.',
+      );
+      return;
+    }
+    if (!mounted) return;
     final restoredPosition = _positionFromSample(
       checkpoint.samples.isEmpty ? null : checkpoint.samples.last,
     );
