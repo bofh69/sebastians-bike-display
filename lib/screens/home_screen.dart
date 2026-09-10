@@ -1244,13 +1244,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
 
     final readyToRun = await _prepareRideRuntime();
-    if (!readyToRun) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to restart ride tracking.')),
-      );
-      return;
-    }
+    if (!readyToRun) return;
     if (!mounted) return;
     final restoredPosition = _positionFromSample(
       checkpoint.samples.isEmpty ? null : checkpoint.samples.last,
