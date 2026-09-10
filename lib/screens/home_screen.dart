@@ -1346,9 +1346,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!_supportsRideCheckpointing) return null;
     try {
       final metadataFiles = await _rideCheckpointMetadataFiles();
-      final publishedMetadataFiles = metadataFiles
-          .where((file) => !file.path.endsWith('.tmp'))
-          .toList();
+      final publishedMetadataFiles =
+          metadataFiles.where((file) => !file.path.endsWith('.tmp')).toList();
       if (publishedMetadataFiles.isNotEmpty) {
         publishedMetadataFiles.sort((a, b) => b.path.compareTo(a.path));
         final metadataFile = publishedMetadataFiles.first;
@@ -1717,8 +1716,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
       }
     }
-    final completedSuccessfully =
-        rideSamples.isEmpty ||
+    final completedSuccessfully = rideSamples.isEmpty ||
         (fitFile != null &&
             gpxFile != null &&
             (!uploadResult.attempted || uploadResult.succeeded));

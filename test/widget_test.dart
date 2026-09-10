@@ -185,7 +185,8 @@ void main() {
     );
   });
 
-  test('reconcileRecoveredCheckpointMetadata updates sample count from log', () {
+  test('reconcileRecoveredCheckpointMetadata updates sample count from log',
+      () {
     final reconciled = reconcileRecoveredCheckpointMetadata(
       metadata: <String, dynamic>{
         'startTime': DateTime.utc(2024).toIso8601String(),
