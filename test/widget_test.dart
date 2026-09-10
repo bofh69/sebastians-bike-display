@@ -250,6 +250,35 @@ void main() {
     expect(called, isTrue);
   });
 
+  test(
+      'shouldScheduleInterruptedRideRecoveryRetry retries dismissed or failed resumes',
+      () {
+    expect(
+      shouldScheduleInterruptedRideRecoveryRetry(
+        wantsResume: null,
+        action: InterruptedRideRecoveryAction.keepCheckpoint,
+        retryAlreadyScheduled: false,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldScheduleInterruptedRideRecoveryRetry(
+        wantsResume: true,
+        action: InterruptedRideRecoveryAction.keepCheckpoint,
+        retryAlreadyScheduled: false,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldScheduleInterruptedRideRecoveryRetry(
+        wantsResume: true,
+        action: InterruptedRideRecoveryAction.keepCheckpoint,
+        retryAlreadyScheduled: true,
+      ),
+      isFalse,
+    );
+  });
+
   test('restoreWindowedRollingAverage only replays samples inside the window',
       () {
     final average = RollingAverage(windowSize: 3);

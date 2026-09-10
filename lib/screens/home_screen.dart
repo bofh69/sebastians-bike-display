@@ -426,6 +426,16 @@ Future<void> scheduleInterruptedRideRecoveryRetry(
   );
 }
 
+bool shouldScheduleInterruptedRideRecoveryRetry({
+  required bool? wantsResume,
+  required InterruptedRideRecoveryAction action,
+  required bool retryAlreadyScheduled,
+}) {
+  return action == InterruptedRideRecoveryAction.keepCheckpoint &&
+      !retryAlreadyScheduled &&
+      (wantsResume == null || wantsResume == true);
+}
+
 double restoreWindowedRollingAverage({
   required RollingAverage average,
   required Iterable<({DateTime timestamp, double value})> values,
@@ -536,6 +546,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _lastCheckpointSampleCount = 0;
   Future<void> _rideCheckpointWriteQueue = Future<void>.value();
   Future<void>? _restoreInterruptedRideFuture;
+  bool _interruptedRideRecoveryRetryScheduled = false;
 
   bool get _isMobileTrackingPlatform =>
       !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
@@ -1417,6 +1428,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
         _lastCheckpointSavedAt = null;
         _lastCheckpointSampleCount = 0;
+        _interruptedRideRecoveryRetryScheduled = false;
       } catch (error, stackTrace) {
         debugPrint('Failed to clear ride checkpoint: $error\n$stackTrace');
       }
@@ -1523,14 +1535,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!mounted || !routeReady || _isRunning) return;
     if (shouldOfferInterruptedRideResume(lastSavedAt: checkpoint.lastSavedAt)) {
       final wantsResume = await showResumeInterruptedRideDialog(context);
-      switch (await resolveInterruptedRideRecovery(
+      final action = await resolveInterruptedRideRecovery(
         promptForResume: () async => wantsResume,
         resumeRide: () => _resumeInterruptedRide(checkpoint),
-      )) {
+      );
+      switch (action) {
         case InterruptedRideRecoveryAction.resumeRide:
+          _interruptedRideRecoveryRetryScheduled = false;
           return;
         case InterruptedRideRecoveryAction.keepCheckpoint:
-          if (wantsResume == null && mounted && !_isRunning) {
+          if (shouldScheduleInterruptedRideRecoveryRetry(
+            wantsResume: wantsResume,
+            action: action,
+            retryAlreadyScheduled: _interruptedRideRecoveryRetryScheduled,
+          )) {
+            _interruptedRideRecoveryRetryScheduled = true;
             unawaited(
               scheduleInterruptedRideRecoveryRetry(
                 _restoreInterruptedRideIfNeeded,
@@ -1539,6 +1558,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
           return;
         case InterruptedRideRecoveryAction.finalizeRide:
+          _interruptedRideRecoveryRetryScheduled = false;
           break;
       }
     }
@@ -1644,6 +1664,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final restoredPosition = _positionFromSample(
         restoredSamples.isEmpty ? null : restoredSamples.last,
       );
+      final restoredCurrentPowerWatts =
+          restoredSamples.isEmpty ? 0.0 : (restoredSamples.last.power ?? 0.0);
       final restoredPowerWindowEnd = restoredSamples.isEmpty
           ? checkpoint.lastSavedAt
           : restoredSamples.last.timestamp;
@@ -1683,7 +1705,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _data.heartRate = checkpoint.heartRate;
         _data.leftBalance = checkpoint.leftBalance;
         _data.rightBalance = checkpoint.rightBalance;
-        _currentPowerWatts = 0;
+        _currentPowerWatts = restoredCurrentPowerWatts;
         _lastAcceptedPosition = restoredPosition;
         _lastAcceptedTimestamp = restoredPosition?.timestamp;
         _lastAcceptedBearingDegrees =
