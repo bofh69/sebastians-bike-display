@@ -1120,7 +1120,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
       try {
         final file = await _rideCheckpointFile();
-        await file.writeAsString(jsonEncode(checkpoint.toJson()), flush: true);
+        final tempFile = io.File('${file.path}.tmp');
+        await tempFile.writeAsString(
+          jsonEncode(checkpoint.toJson()),
+          flush: true,
+        );
+        await tempFile.rename(file.path);
         _lastCheckpointSavedAt = checkpoint.lastSavedAt;
       } catch (error, stackTrace) {
         debugPrint('Failed to persist ride checkpoint: $error\n$stackTrace');
@@ -1217,9 +1222,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_isRunning) return;
     final hasPermission = await _ensureLocationPermission();
     if (!hasPermission) {
-      await _finalizeInterruptedRideWithoutResuming(
-        checkpoint,
-        reason: 'Location permission is required to resume.',
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Location permission is required to resume.'),
+        ),
       );
       return;
     }
@@ -1227,18 +1234,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final canStartForegroundTracking =
         await _ensureForegroundTrackingPermission();
     if (!canStartForegroundTracking) {
-      await _finalizeInterruptedRideWithoutResuming(
-        checkpoint,
-        reason: 'Notification permission is required to resume.',
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Notification permission is required to resume.'),
+        ),
       );
       return;
     }
 
     final readyToRun = await _prepareRideRuntime();
     if (!readyToRun) {
-      await _finalizeInterruptedRideWithoutResuming(
-        checkpoint,
-        reason: 'Unable to restart ride tracking.',
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to restart ride tracking.')),
       );
       return;
     }
@@ -1294,17 +1303,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Interrupted ride resumed.')),
-    );
-  }
-
-  Future<void> _finalizeInterruptedRideWithoutResuming(
-    _InterruptedRideCheckpoint checkpoint, {
-    required String reason,
-  }) async {
-    await _finalizeRide(
-      rideStartTime: checkpoint.startTime,
-      rideSamples: checkpoint.samples,
-      completionPrefix: '$reason Recovered interrupted ride.',
     );
   }
 
