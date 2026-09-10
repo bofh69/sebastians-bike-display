@@ -1561,6 +1561,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           _interruptedRideRecoveryRetryScheduled = false;
           break;
       }
+    } else {
+      _interruptedRideRecoveryRetryScheduled = false;
     }
     final readyToFinalizeRecoveredRide = await _prepareRideRuntime();
     if (!readyToFinalizeRecoveredRide) return;
@@ -1716,7 +1718,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _leftBalanceAverage.clear();
         _rightBalanceAverage.clear();
         _lastCheckpointSavedAt = checkpoint.lastSavedAt;
-        _lastCheckpointSampleCount = checkpoint.sampleCount;
+        _lastCheckpointSampleCount = restoredSamples.length;
       });
       resumed = true;
     } finally {
