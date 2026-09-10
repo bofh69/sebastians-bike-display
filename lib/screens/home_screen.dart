@@ -283,8 +283,9 @@ bool shouldOfferInterruptedRideResume({
   required DateTime lastSavedAt,
   DateTime? now,
 }) {
-  return (now ?? DateTime.now()).difference(lastSavedAt) <
-      _interruptedRideResumeWindow;
+  final effectiveNow = now ?? DateTime.now();
+  if (lastSavedAt.isAfter(effectiveNow)) return true;
+  return effectiveNow.difference(lastSavedAt) < _interruptedRideResumeWindow;
 }
 
 class HomeScreen extends StatefulWidget {
@@ -1096,12 +1097,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final startTime = _startTime;
     if (startTime == null) return;
     final now = DateTime.now();
-    final lastSavedAt = _lastCheckpointSavedAt;
-    if (!force &&
-        lastSavedAt != null &&
-        now.difference(lastSavedAt) < _rideCheckpointWriteInterval) {
-      return;
-    }
     final checkpoint = _InterruptedRideCheckpoint(
       startTime: startTime,
       lastSavedAt: now,
@@ -1119,6 +1114,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       climbReferenceAltitude: _climbReferenceAltitude,
     );
     _rideCheckpointWriteQueue = _rideCheckpointWriteQueue.then((_) async {
+      final lastSavedAt = _lastCheckpointSavedAt;
+      if (!force &&
+          lastSavedAt != null &&
+          checkpoint.lastSavedAt.difference(lastSavedAt) <
+              _rideCheckpointWriteInterval) {
+        return;
+      }
       try {
         final file = await _rideCheckpointFile();
         await file.writeAsString(jsonEncode(checkpoint.toJson()), flush: true);
@@ -1215,9 +1217,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   ) async {
     final hasPermission = await _ensureLocationPermission();
     if (!hasPermission) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Location permission is required.')),
+      await _finalizeInterruptedRideWithoutResuming(
+        checkpoint,
+        reason: 'Location permission is required to resume.',
       );
       return;
     }
@@ -1225,9 +1227,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final canStartForegroundTracking =
         await _ensureForegroundTrackingPermission();
     if (!canStartForegroundTracking) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Notification permission is required.')),
+      await _finalizeInterruptedRideWithoutResuming(
+        checkpoint,
+        reason: 'Notification permission is required to resume.',
       );
       return;
     }
@@ -1281,6 +1283,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Interrupted ride resumed.')),
+    );
+  }
+
+  Future<void> _finalizeInterruptedRideWithoutResuming(
+    _InterruptedRideCheckpoint checkpoint, {
+    required String reason,
+  }) async {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$reason Saving the interrupted ride instead.')),
+      );
+    }
+    await _finalizeRide(
+      rideStartTime: checkpoint.startTime,
+      rideSamples: checkpoint.samples,
+      completionPrefix: 'Recovered interrupted ride.',
     );
   }
 

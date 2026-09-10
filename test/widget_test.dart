@@ -125,6 +125,13 @@ void main() {
       ),
       isFalse,
     );
+    expect(
+      shouldOfferInterruptedRideResume(
+        lastSavedAt: now.add(const Duration(minutes: 2)),
+        now: now,
+      ),
+      isTrue,
+    );
   });
 
   test('shouldRetrySavedSensorConnection only retries when idle and saved', () {
