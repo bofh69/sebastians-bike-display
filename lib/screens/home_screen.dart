@@ -1234,8 +1234,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _clearRideCheckpoint() async {
     if (!_supportsRideCheckpointing) return;
-    _lastCheckpointSavedAt = null;
-    _lastCheckpointSampleCount = 0;
     _rideCheckpointWriteQueue = _rideCheckpointWriteQueue.then((_) async {
       try {
         final files = <io.File>[
@@ -1248,6 +1246,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             await file.delete();
           }
         }
+        _lastCheckpointSavedAt = null;
+        _lastCheckpointSampleCount = 0;
       } catch (error, stackTrace) {
         debugPrint('Failed to clear ride checkpoint: $error\n$stackTrace');
       }
@@ -1304,9 +1304,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!await file.exists()) {
       return <_RideSample>[];
     }
-    final lines = await file.readAsLines();
     final samples = <_RideSample>[];
-    for (final line in lines) {
+    final lines = file.openRead().transform(utf8.decoder).transform(
+          const LineSplitter(),
+        );
+    await for (final line in lines) {
       final trimmedLine = line.trim();
       if (trimmedLine.isEmpty) {
         continue;
@@ -1327,10 +1329,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _restoreInterruptedRideIfNeededInternal() async {
     final checkpoint = await _loadRideCheckpoint();
     if (checkpoint == null || !mounted) return;
-    await WidgetsBinding.instance.endOfFrame;
-    if (!mounted || _isRunning) return;
-    final route = ModalRoute.of(context);
-    if (route != null && !route.isCurrent) return;
+    final routeReady = await _waitForCurrentHomeRoute();
+    if (!mounted || !routeReady || _isRunning) return;
     if (shouldOfferInterruptedRideResume(lastSavedAt: checkpoint.lastSavedAt)) {
       final resumeRide = await showDialog<bool>(
         context: context,
@@ -1370,6 +1370,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
       completionPrefix: 'Recovered interrupted ride.',
     );
+  }
+
+  Future<bool> _waitForCurrentHomeRoute() async {
+    for (var attempt = 0; attempt < 5; attempt++) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) {
+        return false;
+      }
+      final route = ModalRoute.of(context);
+      if (route == null) {
+        continue;
+      }
+      return route.isCurrent;
+    }
+    return false;
   }
 
   Future<bool> _resumeInterruptedRide(
@@ -1486,11 +1501,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         altitudeMeters: lastSample.altitudeMeters,
         accuracyMeters: lastSample.accuracyMeters,
         gpsConfidence: lastSample.gpsConfidence,
-        power: lastSample.power,
-        cadence: lastSample.cadence,
-        heartRate: lastSample.heartRate,
+        power: null,
+        cadence: null,
+        heartRate: null,
         distanceMeters: lastSample.distanceMeters,
-        speedMps: lastSample.speedMps,
+        speedMps: 0,
       ),
     ];
   }
@@ -1609,9 +1624,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!mounted) return;
     final route = ModalRoute.of(context);
     if (route == null || route.isCurrent) {
-      final rideSavedMessage = fitFile == null && gpxFile == null
-          ? '$completionPrefix No files written (no samples).'
-          : '$completionPrefix FIT: ${fitFile?.path ?? 'N/A'} GPX: ${gpxFile?.path ?? 'N/A'}';
+      final rideSavedMessage = switch ((fitFile, gpxFile)) {
+        (null, null) => '$completionPrefix No files written (no samples).',
+        (_ExportedRideFile fit, _ExportedRideFile gpx) =>
+          '$completionPrefix FIT: ${fit.path} GPX: ${gpx.path}',
+        (_ExportedRideFile fit, null) =>
+          '$completionPrefix FIT saved to ${fit.path}. GPX export failed.',
+        (null, _ExportedRideFile gpx) =>
+          '$completionPrefix GPX saved to ${gpx.path}. FIT export failed.',
+      };
       final uploadMessage =
           uploadResult.message == null ? '' : ' ${uploadResult.message}';
       ScaffoldMessenger.of(context).showSnackBar(
