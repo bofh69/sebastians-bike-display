@@ -1583,6 +1583,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final restoredPosition = _positionFromSample(
         checkpoint.samples.isEmpty ? null : checkpoint.samples.last,
       );
+      final restoredPowerWindowEnd = checkpoint.samples.isEmpty
+          ? checkpoint.lastSavedAt
+          : checkpoint.samples.last.timestamp;
       final restoredPowerSamples = checkpoint.samples.map(
         (sample) => (
           timestamp: sample.timestamp,
@@ -1592,13 +1595,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final restoredPower3s = restoreWindowedRollingAverage(
         average: _power3sAverage,
         values: restoredPowerSamples,
-        windowEnd: checkpoint.lastSavedAt,
+        windowEnd: restoredPowerWindowEnd,
         window: const Duration(seconds: 3),
       );
       final restoredPower20min = restoreWindowedRollingAverage(
         average: _power20MinAverage,
         values: restoredPowerSamples,
-        windowEnd: checkpoint.lastSavedAt,
+        windowEnd: restoredPowerWindowEnd,
         window: const Duration(minutes: 20),
       );
 
@@ -1758,7 +1761,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     required DateTime? rideStartTime,
     required List<_RideSample> rideSamples,
     required String completionPrefix,
-    bool preserveCheckpointOnFailure = false,
+    bool preserveCheckpointOnFailure = true,
   }) async {
     final rideMidpointTime = rideSamples.isEmpty
         ? rideStartTime
