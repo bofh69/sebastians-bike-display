@@ -54,7 +54,6 @@ jobs:
   release-android:
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
-    needs: test
     permissions:
       contents: write
     steps:
@@ -80,12 +79,29 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
         run: |
-          cat > android/key.properties <<EOF
-          storePassword=$ANDROID_STORE_PASSWORD
-          keyPassword=$ANDROID_KEY_PASSWORD
-          keyAlias=$ANDROID_KEY_ALIAS
-          storeFile=upload-keystore.jks
-          EOF
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          def escape(value: str) -> str:
+              return (
+                  value.replace("\\", "\\\\")
+                  .replace("\n", "\\n")
+                  .replace("\r", "\\r")
+                  .replace("=", "\\=")
+                  .replace(":", "\\:")
+              )
+
+          key_properties = "\n".join(
+              [
+                  f"storePassword={escape(os.environ['ANDROID_STORE_PASSWORD'])}",
+                  f"keyPassword={escape(os.environ['ANDROID_KEY_PASSWORD'])}",
+                  f"keyAlias={escape(os.environ['ANDROID_KEY_ALIAS'])}",
+                  "storeFile=upload-keystore.jks",
+              ]
+          )
+          Path("android/key.properties").write_text(f"{key_properties}\n", encoding="utf-8")
+          PY
       - name: Build release APK
         run: flutter build apk --release
       - name: Upload APK artifact
