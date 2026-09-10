@@ -114,7 +114,7 @@ jobs:
                   f"storePassword={escape(os.environ['ANDROID_STORE_PASSWORD'])}",
                   f"keyPassword={escape(os.environ['ANDROID_KEY_PASSWORD'])}",
                   f"keyAlias={escape(os.environ['ANDROID_KEY_ALIAS'])}",
-                  "storeFile=upload-keystore.jks",
+                  "storeFile=../upload-keystore.jks",
               ]
           )
           Path("android/key.properties").write_text(f"{key_properties}\n", encoding="utf-8")

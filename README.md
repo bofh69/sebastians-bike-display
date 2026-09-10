@@ -71,6 +71,7 @@ Generate and configure the key once:
 1. Generate a keystore if you don't have one yet:
    - `keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload`
 2. Base64 encode it for GitHub secrets:
-   - `base64 -w 0 upload-keystore.jks`
+   - GNU/Linux: `base64 -w 0 upload-keystore.jks`
+   - macOS: `base64 upload-keystore.jks | tr -d '\n'`
 3. Add the output and the passwords/alias above as GitHub repository secrets.
 4. Reuse the same keystore and alias for all future releases to keep APK signatures consistent.
