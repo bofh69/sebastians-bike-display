@@ -52,7 +52,7 @@ jobs:
           if-no-files-found: error
 
   release-android:
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' && github.event.action == 'published'
     runs-on: ubuntu-latest
     permissions:
       contents: write
