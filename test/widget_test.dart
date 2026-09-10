@@ -237,6 +237,19 @@ void main() {
     expect(reconciled['sampleCount'], 4);
   });
 
+  test('scheduleInterruptedRideRecoveryRetry defers the retry', () async {
+    var called = false;
+    final future = scheduleInterruptedRideRecoveryRetry(() async {
+      called = true;
+    });
+
+    await Future<void>.delayed(Duration.zero);
+    expect(called, isFalse);
+
+    await future;
+    expect(called, isTrue);
+  });
+
   test('restoreWindowedRollingAverage only replays samples inside the window',
       () {
     final average = RollingAverage(windowSize: 3);

@@ -389,18 +389,22 @@ Future<InterruptedRideRecoveryAction> resolveInterruptedRideRecovery({
   );
 }
 
+Map<String, dynamic>? tryParseRideCheckpointSampleJsonLine(String line) {
+  final trimmedLine = line.trim();
+  if (trimmedLine.isEmpty) {
+    return null;
+  }
+  return jsonDecode(trimmedLine) as Map<String, dynamic>;
+}
+
 List<Map<String, dynamic>> parseRideCheckpointSampleJsonLines(
   Iterable<String> lines,
 ) {
   final decodedSamples = <Map<String, dynamic>>[];
   for (final line in lines) {
-    final trimmedLine = line.trim();
-    if (trimmedLine.isEmpty) {
-      continue;
-    }
     try {
-      final decoded = jsonDecode(trimmedLine);
-      if (decoded is Map<String, dynamic>) {
+      final decoded = tryParseRideCheckpointSampleJsonLine(line);
+      if (decoded != null) {
         decodedSamples.add(decoded);
       }
     } catch (error, stackTrace) {
@@ -411,6 +415,15 @@ List<Map<String, dynamic>> parseRideCheckpointSampleJsonLines(
     }
   }
   return decodedSamples;
+}
+
+Future<void> scheduleInterruptedRideRecoveryRetry(
+  Future<void> Function() retry,
+) {
+  return Future<void>.delayed(
+    const Duration(milliseconds: 50),
+    retry,
+  );
 }
 
 double restoreWindowedRollingAverage({
@@ -1471,16 +1484,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!await file.exists()) {
       return <_RideSample>[];
     }
+    final samples = <_RideSample>[];
     final lines = file.openRead().transform(utf8.decoder).transform(
           const LineSplitter(),
         );
-    final sampleLines = <String>[];
     await for (final line in lines) {
-      sampleLines.add(line);
+      try {
+        final decoded = tryParseRideCheckpointSampleJsonLine(line);
+        if (decoded != null) {
+          samples.add(_RideSample.fromJson(decoded));
+        }
+      } catch (error, stackTrace) {
+        debugPrint(
+          'Failed to parse ride checkpoint sample line: $error\n$stackTrace',
+        );
+        break;
+      }
     }
-    return parseRideCheckpointSampleJsonLines(sampleLines)
-        .map(_RideSample.fromJson)
-        .toList();
+    return samples;
   }
 
   Future<void> _restoreInterruptedRideIfNeeded() async {
@@ -1511,8 +1532,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         case InterruptedRideRecoveryAction.keepCheckpoint:
           if (wantsResume == null && mounted && !_isRunning) {
             unawaited(
-              Future<void>.delayed(
-                const Duration(milliseconds: 50),
+              scheduleInterruptedRideRecoveryRetry(
                 _restoreInterruptedRideIfNeeded,
               ),
             );
@@ -1540,30 +1560,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _stopActiveRideRuntime() async {
-    if (_isMobileTrackingPlatform) {
-      try {
-        await WakelockPlus.disable();
-      } catch (error, stackTrace) {
-        debugPrint('Failed to disable wakelock: $error\n$stackTrace');
-      }
-    }
-    try {
-      await _hideBackgroundRideNotification(force: true);
-    } catch (error, stackTrace) {
-      debugPrint(
-        'Failed to hide background ride notification: $error\n$stackTrace',
-      );
-    }
-    if (_supportsBackgroundRideService && _serviceConfigured) {
-      try {
-        _backgroundService.invoke('stopService');
-      } catch (error, stackTrace) {
-        debugPrint('Failed to stop ride service: $error\n$stackTrace');
-      }
-    }
+    await _stopRideRuntime();
   }
 
   Future<void> _stopTemporaryRecoveryRuntime() async {
+    await _stopRideRuntime();
+  }
+
+  Future<void> _stopRideRuntime() async {
     if (_isMobileTrackingPlatform) {
       try {
         await WakelockPlus.disable();
