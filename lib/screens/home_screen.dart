@@ -422,7 +422,9 @@ double restoreWindowedRollingAverage({
   average.reset();
   var restored = 0.0;
   final windowStart = windowEnd.subtract(window);
-  for (final value in values) {
+  final sortedValues = values.toList()
+    ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+  for (final value in sortedValues) {
     if (value.timestamp.isBefore(windowStart) ||
         value.timestamp.isAfter(windowEnd)) {
       continue;
@@ -1334,10 +1336,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         return;
       }
       final persistedSamplesSnapshot = List<_RideSample>.from(_samples);
-      final checkpointMetadata = _buildInterruptedRideCheckpointMetadata(
-        startTime: startTime,
-        lastSavedAt: now,
-        sampleCount: persistedSamplesSnapshot.length,
+      final checkpointMetadataJson = jsonEncode(
+        _buildInterruptedRideCheckpointMetadata(
+          startTime: startTime,
+          lastSavedAt: now,
+          sampleCount: persistedSamplesSnapshot.length,
+        ),
       );
       try {
         final samplesFile = await _rideCheckpointSamplesFile();
@@ -1357,7 +1361,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           '${metadataFile.path}.${now.microsecondsSinceEpoch}.tmp',
         );
         await tempFile.writeAsString(
-          jsonEncode(checkpointMetadata),
+          checkpointMetadataJson,
           flush: true,
         );
         final publishedFile = io.File(
@@ -1367,8 +1371,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           await publishedFile.delete();
         }
         await tempFile.rename(publishedFile.path);
+        await metadataFile.writeAsString(checkpointMetadataJson, flush: true);
         for (final file in await _rideCheckpointMetadataFiles()) {
-          if (file.path != publishedFile.path && await file.exists()) {
+          if (file.path != publishedFile.path &&
+              file.path != metadataFile.path &&
+              await file.exists()) {
             await file.delete();
           }
         }
@@ -1521,9 +1528,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _stopPreparedRideRuntime() async {
     if (_isMobileTrackingPlatform) {
-      await WakelockPlus.disable();
+      try {
+        await WakelockPlus.disable();
+      } catch (error, stackTrace) {
+        debugPrint('Failed to disable wakelock: $error\n$stackTrace');
+      }
     }
-    await _hideBackgroundRideNotification(force: true);
+    try {
+      await _hideBackgroundRideNotification(force: true);
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Failed to hide background ride notification: $error\n$stackTrace',
+      );
+    }
     if (_supportsBackgroundRideService && _serviceConfigured) {
       try {
         _backgroundService.invoke('stopService');
