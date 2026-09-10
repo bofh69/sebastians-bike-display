@@ -141,32 +141,32 @@ class _RideSample {
   });
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-    'timestamp': timestamp.toIso8601String(),
-    'latitude': latitude,
-    'longitude': longitude,
-    'altitudeMeters': altitudeMeters,
-    'accuracyMeters': accuracyMeters,
-    'gpsConfidence': gpsConfidence,
-    'power': power,
-    'cadence': cadence,
-    'heartRate': heartRate,
-    'distanceMeters': distanceMeters,
-    'speedMps': speedMps,
-  };
+        'timestamp': timestamp.toIso8601String(),
+        'latitude': latitude,
+        'longitude': longitude,
+        'altitudeMeters': altitudeMeters,
+        'accuracyMeters': accuracyMeters,
+        'gpsConfidence': gpsConfidence,
+        'power': power,
+        'cadence': cadence,
+        'heartRate': heartRate,
+        'distanceMeters': distanceMeters,
+        'speedMps': speedMps,
+      };
 
   factory _RideSample.fromJson(Map<String, dynamic> json) => _RideSample(
-    timestamp: DateTime.parse(json['timestamp'] as String),
-    latitude: (json['latitude'] as num?)?.toDouble(),
-    longitude: (json['longitude'] as num?)?.toDouble(),
-    altitudeMeters: (json['altitudeMeters'] as num?)?.toDouble(),
-    accuracyMeters: (json['accuracyMeters'] as num?)?.toDouble(),
-    gpsConfidence: (json['gpsConfidence'] as num?)?.toDouble() ?? 0,
-    power: (json['power'] as num?)?.toDouble(),
-    cadence: (json['cadence'] as num?)?.toDouble(),
-    heartRate: (json['heartRate'] as num?)?.toDouble(),
-    distanceMeters: (json['distanceMeters'] as num?)?.toDouble() ?? 0,
-    speedMps: (json['speedMps'] as num?)?.toDouble() ?? 0,
-  );
+        timestamp: DateTime.parse(json['timestamp'] as String),
+        latitude: (json['latitude'] as num?)?.toDouble(),
+        longitude: (json['longitude'] as num?)?.toDouble(),
+        altitudeMeters: (json['altitudeMeters'] as num?)?.toDouble(),
+        accuracyMeters: (json['accuracyMeters'] as num?)?.toDouble(),
+        gpsConfidence: (json['gpsConfidence'] as num?)?.toDouble() ?? 0,
+        power: (json['power'] as num?)?.toDouble(),
+        cadence: (json['cadence'] as num?)?.toDouble(),
+        heartRate: (json['heartRate'] as num?)?.toDouble(),
+        distanceMeters: (json['distanceMeters'] as num?)?.toDouble() ?? 0,
+        speedMps: (json['speedMps'] as num?)?.toDouble() ?? 0,
+      );
 }
 
 class _ExportedRideFile {
@@ -227,21 +227,21 @@ class _InterruptedRideCheckpoint {
   });
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-    'startTime': startTime.toIso8601String(),
-    'lastSavedAt': lastSavedAt.toIso8601String(),
-    'distanceKm': distanceKm,
-    'totalClimbMeters': totalClimbMeters,
-    'speedKph': speedKph,
-    'avgSpeedKph': avgSpeedKph,
-    'cadence': cadence,
-    'heartRate': heartRate,
-    'leftBalance': leftBalance,
-    'rightBalance': rightBalance,
-    'smoothedSpeedMps': smoothedSpeedMps,
-    'filteredAltitudeForClimb': filteredAltitudeForClimb,
-    'climbReferenceAltitude': climbReferenceAltitude,
-    'samples': samples.map((sample) => sample.toJson()).toList(),
-  };
+        'startTime': startTime.toIso8601String(),
+        'lastSavedAt': lastSavedAt.toIso8601String(),
+        'distanceKm': distanceKm,
+        'totalClimbMeters': totalClimbMeters,
+        'speedKph': speedKph,
+        'avgSpeedKph': avgSpeedKph,
+        'cadence': cadence,
+        'heartRate': heartRate,
+        'leftBalance': leftBalance,
+        'rightBalance': rightBalance,
+        'smoothedSpeedMps': smoothedSpeedMps,
+        'filteredAltitudeForClimb': filteredAltitudeForClimb,
+        'climbReferenceAltitude': climbReferenceAltitude,
+        'samples': samples.map((sample) => sample.toJson()).toList(),
+      };
 
   factory _InterruptedRideCheckpoint.fromJson(Map<String, dynamic> json) {
     final rawSamples = (json['samples'] as List<dynamic>? ?? const <dynamic>[])
@@ -268,7 +268,7 @@ class _InterruptedRideCheckpoint {
 }
 
 ({bool shouldUpload, String? selectedGearId, bool clearGear})
-resolveStravaUploadDecision(StravaUploadDecision? decision) {
+    resolveStravaUploadDecision(StravaUploadDecision? decision) {
   if (decision == null || decision.skipUpload) {
     return (shouldUpload: false, selectedGearId: null, clearGear: false);
   }
@@ -322,7 +322,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       TimeWindowAverage(window: const Duration(minutes: 1));
   double _currentPowerWatts = 0;
 
-  final FlutterBackgroundService _backgroundService = FlutterBackgroundService();
+  final FlutterBackgroundService _backgroundService =
+      FlutterBackgroundService();
 
   StreamSubscription<Position>? _positionSubscription;
   Timer? _recordingTimer;
@@ -339,8 +340,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   bool get _isMobileTrackingPlatform =>
       !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
-  bool get _supportsBackgroundRideService =>
-      !kIsWeb && io.Platform.isIOS;
+  bool get _supportsBackgroundRideService => !kIsWeb && io.Platform.isIOS;
 
   @override
   void initState() {
@@ -500,8 +500,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final double? displayedPower3s = !isConnected
         ? null
         : _isRunning
-        ? _data.power3s
-        : (normalizedPower > 0 ? normalizedPower : 0.0);
+            ? _data.power3s
+            : (normalizedPower > 0 ? normalizedPower : 0.0);
     if (_data.power3s == displayedPower3s &&
         _data.cadence == cadence &&
         _data.leftBalance == leftBalance &&
@@ -572,10 +572,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!hasPermission) return;
 
     final LocationSettings settings;
-    if (!kIsWeb &&
-        io.Platform.isAndroid &&
-        _isRunning &&
-        !_isAppInForeground) {
+    if (!kIsWeb && io.Platform.isAndroid && _isRunning && !_isAppInForeground) {
       settings = AndroidSettings(
         accuracy: LocationAccuracy.bestForNavigation,
         distanceFilter: 0,
@@ -659,7 +656,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    final deltaSeconds = now.difference(previousTimestamp).inMilliseconds / 1000;
+    final deltaSeconds =
+        now.difference(previousTimestamp).inMilliseconds / 1000;
     if (deltaSeconds <= 0) return;
 
     final distanceMeters = Geolocator.distanceBetween(
@@ -670,7 +668,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
 
     final rawSpeedMps = distanceMeters / deltaSeconds;
-    final isLikelyMoving = (_smoothedSpeedMps > 1.5) || ((_data.cadence ?? 0) >= 20);
+    final isLikelyMoving =
+        (_smoothedSpeedMps > 1.5) || ((_data.cadence ?? 0) >= 20);
     final jitterThreshold = _adaptiveJitterThresholdMeters(
       accuracyMeters: position.accuracy,
       isLikelyMoving: isLikelyMoving,
@@ -688,8 +687,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           deltaSeconds: deltaSeconds,
           bearingDegrees: bearingDegrees,
         )) {
-      if (mounted && distanceMeters < jitterThreshold && (_data.speed ?? 0) > 0) {
-        _smoothedSpeedMps = _smoothSpeedMps(rawSpeedMps: 0, deltaSeconds: deltaSeconds);
+      if (mounted &&
+          distanceMeters < jitterThreshold &&
+          (_data.speed ?? 0) > 0) {
+        _smoothedSpeedMps =
+            _smoothSpeedMps(rawSpeedMps: 0, deltaSeconds: deltaSeconds);
         setState(() {
           _data.speed = _smoothedSpeedMps * 3.6;
         });
@@ -781,7 +783,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    final canStartForegroundTracking = await _ensureForegroundTrackingPermission();
+    final canStartForegroundTracking =
+        await _ensureForegroundTrackingPermission();
     if (!canStartForegroundTracking) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -840,7 +843,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           throw Exception('Unable to start ride tracking service.');
         }
       } catch (error, stackTrace) {
-        debugPrint('Failed to start ride tracking service: $error\n$stackTrace');
+        debugPrint(
+            'Failed to start ride tracking service: $error\n$stackTrace');
         if (!mounted) return false;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -914,7 +918,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return dt.toUtc().millisecondsSinceEpoch ~/ 1000 - _fitEpochOffsetSeconds;
   }
 
-  Future<_ExportedRideFile?> _writeFitFile(List<_RideSample> rideSamples) async {
+  Future<_ExportedRideFile?> _writeFitFile(
+      List<_RideSample> rideSamples) async {
     if (rideSamples.isEmpty) return null;
 
     final encoder = Encode();
@@ -1004,7 +1009,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Future<_ExportedRideFile?> _writeGpxFile(List<_RideSample> rideSamples) async {
+  Future<_ExportedRideFile?> _writeGpxFile(
+      List<_RideSample> rideSamples) async {
     if (rideSamples.isEmpty) return null;
 
     final start = rideSamples.first.timestamp;
@@ -1015,7 +1021,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ..writeln(
         '<gpx version="1.1" creator="sebastians-bike-display" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1" xmlns:sbd="https://sebastians-bike-display.dev/xmlschemas/TrackPointQuality/v1">',
       )
-      ..writeln('<metadata><time>${start.toUtc().toIso8601String()}</time></metadata>')
+      ..writeln(
+          '<metadata><time>${start.toUtc().toIso8601String()}</time></metadata>')
       ..writeln('<trk><name>Ride ${start.toIso8601String()}</name><trkseg>');
 
     for (final sample in rideSamples) {
@@ -1024,7 +1031,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
       final altitude = sample.altitudeMeters;
       final hasAltitude = altitude != null && altitude.isFinite;
-      final hasAccuracy = sample.accuracyMeters != null && sample.accuracyMeters!.isFinite;
+      final hasAccuracy =
+          sample.accuracyMeters != null && sample.accuracyMeters!.isFinite;
       buffer.writeln(
         '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}">${hasAltitude ? '<ele>${altitude.toStringAsFixed(1)}</ele>' : ''}<time>${sample.timestamp.toUtc().toIso8601String()}</time><cmt>distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}</cmt><extensions><gpxtpx:TrackPointExtension>${sample.heartRate != null ? '<gpxtpx:hr>${sample.heartRate!.round()}</gpxtpx:hr>' : ''}${sample.cadence != null ? '<gpxtpx:cad>${sample.cadence!.round()}</gpxtpx:cad>' : ''}<gpxtpx:speed>${sample.speedMps.toStringAsFixed(2)}</gpxtpx:speed></gpxtpx:TrackPointExtension><sbd:power_w>${(sample.power ?? 0).toStringAsFixed(0)}</sbd:power_w>${hasAccuracy ? '<sbd:gps_accuracy_m>${sample.accuracyMeters!.toStringAsFixed(1)}</sbd:gps_accuracy_m>' : ''}<sbd:gps_confidence>${sample.gpsConfidence.toStringAsFixed(2)}</sbd:gps_confidence></extensions></trkpt>',
       );
@@ -1167,7 +1175,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      if (shouldOfferInterruptedRideResume(lastSavedAt: checkpoint.lastSavedAt)) {
+      if (shouldOfferInterruptedRideResume(
+          lastSavedAt: checkpoint.lastSavedAt)) {
         final resumeRide = await showDialog<bool>(
           context: context,
           barrierDismissible: false,
@@ -1284,8 +1293,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ? rideStartTime
         : rideSamples.first.timestamp.add(
             Duration(
-              milliseconds:
-                  rideSamples.last.timestamp
+              milliseconds: rideSamples.last.timestamp
                       .difference(rideSamples.first.timestamp)
                       .inMilliseconds ~/
                   2,
@@ -1394,7 +1402,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   );
                 },
-                child: Text(bike.isDefault ? '${bike.name} (default)' : bike.name),
+                child:
+                    Text(bike.isDefault ? '${bike.name} (default)' : bike.name),
               ),
           if (bikes.isEmpty)
             Semantics(
@@ -1445,7 +1454,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         );
   }
 
-  bool get _isPowerSensorConnected => _powerCadenceSensorService.state.value.isConnected;
+  bool get _isPowerSensorConnected =>
+      _powerCadenceSensorService.state.value.isConnected;
 
   bool get _hasReliableGpsForSpeed {
     final latest = _latestPosition;
@@ -1471,7 +1481,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (deltaSeconds <= 0) return _smoothedSpeedMps;
     final alpha = deltaSeconds >= 1 ? 0.35 : (0.2 + (deltaSeconds * 0.15));
     final clampedAlpha = alpha.clamp(0.2, 0.6).toDouble();
-    final smoothed = _smoothedSpeedMps + (rawSpeedMps - _smoothedSpeedMps) * clampedAlpha;
+    final smoothed =
+        _smoothedSpeedMps + (rawSpeedMps - _smoothedSpeedMps) * clampedAlpha;
     if (!smoothed.isFinite || smoothed < 0) return 0;
     if (smoothed < 0.15 && rawSpeedMps < 0.2) return 0;
     return smoothed;
@@ -1490,7 +1501,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
 
     final previousBearing = _lastAcceptedBearingDegrees;
-    if (previousBearing == null || candidateSpeedMps < 2 || _smoothedSpeedMps < 2) {
+    if (previousBearing == null ||
+        candidateSpeedMps < 2 ||
+        _smoothedSpeedMps < 2) {
       return false;
     }
 
@@ -1505,7 +1518,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   double _gpsConfidenceFromAccuracy(double? accuracyMeters) {
-    if (accuracyMeters == null || !accuracyMeters.isFinite || accuracyMeters <= 0) {
+    if (accuracyMeters == null ||
+        !accuracyMeters.isFinite ||
+        accuracyMeters <= 0) {
       return 0;
     }
     if (accuracyMeters <= 5) return 1;
@@ -1571,8 +1586,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   title: 'Speed',
                   value: _data.speed?.toStringAsFixed(1) ?? 'N/A',
                   unit: 'km/h',
-                  valueColor:
-                      _hasReliableGpsForSpeed ? null : Theme.of(context).colorScheme.error,
+                  valueColor: _hasReliableGpsForSpeed
+                      ? null
+                      : Theme.of(context).colorScheme.error,
                 ),
                 MetricTile(
                   title: 'Duration',

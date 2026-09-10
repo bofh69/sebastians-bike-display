@@ -185,7 +185,8 @@ void main() {
     expect(coordinator.takeNextTurnAt(base), heartRateReconnectKey);
     expect(coordinator.takeNextTurnAt(base), powerCadenceReconnectKey);
     expect(
-      coordinator.takeNextTurnAt(base.add(aggressiveSavedSensorReconnectInterval)),
+      coordinator
+          .takeNextTurnAt(base.add(aggressiveSavedSensorReconnectInterval)),
       heartRateReconnectKey,
     );
 
@@ -209,16 +210,19 @@ void main() {
       isNull,
     );
     expect(
-      coordinator.takeNextTurnAt(base.add(aggressiveSavedSensorReconnectInterval)),
+      coordinator
+          .takeNextTurnAt(base.add(aggressiveSavedSensorReconnectInterval)),
       heartRateReconnectKey,
     );
     expect(
-      coordinator.takeNextTurnAt(base.add(aggressiveSavedSensorReconnectWindow)),
+      coordinator
+          .takeNextTurnAt(base.add(aggressiveSavedSensorReconnectWindow)),
       heartRateReconnectKey,
     );
     expect(
       coordinator.takeNextTurnAt(
-        base.add(aggressiveSavedSensorReconnectWindow + const Duration(seconds: 5)),
+        base.add(
+            aggressiveSavedSensorReconnectWindow + const Duration(seconds: 5)),
       ),
       isNull,
     );
@@ -241,7 +245,9 @@ void main() {
     coordinator.unregister(heartRateReconnectKey);
   });
 
-  test('buildStravaAccountLabel prefers full name then username then athlete ID', () {
+  test(
+      'buildStravaAccountLabel prefers full name then username then athlete ID',
+      () {
     expect(
       buildStravaAccountLabel(
         firstName: 'Ada',
@@ -282,16 +288,26 @@ void main() {
   });
 
   test('buildStravaRideNameForMidpoint maps time buckets', () {
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 6)), 'Morning ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 10, 59)), 'Morning ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 11)), 'Lunch ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 13, 59)), 'Lunch ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 14)), 'Afternoon ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 17, 59)), 'Afternoon ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 18)), 'Evening ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 21, 59)), 'Evening ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 22)), 'Night ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 5, 59)), 'Night ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 6)),
+        'Morning ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 10, 59)),
+        'Morning ride');
+    expect(
+        buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 11)), 'Lunch ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 13, 59)),
+        'Lunch ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 14)),
+        'Afternoon ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 17, 59)),
+        'Afternoon ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 18)),
+        'Evening ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 21, 59)),
+        'Evening ride');
+    expect(
+        buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 22)), 'Night ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 5, 59)),
+        'Night ride');
   });
 
   test('buildStravaUploadFields applies selected bike', () {
@@ -323,7 +339,8 @@ void main() {
     expect(fields.containsKey('gear_id'), isFalse);
   });
 
-  test('parseStravaBikeOptions prioritizes default and filters malformed bikes', () {
+  test('parseStravaBikeOptions prioritizes default and filters malformed bikes',
+      () {
     final bikes = parseStravaBikeOptions(<String, dynamic>{
       'default_bike': '2',
       'bikes': <dynamic>[
@@ -349,7 +366,8 @@ void main() {
     expect(bikes.single.name, 'Bike 9');
   });
 
-  test('parseStravaAuthenticationPayload accepts token refresh without athlete', () {
+  test('parseStravaAuthenticationPayload accepts token refresh without athlete',
+      () {
     final parsed = parseStravaAuthenticationPayload(<String, dynamic>{
       'access_token': 'a',
       'refresh_token': 'r',
