@@ -4,7 +4,8 @@ A simple bike computer app showing important stats and recording
 the ride.
 
 Active rides are checkpointed locally about once per minute so an interrupted
-ride can be resumed on the next launch or finalized later.
+ride can be resumed on the next launch when it is less than 10 minutes old, or
+finalized automatically later.
 
 The app is tailored to my needs and I probably won't accept PRs that changes
 how it works, except bug fixes. However, feel free to fork the repo and do your own

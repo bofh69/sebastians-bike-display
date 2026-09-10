@@ -284,7 +284,7 @@ bool shouldOfferInterruptedRideResume({
   DateTime? now,
 }) {
   final effectiveNow = now ?? DateTime.now();
-  if (lastSavedAt.isAfter(effectiveNow)) return true;
+  if (lastSavedAt.isAfter(effectiveNow)) return false;
   return effectiveNow.difference(lastSavedAt) < _interruptedRideResumeWindow;
 }
 
@@ -1236,6 +1236,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     final readyToRun = await _prepareRideRuntime();
     if (!readyToRun || !mounted) return;
+    final restoredPosition = _positionFromSample(
+      checkpoint.samples.isEmpty ? null : checkpoint.samples.last,
+    );
 
     setState(() {
       _isRunning = true;
@@ -1254,9 +1257,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _data.heartRate = checkpoint.heartRate;
       _data.leftBalance = checkpoint.leftBalance;
       _data.rightBalance = checkpoint.rightBalance;
-      _lastAcceptedPosition = null;
-      _lastAcceptedTimestamp = null;
-      _lastAcceptedBearingDegrees = null;
+      _lastAcceptedPosition = restoredPosition;
+      _lastAcceptedTimestamp = restoredPosition?.timestamp;
+      _lastAcceptedBearingDegrees =
+          _bearingFromRecentSamples(checkpoint.samples);
       _smoothedSpeedMps = checkpoint.smoothedSpeedMps;
       _filteredAltitudeForClimb = checkpoint.filteredAltitudeForClimb;
       _climbReferenceAltitude = checkpoint.climbReferenceAltitude;
@@ -1300,6 +1304,46 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       rideSamples: checkpoint.samples,
       completionPrefix: 'Recovered interrupted ride.',
     );
+  }
+
+  Position? _positionFromSample(_RideSample? sample) {
+    if (sample == null || sample.latitude == null || sample.longitude == null) {
+      return null;
+    }
+    final altitude = sample.altitudeMeters;
+    final accuracy = sample.accuracyMeters;
+    return Position(
+      longitude: sample.longitude!,
+      latitude: sample.latitude!,
+      timestamp: sample.timestamp,
+      accuracy: (accuracy != null && accuracy.isFinite) ? accuracy : 0,
+      altitude: (altitude != null && altitude.isFinite) ? altitude : 0,
+      altitudeAccuracy: 0,
+      heading: 0,
+      headingAccuracy: 0,
+      speed: sample.speedMps,
+      speedAccuracy: 0,
+    );
+  }
+
+  double? _bearingFromRecentSamples(List<_RideSample> samples) {
+    for (var index = samples.length - 1; index > 0; index--) {
+      final current = samples[index];
+      final previous = samples[index - 1];
+      if (current.latitude == null ||
+          current.longitude == null ||
+          previous.latitude == null ||
+          previous.longitude == null) {
+        continue;
+      }
+      return Geolocator.bearingBetween(
+        previous.latitude!,
+        previous.longitude!,
+        current.latitude!,
+        current.longitude!,
+      );
+    }
+    return null;
   }
 
   Future<void> _finalizeRide({
