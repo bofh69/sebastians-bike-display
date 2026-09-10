@@ -39,38 +39,38 @@ extension _HomeScreenRecovery on _HomeScreenState {
 
   Future<void> _persistRideCheckpoint({bool force = false}) async {
     if (!_supportsRideCheckpointing || !_isRunning) return;
-    final startTime = _startTime;
-    if (startTime == null) {
-      return;
-    }
-    final now = DateTime.now();
-    final lastSavedAt = _lastCheckpointSavedAt;
-    if (!force &&
-        lastSavedAt != null &&
-        now.difference(lastSavedAt) < _rideCheckpointWriteInterval) {
-      return;
-    }
-    final persistedSamplesSnapshot = List<_RideSample>.from(_samples);
-    final checkpoint = _InterruptedRideCheckpoint(
-      startTime: startTime,
-      lastSavedAt: now,
-      samples: persistedSamplesSnapshot,
-      distanceKm: _data.distance ?? 0,
-      totalClimbMeters: _data.totalClimb ?? 0,
-      speedKph: _data.speed,
-      avgSpeedKph: _data.avgSpeed,
-      cadence: _data.cadence,
-      heartRate: _data.heartRate,
-      leftBalance: _data.leftBalance,
-      rightBalance: _data.rightBalance,
-      smoothedSpeedMps: _smoothedSpeedMps,
-      filteredAltitudeForClimb: _filteredAltitudeForClimb,
-      climbReferenceAltitude: _climbReferenceAltitude,
-      sampleCount: persistedSamplesSnapshot.length,
-    );
-    final checkpointMetadataJson = jsonEncode(checkpoint.toMetadataJson());
-    final legacyCheckpointJson = jsonEncode(checkpoint.toJson());
     _rideCheckpointWriteQueue = _rideCheckpointWriteQueue.then((_) async {
+      final startTime = _startTime;
+      if (!_isRunning || startTime == null) {
+        return;
+      }
+      final now = DateTime.now();
+      final lastSavedAt = _lastCheckpointSavedAt;
+      if (!force &&
+          lastSavedAt != null &&
+          now.difference(lastSavedAt) < _rideCheckpointWriteInterval) {
+        return;
+      }
+      final persistedSamplesSnapshot = List<_RideSample>.from(_samples);
+      final checkpoint = _InterruptedRideCheckpoint(
+        startTime: startTime,
+        lastSavedAt: now,
+        samples: persistedSamplesSnapshot,
+        distanceKm: _data.distance ?? 0,
+        totalClimbMeters: _data.totalClimb ?? 0,
+        speedKph: _data.speed,
+        avgSpeedKph: _data.avgSpeed,
+        cadence: _data.cadence,
+        heartRate: _data.heartRate,
+        leftBalance: _data.leftBalance,
+        rightBalance: _data.rightBalance,
+        smoothedSpeedMps: _smoothedSpeedMps,
+        filteredAltitudeForClimb: _filteredAltitudeForClimb,
+        climbReferenceAltitude: _climbReferenceAltitude,
+        sampleCount: persistedSamplesSnapshot.length,
+      );
+      final checkpointMetadataJson = jsonEncode(checkpoint.toMetadataJson());
+      final legacyCheckpointJson = jsonEncode(checkpoint.toJson());
       try {
         final samplesFile = await _rideCheckpointSamplesFile();
         final pendingSampleStartIndex = _lastCheckpointSampleCount.clamp(
@@ -336,16 +336,23 @@ extension _HomeScreenRecovery on _HomeScreenState {
   Future<bool> _waitForCurrentHomeRoute() async {
     final deadline = DateTime.now().add(const Duration(seconds: 5));
     while (DateTime.now().isBefore(deadline)) {
-      await Future<void>.delayed(const Duration(milliseconds: 50));
       if (!mounted) {
         return false;
       }
       final route = ModalRoute.of(context);
-      if (route == null) {
-        continue;
-      }
-      if (route.isCurrent) {
+      if (route?.isCurrent ?? false) {
         return true;
+      }
+      final remaining = deadline.difference(DateTime.now());
+      if (remaining <= Duration.zero) {
+        break;
+      }
+      final timedOut = await Future.any<bool>([
+        WidgetsBinding.instance.endOfFrame.then((_) => false),
+        Future<bool>.delayed(remaining, () => true),
+      ]);
+      if (timedOut) {
+        return false;
       }
     }
     return false;
@@ -379,6 +386,28 @@ extension _HomeScreenRecovery on _HomeScreenState {
     final readyToRun = await _prepareRideRuntime();
     if (!readyToRun) return false;
     var resumed = false;
+    final previousSamples = List<_RideSample>.from(_samples);
+    final previousStartTime = _startTime;
+    final previousDistance = _data.distance;
+    final previousDuration = _data.duration;
+    final previousAvgSpeed = _data.avgSpeed;
+    final previousSpeed = _data.speed;
+    final previousPower3s = _data.power3s;
+    final previousPower20min = _data.power20min;
+    final previousTotalClimb = _data.totalClimb;
+    final previousCadence = _data.cadence;
+    final previousHeartRate = _data.heartRate;
+    final previousLeftBalance = _data.leftBalance;
+    final previousRightBalance = _data.rightBalance;
+    final previousCurrentPowerWatts = _currentPowerWatts;
+    final previousLastAcceptedPosition = _lastAcceptedPosition;
+    final previousLastAcceptedTimestamp = _lastAcceptedTimestamp;
+    final previousLastAcceptedBearingDegrees = _lastAcceptedBearingDegrees;
+    final previousSmoothedSpeedMps = _smoothedSpeedMps;
+    final previousFilteredAltitudeForClimb = _filteredAltitudeForClimb;
+    final previousClimbReferenceAltitude = _climbReferenceAltitude;
+    final previousLastCheckpointSavedAt = _lastCheckpointSavedAt;
+    final previousLastCheckpointSampleCount = _lastCheckpointSampleCount;
     try {
       if (!mounted) return false;
       final restoredSamples = List<_RideSample>.from(checkpoint.samples)
@@ -469,7 +498,35 @@ extension _HomeScreenRecovery on _HomeScreenState {
         );
         _applyState(() {
           _isRunning = false;
+          _startTime = previousStartTime;
+          _samples
+            ..clear()
+            ..addAll(previousSamples);
+          _data.distance = previousDistance;
+          _data.duration = previousDuration;
+          _data.avgSpeed = previousAvgSpeed;
+          _data.speed = previousSpeed;
+          _data.power3s = previousPower3s;
+          _data.power20min = previousPower20min;
+          _data.totalClimb = previousTotalClimb;
+          _data.cadence = previousCadence;
+          _data.heartRate = previousHeartRate;
+          _data.leftBalance = previousLeftBalance;
+          _data.rightBalance = previousRightBalance;
+          _currentPowerWatts = previousCurrentPowerWatts;
+          _lastAcceptedPosition = previousLastAcceptedPosition;
+          _lastAcceptedTimestamp = previousLastAcceptedTimestamp;
+          _lastAcceptedBearingDegrees = previousLastAcceptedBearingDegrees;
+          _smoothedSpeedMps = previousSmoothedSpeedMps;
+          _filteredAltitudeForClimb = previousFilteredAltitudeForClimb;
+          _climbReferenceAltitude = previousClimbReferenceAltitude;
+          _lastCheckpointSavedAt = previousLastCheckpointSavedAt;
+          _lastCheckpointSampleCount = previousLastCheckpointSampleCount;
         });
+        _leftBalanceAverage.clear();
+        _rightBalanceAverage.clear();
+        _power3sAverage.reset();
+        _power20MinAverage.reset();
         return false;
       }
       resumed = true;

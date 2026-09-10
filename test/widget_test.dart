@@ -260,15 +260,17 @@ void main() {
     expect(parsed, hasLength(2));
   });
 
-  test('scheduleInterruptedRideRecoveryRetry defers the retry', () async {
+  testWidgets('scheduleInterruptedRideRecoveryRetry defers the retry',
+      (WidgetTester tester) async {
     var called = false;
     final future = scheduleInterruptedRideRecoveryRetry(() async {
       called = true;
     });
 
-    await Future<void>.delayed(Duration.zero);
+    await tester.pump(const Duration(milliseconds: 49));
     expect(called, isFalse);
 
+    await tester.pump(const Duration(milliseconds: 1));
     await future;
     expect(called, isTrue);
   });
