@@ -70,7 +70,6 @@ extension _HomeScreenRecovery on _HomeScreenState {
         sampleCount: persistedSamplesSnapshot.length,
       );
       final checkpointMetadataJson = jsonEncode(checkpoint.toMetadataJson());
-      final legacyCheckpointJson = jsonEncode(checkpoint.toJson());
       try {
         final samplesFile = await _rideCheckpointSamplesFile();
         final pendingSampleStartIndex = _lastCheckpointSampleCount.clamp(
@@ -112,11 +111,12 @@ extension _HomeScreenRecovery on _HomeScreenState {
           }
         }
         _lastPublishedRideCheckpointMetadataPath = publishedFile.path;
-        final legacyFile = await _rideCheckpointFile();
-        await legacyFile.writeAsString(legacyCheckpointJson, flush: true);
         _lastCheckpointSavedAt = now;
         _lastCheckpointSampleCount = persistedSamplesSnapshot.length;
       } catch (error, stackTrace) {
+        final legacyCheckpointJson = jsonEncode(checkpoint.toJson());
+        final legacyFile = await _rideCheckpointFile();
+        await legacyFile.writeAsString(legacyCheckpointJson, flush: true);
         debugPrint('Failed to persist ride checkpoint: $error\n$stackTrace');
       }
     });
@@ -269,22 +269,22 @@ extension _HomeScreenRecovery on _HomeScreenState {
     } else {
       _interruptedRideRecoveryRetryScheduled = false;
     }
+    final routeReadyToFinalize = await _waitForCurrentHomeRoute();
+    if (!mounted || !routeReadyToFinalize || _hasActiveRideRuntime) {
+      if (!_interruptedRideRecoveryRetryScheduled) {
+        _interruptedRideRecoveryRetryScheduled = true;
+        unawaited(scheduleInterruptedRideRecoveryRetry(
+          _restoreInterruptedRideIfNeeded,
+        ));
+      }
+      return;
+    }
     final readyToFinalizeRecoveredRide = await _prepareRideRuntime();
     if (!readyToFinalizeRecoveredRide) {
       return;
     }
     _setRecoveredRideFinalizationActive(true);
     try {
-      final routeReadyToFinalize = await _waitForCurrentHomeRoute();
-      if (!mounted || !routeReadyToFinalize) {
-        if (!_interruptedRideRecoveryRetryScheduled) {
-          _interruptedRideRecoveryRetryScheduled = true;
-          unawaited(scheduleInterruptedRideRecoveryRetry(
-            _restoreInterruptedRideIfNeeded,
-          ));
-        }
-        return;
-      }
       await _HomeScreenExport(this)._finalizeRide(
         rideStartTime: checkpoint.startTime,
         rideSamples: _samplesWithRecoveredEndTime(
@@ -534,6 +534,10 @@ extension _HomeScreenRecovery on _HomeScreenState {
       if (!resumed) {
         await _stopTemporaryRecoveryRuntime();
       }
+    }
+    if (!mounted) {
+      await _stopTemporaryRecoveryRuntime();
+      return false;
     }
     _recordingTimer?.cancel();
     _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
