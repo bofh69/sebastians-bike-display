@@ -8,7 +8,7 @@ ride can be resumed on the next launch when it is less than 10 minutes old, or
 finalized automatically later. Recent recoveries prompt before resuming, while
 older recoveries, or rides you decline to resume, are exported as FIT/GPX and
 continue through the usual Strava upload flow. The resume prompt requires an
-explicit choice, and backing out leaves the recovery checkpoint in place.
+explicit choice between resuming and ending the recovered ride.
 
 The app is tailored to my needs and I probably won't accept PRs that changes
 how it works, except bug fixes. However, feel free to fork the repo and do your own

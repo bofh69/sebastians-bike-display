@@ -338,6 +338,29 @@ bool shouldOfferInterruptedRideResume({
   return effectiveNow.difference(lastSavedAt) < _interruptedRideResumeWindow;
 }
 
+Future<bool?> showResumeInterruptedRideDialog(BuildContext context) {
+  return showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      title: const Text('Resume interrupted ride?'),
+      content: const Text(
+        'The previous ride was interrupted recently. Do you want to continue it?',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('End ride'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Resume'),
+        ),
+      ],
+    ),
+  );
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -1194,10 +1217,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           now.difference(lastSavedAt) < _rideCheckpointWriteInterval) {
         return;
       }
-      final checkpoint = _buildInterruptedRideCheckpoint(
+      final checkpointMetadata = _buildInterruptedRideCheckpointMetadata(
         startTime: startTime,
         lastSavedAt: now,
       );
+      final sampleCount = _samples.length;
       try {
         final samplesFile = await _rideCheckpointSamplesFile();
         final pendingSamples = _samples
@@ -1213,18 +1237,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
         final metadataFile = await _rideCheckpointMetadataFile();
         final tempFile = io.File(
-          '${metadataFile.path}.${checkpoint.lastSavedAt.microsecondsSinceEpoch}.tmp',
+          '${metadataFile.path}.${now.microsecondsSinceEpoch}.tmp',
         );
         await tempFile.writeAsString(
-          jsonEncode(checkpoint.toMetadataJson()),
+          jsonEncode(checkpointMetadata),
           flush: true,
         );
         if (await metadataFile.exists()) {
           await metadataFile.delete();
         }
         await tempFile.rename(metadataFile.path);
-        _lastCheckpointSavedAt = checkpoint.lastSavedAt;
-        _lastCheckpointSampleCount = checkpoint.sampleCount;
+        _lastCheckpointSavedAt = now;
+        _lastCheckpointSampleCount = sampleCount;
       } catch (error, stackTrace) {
         debugPrint('Failed to persist ride checkpoint: $error\n$stackTrace');
       }
@@ -1270,8 +1294,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           await _clearRideCheckpoint();
           return null;
         }
+        final sampleCount = (metadataDecoded['sampleCount'] as num?)?.toInt();
         final samples = await _loadRideCheckpointSamples(
           await _rideCheckpointSamplesFile(),
+          maxSamples: sampleCount,
         );
         return _InterruptedRideCheckpoint.fromMetadataJson(
           json: metadataDecoded,
@@ -1300,7 +1326,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<List<_RideSample>> _loadRideCheckpointSamples(io.File file) async {
+  Future<List<_RideSample>> _loadRideCheckpointSamples(
+    io.File file, {
+    int? maxSamples,
+  }) async {
     if (!await file.exists()) {
       return <_RideSample>[];
     }
@@ -1316,6 +1345,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final decoded = jsonDecode(trimmedLine);
       if (decoded is Map<String, dynamic>) {
         samples.add(_RideSample.fromJson(decoded));
+        if (maxSamples != null && samples.length >= maxSamples) {
+          break;
+        }
       }
     }
     return samples;
@@ -1323,7 +1355,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _restoreInterruptedRideIfNeeded() async {
     _restoreInterruptedRideFuture ??= _restoreInterruptedRideIfNeededInternal();
-    await _restoreInterruptedRideFuture;
+    try {
+      await _restoreInterruptedRideFuture;
+    } finally {
+      _restoreInterruptedRideFuture = null;
+    }
   }
 
   Future<void> _restoreInterruptedRideIfNeededInternal() async {
@@ -1332,26 +1368,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final routeReady = await _waitForCurrentHomeRoute();
     if (!mounted || !routeReady || _isRunning) return;
     if (shouldOfferInterruptedRideResume(lastSavedAt: checkpoint.lastSavedAt)) {
-      final resumeRide = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: const Text('Resume interrupted ride?'),
-          content: const Text(
-            'The previous ride was interrupted recently. Do you want to continue it?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('End ride'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Resume'),
-            ),
-          ],
-        ),
-      );
+      final resumeRide = await showResumeInterruptedRideDialog(context);
       if (resumeRide == null) {
         return;
       }
@@ -1437,10 +1454,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _rightBalanceAverage.clear();
       _power3sAverage.reset();
       _power20MinAverage.reset();
-      _lastCheckpointSavedAt = null;
+      _lastCheckpointSavedAt = checkpoint.lastSavedAt;
+      _lastCheckpointSampleCount = checkpoint.sampleCount;
     });
-
-    await _clearRideCheckpoint();
     _recordSample();
     _recordingTimer?.cancel();
     _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -1460,27 +1476,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return true;
   }
 
-  _InterruptedRideCheckpoint _buildInterruptedRideCheckpoint({
+  Map<String, dynamic> _buildInterruptedRideCheckpointMetadata({
     required DateTime startTime,
     required DateTime lastSavedAt,
   }) {
-    return _InterruptedRideCheckpoint(
-      startTime: startTime,
-      lastSavedAt: lastSavedAt,
-      samples: List<_RideSample>.from(_samples),
-      distanceKm: _data.distance ?? 0,
-      totalClimbMeters: _data.totalClimb ?? 0,
-      speedKph: _data.speed,
-      avgSpeedKph: _data.avgSpeed,
-      cadence: _data.cadence,
-      heartRate: _data.heartRate,
-      leftBalance: _data.leftBalance,
-      rightBalance: _data.rightBalance,
-      smoothedSpeedMps: _smoothedSpeedMps,
-      filteredAltitudeForClimb: _filteredAltitudeForClimb,
-      climbReferenceAltitude: _climbReferenceAltitude,
-      sampleCount: _samples.length,
-    );
+    return <String, dynamic>{
+      'startTime': startTime.toIso8601String(),
+      'lastSavedAt': lastSavedAt.toIso8601String(),
+      'distanceKm': _data.distance ?? 0,
+      'totalClimbMeters': _data.totalClimb ?? 0,
+      'speedKph': _data.speed,
+      'avgSpeedKph': _data.avgSpeed,
+      'cadence': _data.cadence,
+      'heartRate': _data.heartRate,
+      'leftBalance': _data.leftBalance,
+      'rightBalance': _data.rightBalance,
+      'smoothedSpeedMps': _smoothedSpeedMps,
+      'filteredAltitudeForClimb': _filteredAltitudeForClimb,
+      'climbReferenceAltitude': _climbReferenceAltitude,
+      'sampleCount': _samples.length,
+    };
   }
 
   List<_RideSample> _samplesWithRecoveredEndTime(

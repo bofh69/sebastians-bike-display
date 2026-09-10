@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_bike_display/main.dart';
 import 'package:simple_bike_display/models/time_window_average.dart';
@@ -451,5 +452,77 @@ void main() {
     await tester.tap(find.text('Start'));
     await tester.pump();
     expect(find.text('End'), findsOneWidget);
+  });
+
+  testWidgets('resume interrupted ride dialog returns End ride',
+      (WidgetTester tester) async {
+    bool? result = true;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              result = await showResumeInterruptedRideDialog(context);
+            },
+            child: const Text('Open'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('End ride'));
+    await tester.pumpAndSettle();
+
+    expect(result, isFalse);
+  });
+
+  testWidgets('resume interrupted ride dialog returns Resume',
+      (WidgetTester tester) async {
+    bool? result = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              result = await showResumeInterruptedRideDialog(context);
+            },
+            child: const Text('Open'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Resume'));
+    await tester.pumpAndSettle();
+
+    expect(result, isTrue);
+  });
+
+  testWidgets('resume interrupted ride dialog can be dismissed with back',
+      (WidgetTester tester) async {
+    bool? result = true;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              result = await showResumeInterruptedRideDialog(context);
+            },
+            child: const Text('Open'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(result, isNull);
   });
 }
