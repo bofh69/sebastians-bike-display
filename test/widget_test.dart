@@ -135,6 +135,31 @@ void main() {
     );
   });
 
+  test('resolveInterruptedRideRecoveryAction keeps failed resumes resumable',
+      () {
+    expect(
+      resolveInterruptedRideRecoveryAction(
+        wantsResume: true,
+        resumeStarted: false,
+      ),
+      InterruptedRideRecoveryAction.keepCheckpoint,
+    );
+    expect(
+      resolveInterruptedRideRecoveryAction(
+        wantsResume: true,
+        resumeStarted: true,
+      ),
+      InterruptedRideRecoveryAction.resumeRide,
+    );
+    expect(
+      resolveInterruptedRideRecoveryAction(
+        wantsResume: false,
+        resumeStarted: false,
+      ),
+      InterruptedRideRecoveryAction.finalizeRide,
+    );
+  });
+
   test('shouldRetrySavedSensorConnection only retries when idle and saved', () {
     expect(
       shouldRetrySavedSensorConnection(
@@ -502,9 +527,9 @@ void main() {
     expect(result, isTrue);
   });
 
-  testWidgets('resume interrupted ride dialog can be dismissed with back',
+  testWidgets('resume interrupted ride dialog ignores back',
       (WidgetTester tester) async {
-    bool? result = true;
+    bool? result;
     await tester.pumpWidget(
       MaterialApp(
         home: Builder(
@@ -521,8 +546,9 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
+    await tester.pump();
 
+    expect(find.text('Resume interrupted ride?'), findsOneWidget);
     expect(result, isNull);
   });
 }

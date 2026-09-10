@@ -338,25 +338,45 @@ bool shouldOfferInterruptedRideResume({
   return effectiveNow.difference(lastSavedAt) < _interruptedRideResumeWindow;
 }
 
+enum InterruptedRideRecoveryAction { keepCheckpoint, resumeRide, finalizeRide }
+
+InterruptedRideRecoveryAction resolveInterruptedRideRecoveryAction({
+  required bool? wantsResume,
+  required bool resumeStarted,
+}) {
+  if (wantsResume == true) {
+    return resumeStarted
+        ? InterruptedRideRecoveryAction.resumeRide
+        : InterruptedRideRecoveryAction.keepCheckpoint;
+  }
+  if (wantsResume == false) {
+    return InterruptedRideRecoveryAction.finalizeRide;
+  }
+  return InterruptedRideRecoveryAction.keepCheckpoint;
+}
+
 Future<bool?> showResumeInterruptedRideDialog(BuildContext context) {
   return showDialog<bool>(
     context: context,
     barrierDismissible: false,
-    builder: (context) => AlertDialog(
-      title: const Text('Resume interrupted ride?'),
-      content: const Text(
-        'The previous ride was interrupted recently. Do you want to continue it?',
+    builder: (context) => PopScope(
+      canPop: false,
+      child: AlertDialog(
+        title: const Text('Resume interrupted ride?'),
+        content: const Text(
+          'The previous ride was interrupted recently. Do you want to continue it?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('End ride'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Resume'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('End ride'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Resume'),
-        ),
-      ],
     ),
   );
 }
@@ -1294,10 +1314,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           await _clearRideCheckpoint();
           return null;
         }
-        final sampleCount = (metadataDecoded['sampleCount'] as num?)?.toInt();
         final samples = await _loadRideCheckpointSamples(
           await _rideCheckpointSamplesFile(),
-          maxSamples: sampleCount,
         );
         return _InterruptedRideCheckpoint.fromMetadataJson(
           json: metadataDecoded,
@@ -1326,10 +1344,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<List<_RideSample>> _loadRideCheckpointSamples(
-    io.File file, {
-    int? maxSamples,
-  }) async {
+  Future<List<_RideSample>> _loadRideCheckpointSamples(io.File file) async {
     if (!await file.exists()) {
       return <_RideSample>[];
     }
@@ -1345,9 +1360,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final decoded = jsonDecode(trimmedLine);
       if (decoded is Map<String, dynamic>) {
         samples.add(_RideSample.fromJson(decoded));
-        if (maxSamples != null && samples.length >= maxSamples) {
-          break;
-        }
       }
     }
     return samples;
@@ -1369,14 +1381,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!mounted || !routeReady || _isRunning) return;
     if (shouldOfferInterruptedRideResume(lastSavedAt: checkpoint.lastSavedAt)) {
       final resumeRide = await showResumeInterruptedRideDialog(context);
-      if (resumeRide == null) {
-        return;
-      }
-      if (resumeRide == true) {
-        final resumed = await _resumeInterruptedRide(checkpoint);
-        if (resumed) {
+      final resumed =
+          resumeRide == true ? await _resumeInterruptedRide(checkpoint) : false;
+      switch (resolveInterruptedRideRecoveryAction(
+        wantsResume: resumeRide,
+        resumeStarted: resumed,
+      )) {
+        case InterruptedRideRecoveryAction.resumeRide:
+        case InterruptedRideRecoveryAction.keepCheckpoint:
           return;
-        }
+        case InterruptedRideRecoveryAction.finalizeRide:
+          break;
       }
     }
     await _finalizeRide(
@@ -1410,12 +1425,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_isRunning) return false;
     final hasPermission = await _ensureLocationPermission();
     if (!hasPermission) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location permission is required.')),
+        );
+      }
       return false;
     }
 
     final canStartForegroundTracking =
         await _ensureForegroundTrackingPermission();
     if (!canStartForegroundTracking) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Notification permission is required.')),
+        );
+      }
       return false;
     }
 
