@@ -191,9 +191,6 @@ extension _HomeScreenRecovery on _HomeScreenState {
       }
       final file = await _rideCheckpointFile();
       if (!await file.exists()) {
-        if (readableMetadataFiles.isNotEmpty) {
-          await _clearRideCheckpoint();
-        }
         return null;
       }
       final raw = await file.readAsString();

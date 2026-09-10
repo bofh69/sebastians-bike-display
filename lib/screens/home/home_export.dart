@@ -232,7 +232,8 @@ extension _HomeScreenExport on _HomeScreenState {
             final route = ModalRoute.of(context);
             shouldPromptForUpload = route == null || route.isCurrent;
           }
-          if (requireCurrentRouteForUpload && !shouldPromptForUpload) {
+          if ((requireCurrentRouteForUpload || preserveCheckpointOnFailure) &&
+              !shouldPromptForUpload) {
             uploadResult = const StravaUploadResult(
               attempted: false,
               succeeded: false,
