@@ -364,6 +364,19 @@ int resolveRecoveredCheckpointSampleCount({
       : metadataSampleCount;
 }
 
+Map<String, dynamic> reconcileRecoveredCheckpointMetadata({
+  required Map<String, dynamic> metadata,
+  required int parsedSampleCount,
+}) {
+  final reconciled = Map<String, dynamic>.from(metadata);
+  final metadataSampleCount = (reconciled['sampleCount'] as num?)?.toInt() ?? 0;
+  reconciled['sampleCount'] = resolveRecoveredCheckpointSampleCount(
+    metadataSampleCount: metadataSampleCount,
+    parsedSampleCount: parsedSampleCount,
+  );
+  return reconciled;
+}
+
 Future<bool?> showResumeInterruptedRideDialog(BuildContext context) {
   return showDialog<bool>(
     context: context,
@@ -1226,6 +1239,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return io.File('${docsDir.path}/$_rideCheckpointMetadataFileName');
   }
 
+  Future<List<io.File>> _rideCheckpointMetadataFiles() async {
+    final primary = await _rideCheckpointMetadataFile();
+    final dir = primary.parent;
+    final prefix = '${primary.uri.pathSegments.last}.';
+    final files = <io.File>[];
+    if (await primary.exists()) {
+      files.add(primary);
+    }
+    await for (final entity in dir.list()) {
+      if (entity is! io.File) continue;
+      final name = entity.uri.pathSegments.last;
+      if (name.startsWith(prefix)) {
+        files.add(entity);
+      }
+    }
+    return files;
+  }
+
   Future<io.File> _rideCheckpointSamplesFile() async {
     final docsDir = await getApplicationDocumentsDirectory();
     await docsDir.create(recursive: true);
@@ -1272,10 +1303,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           jsonEncode(checkpointMetadata),
           flush: true,
         );
-        if (await metadataFile.exists()) {
-          await metadataFile.delete();
+        final publishedFile = io.File(
+          '${metadataFile.path}.${now.microsecondsSinceEpoch}',
+        );
+        if (await publishedFile.exists()) {
+          await publishedFile.delete();
         }
-        await tempFile.rename(metadataFile.path);
+        await tempFile.rename(publishedFile.path);
         _lastCheckpointSavedAt = now;
         _lastCheckpointSampleCount = sampleCount;
       } catch (error, stackTrace) {
@@ -1291,7 +1325,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       try {
         final files = <io.File>[
           await _rideCheckpointFile(),
-          await _rideCheckpointMetadataFile(),
+          ...await _rideCheckpointMetadataFiles(),
           await _rideCheckpointSamplesFile(),
         ];
         for (final file in files) {
@@ -1311,8 +1345,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<_InterruptedRideCheckpoint?> _loadRideCheckpoint() async {
     if (!_supportsRideCheckpointing) return null;
     try {
-      final metadataFile = await _rideCheckpointMetadataFile();
-      if (await metadataFile.exists()) {
+      final metadataFiles = await _rideCheckpointMetadataFiles();
+      final publishedMetadataFiles = metadataFiles
+          .where((file) => !file.path.endsWith('.tmp'))
+          .toList();
+      if (publishedMetadataFiles.isNotEmpty) {
+        publishedMetadataFiles.sort((a, b) => b.path.compareTo(a.path));
+        final metadataFile = publishedMetadataFiles.first;
         final metadataRaw = await metadataFile.readAsString();
         if (metadataRaw.trim().isEmpty) {
           await _clearRideCheckpoint();
@@ -1326,20 +1365,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         final samples = await _loadRideCheckpointSamples(
           await _rideCheckpointSamplesFile(),
         );
-        final persistedSampleCount =
-            (metadataDecoded['sampleCount'] as num?)?.toInt();
-        if (persistedSampleCount == null ||
-            samples.length != persistedSampleCount) {
-          metadataDecoded['sampleCount'] =
-              resolveRecoveredCheckpointSampleCount(
-            metadataSampleCount: persistedSampleCount ?? 0,
-            parsedSampleCount: samples.length,
-          );
-        }
+        final reconciledMetadata = reconcileRecoveredCheckpointMetadata(
+          metadata: metadataDecoded,
+          parsedSampleCount: samples.length,
+        );
         return _InterruptedRideCheckpoint.fromMetadataJson(
-          json: metadataDecoded,
+          json: reconciledMetadata,
           samples: samples,
         );
+      } else if (metadataFiles.isNotEmpty) {
+        await _clearRideCheckpoint();
+        return null;
       }
       final file = await _rideCheckpointFile();
       if (!await file.exists()) {
@@ -1420,6 +1456,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         checkpoint.lastSavedAt,
       ),
       completionPrefix: 'Recovered interrupted ride.',
+      preserveCheckpointOnFailure: true,
     );
   }
 
@@ -1618,10 +1655,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return null;
   }
 
-  Future<void> _finalizeRide({
+  Future<bool> _finalizeRide({
     required DateTime? rideStartTime,
     required List<_RideSample> rideSamples,
     required String completionPrefix,
+    bool preserveCheckpointOnFailure = false,
   }) async {
     final rideMidpointTime = rideSamples.isEmpty
         ? rideStartTime
@@ -1679,8 +1717,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
       }
     }
-    await _clearRideCheckpoint();
-    if (!mounted) return;
+    final completedSuccessfully =
+        rideSamples.isEmpty ||
+        (fitFile != null &&
+            gpxFile != null &&
+            (!uploadResult.attempted || uploadResult.succeeded));
+    if (completedSuccessfully || !preserveCheckpointOnFailure) {
+      await _clearRideCheckpoint();
+    }
+    if (!mounted) return completedSuccessfully;
     final route = ModalRoute.of(context);
     if (route == null || route.isCurrent) {
       final rideSavedMessage = switch ((fitFile, gpxFile)) {
@@ -1694,12 +1739,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       };
       final uploadMessage =
           uploadResult.message == null ? '' : ' ${uploadResult.message}';
+      final retryMessage = completedSuccessfully || !preserveCheckpointOnFailure
+          ? ''
+          : ' Recovery data kept so the ride can be retried.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$rideSavedMessage$uploadMessage'),
+          content: Text('$rideSavedMessage$uploadMessage$retryMessage'),
         ),
       );
     }
+    return completedSuccessfully;
   }
 
   String _formatDuration(Duration? d) {

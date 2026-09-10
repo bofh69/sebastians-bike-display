@@ -185,6 +185,19 @@ void main() {
     );
   });
 
+  test('reconcileRecoveredCheckpointMetadata updates sample count from log', () {
+    final reconciled = reconcileRecoveredCheckpointMetadata(
+      metadata: <String, dynamic>{
+        'startTime': DateTime.utc(2024).toIso8601String(),
+        'lastSavedAt': DateTime.utc(2024).toIso8601String(),
+        'sampleCount': 3,
+      },
+      parsedSampleCount: 5,
+    );
+
+    expect(reconciled['sampleCount'], 5);
+  });
+
   test('shouldRetrySavedSensorConnection only retries when idle and saved', () {
     expect(
       shouldRetrySavedSensorConnection(
