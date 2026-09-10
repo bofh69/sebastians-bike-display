@@ -377,6 +377,18 @@ Map<String, dynamic> reconcileRecoveredCheckpointMetadata({
   return reconciled;
 }
 
+Future<InterruptedRideRecoveryAction> resolveInterruptedRideRecovery({
+  required Future<bool?> Function() promptForResume,
+  required Future<bool> Function() resumeRide,
+}) async {
+  final wantsResume = await promptForResume();
+  final resumeStarted = wantsResume == true ? await resumeRide() : false;
+  return resolveInterruptedRideRecoveryAction(
+    wantsResume: wantsResume,
+    resumeStarted: resumeStarted,
+  );
+}
+
 Future<bool?> showResumeInterruptedRideDialog(BuildContext context) {
   return showDialog<bool>(
     context: context,
@@ -1310,6 +1322,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           await publishedFile.delete();
         }
         await tempFile.rename(publishedFile.path);
+        for (final file in await _rideCheckpointMetadataFiles()) {
+          if (file.path != publishedFile.path && await file.exists()) {
+            await file.delete();
+          }
+        }
         _lastCheckpointSavedAt = now;
         _lastCheckpointSampleCount = sampleCount;
       } catch (error, stackTrace) {
@@ -1434,12 +1451,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final routeReady = await _waitForCurrentHomeRoute();
     if (!mounted || !routeReady || _isRunning) return;
     if (shouldOfferInterruptedRideResume(lastSavedAt: checkpoint.lastSavedAt)) {
-      final resumeRide = await showResumeInterruptedRideDialog(context);
-      final resumed =
-          resumeRide == true ? await _resumeInterruptedRide(checkpoint) : false;
-      switch (resolveInterruptedRideRecoveryAction(
-        wantsResume: resumeRide,
-        resumeStarted: resumed,
+      switch (await resolveInterruptedRideRecovery(
+        promptForResume: () => showResumeInterruptedRideDialog(context),
+        resumeRide: () => _resumeInterruptedRide(checkpoint),
       )) {
         case InterruptedRideRecoveryAction.resumeRide:
         case InterruptedRideRecoveryAction.keepCheckpoint:

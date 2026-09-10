@@ -167,6 +167,27 @@ void main() {
     );
   });
 
+  test('resolveInterruptedRideRecovery keeps failed resumes resumable',
+      () async {
+    var promptCalls = 0;
+    var resumeCalls = 0;
+
+    final action = await resolveInterruptedRideRecovery(
+      promptForResume: () async {
+        promptCalls += 1;
+        return true;
+      },
+      resumeRide: () async {
+        resumeCalls += 1;
+        return false;
+      },
+    );
+
+    expect(action, InterruptedRideRecoveryAction.keepCheckpoint);
+    expect(promptCalls, 1);
+    expect(resumeCalls, 1);
+  });
+
   test('resolveRecoveredCheckpointSampleCount keeps the larger sample count',
       () {
     expect(
