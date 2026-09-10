@@ -235,7 +235,7 @@ extension _HomeScreenExport on _HomeScreenState {
                   await _selectStravaUploadDecision(),
                 )
               : (
-                  shouldUpload: true,
+                  shouldUpload: false,
                   selectedGearId: null,
                   clearGear: false,
                 );

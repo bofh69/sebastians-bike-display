@@ -276,6 +276,16 @@ extension _HomeScreenRecovery on _HomeScreenState {
       return;
     }
     try {
+      final routeReadyToFinalize = await _waitForCurrentHomeRoute();
+      if (!mounted || !routeReadyToFinalize) {
+        if (!_interruptedRideRecoveryRetryScheduled) {
+          _interruptedRideRecoveryRetryScheduled = true;
+          unawaited(scheduleInterruptedRideRecoveryRetry(
+            _restoreInterruptedRideIfNeeded,
+          ));
+        }
+        return;
+      }
       await _HomeScreenExport(this)._finalizeRide(
         rideStartTime: checkpoint.startTime,
         rideSamples: _samplesWithRecoveredEndTime(
