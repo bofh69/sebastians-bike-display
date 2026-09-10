@@ -1454,14 +1454,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               continue;
             }
             final metadataDecoded = jsonDecode(metadataRaw);
-            if (metadataDecoded is! Map<String, dynamic>) {
+            if (metadataDecoded is! Map) {
               continue;
             }
             final samples = await _loadRideCheckpointSamples(
               await _rideCheckpointSamplesFile(),
             );
             final reconciledMetadata = reconcileRecoveredCheckpointMetadata(
-              metadata: metadataDecoded,
+              metadata: Map<String, dynamic>.from(metadataDecoded),
               parsedSampleCount: samples.length,
             );
             return _InterruptedRideCheckpoint.fromMetadataJson(
@@ -1475,11 +1475,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             );
           }
         }
-        await _clearRideCheckpoint();
-        return null;
       }
       final file = await _rideCheckpointFile();
       if (!await file.exists()) {
+        if (readableMetadataFiles.isNotEmpty) {
+          await _clearRideCheckpoint();
+        }
         return null;
       }
       final raw = await file.readAsString();
@@ -1488,11 +1489,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         return null;
       }
       final decoded = jsonDecode(raw);
-      if (decoded is! Map<String, dynamic>) {
+      if (decoded is! Map) {
         await file.delete();
         return null;
       }
-      return _InterruptedRideCheckpoint.fromJson(decoded);
+      return _InterruptedRideCheckpoint.fromJson(
+          Map<String, dynamic>.from(decoded));
     } catch (error, stackTrace) {
       debugPrint('Failed to load ride checkpoint: $error\n$stackTrace');
       await _clearRideCheckpoint();
