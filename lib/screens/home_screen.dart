@@ -1055,17 +1055,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _endRide() async {
     _recordingTimer?.cancel();
     _recordingTimer = null;
-    if (_isMobileTrackingPlatform) {
-      await WakelockPlus.disable();
-    }
-    await _hideBackgroundRideNotification(force: true);
-    if (_supportsBackgroundRideService && _serviceConfigured) {
-      try {
-        _backgroundService.invoke('stopService');
-      } catch (error, stackTrace) {
-        debugPrint('Failed to stop ride service: $error\n$stackTrace');
-      }
-    }
+    await _stopPreparedRideRuntime();
 
     setState(() {
       _isRunning = false;
@@ -1504,15 +1494,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           break;
       }
     }
-    await _finalizeRide(
-      rideStartTime: checkpoint.startTime,
-      rideSamples: _samplesWithRecoveredEndTime(
-        checkpoint.samples,
-        checkpoint.lastSavedAt,
-      ),
-      completionPrefix: 'Recovered interrupted ride.',
-      preserveCheckpointOnFailure: true,
-    );
+    final readyToFinalizeRecoveredRide = await _prepareRideRuntime();
+    if (!readyToFinalizeRecoveredRide) return;
+    try {
+      await _finalizeRide(
+        rideStartTime: checkpoint.startTime,
+        rideSamples: _samplesWithRecoveredEndTime(
+          checkpoint.samples,
+          checkpoint.lastSavedAt,
+        ),
+        completionPrefix: 'Recovered interrupted ride.',
+        preserveCheckpointOnFailure: true,
+      );
+    } finally {
+      await _stopPreparedRideRuntime();
+    }
+  }
+
+  Future<void> _stopPreparedRideRuntime() async {
+    if (_isMobileTrackingPlatform) {
+      await WakelockPlus.disable();
+    }
+    await _hideBackgroundRideNotification(force: true);
+    if (_supportsBackgroundRideService && _serviceConfigured) {
+      try {
+        _backgroundService.invoke('stopService');
+      } catch (error, stackTrace) {
+        debugPrint('Failed to stop ride service: $error\n$stackTrace');
+      }
+    }
   }
 
   Future<bool> _waitForCurrentHomeRoute() async {
