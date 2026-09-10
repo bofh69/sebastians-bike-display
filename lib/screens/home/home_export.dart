@@ -261,7 +261,10 @@ extension _HomeScreenExport on _HomeScreenState {
       uploadAttempted: uploadResult.attempted,
       uploadSucceeded: uploadResult.succeeded,
     );
-    if (completedSuccessfully || !preserveCheckpointOnFailure) {
+    if (shouldClearRideCheckpointAfterFinalization(
+      completedSuccessfully: completedSuccessfully,
+      preserveCheckpointOnFailure: preserveCheckpointOnFailure,
+    )) {
       await _HomeScreenRecovery(this)._clearRideCheckpoint();
     }
     if (!mounted) return completedSuccessfully;

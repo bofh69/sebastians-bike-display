@@ -444,6 +444,13 @@ bool didRecoveredRideFinalizeCompletely({
       (fitExported && gpxExported && (!uploadAttempted || uploadSucceeded));
 }
 
+bool shouldClearRideCheckpointAfterFinalization({
+  required bool completedSuccessfully,
+  required bool preserveCheckpointOnFailure,
+}) {
+  return completedSuccessfully || !preserveCheckpointOnFailure;
+}
+
 Future<bool?> showResumeInterruptedRideDialog(BuildContext context) {
   return showDialog<bool>(
     context: context,

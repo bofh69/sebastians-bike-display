@@ -654,6 +654,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       rideStartTime: _startTime,
       rideSamples: List<_RideSample>.from(_samples),
       completionPrefix: 'Ride ended.',
+      preserveCheckpointOnFailure: false,
     );
   }
 

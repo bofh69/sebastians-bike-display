@@ -339,6 +339,25 @@ void main() {
     );
   });
 
+  test(
+      'shouldClearRideCheckpointAfterFinalization only preserves recovery retries',
+      () {
+    expect(
+      shouldClearRideCheckpointAfterFinalization(
+        completedSuccessfully: false,
+        preserveCheckpointOnFailure: false,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldClearRideCheckpointAfterFinalization(
+        completedSuccessfully: false,
+        preserveCheckpointOnFailure: true,
+      ),
+      isFalse,
+    );
+  });
+
   test('shouldRetrySavedSensorConnection only retries when idle and saved', () {
     expect(
       shouldRetrySavedSensorConnection(
