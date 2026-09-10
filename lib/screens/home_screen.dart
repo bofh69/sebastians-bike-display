@@ -1202,6 +1202,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (checkpoint == null || !mounted) return;
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted || _isRunning) return;
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return;
     if (shouldOfferInterruptedRideResume(lastSavedAt: checkpoint.lastSavedAt)) {
       final resumeRide = await showDialog<bool>(
         context: context,
