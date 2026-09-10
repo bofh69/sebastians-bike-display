@@ -237,7 +237,7 @@ extension _HomeScreenRecovery on _HomeScreenState {
     final checkpoint = await _loadRideCheckpoint();
     if (checkpoint == null || !mounted) return;
     final routeReady = await _waitForCurrentHomeRoute();
-    if (!mounted || !routeReady || _isRunning) return;
+    if (!mounted || !routeReady || _hasActiveRideRuntime) return;
     if (shouldOfferInterruptedRideResume(lastSavedAt: checkpoint.lastSavedAt)) {
       final wantsResume = await showResumeInterruptedRideDialog(context);
       final action = await resolveInterruptedRideRecovery(
