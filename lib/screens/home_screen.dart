@@ -81,11 +81,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _rideCheckpointWriteQueue = Future<void>.value();
   Future<void>? _restoreInterruptedRideFuture;
   bool _interruptedRideRecoveryRetryScheduled = false;
+  bool _isFinalizingRecoveredRide = false;
 
   bool get _isMobileTrackingPlatform =>
       !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
   bool get _supportsBackgroundRideService => !kIsWeb && io.Platform.isIOS;
   bool get _supportsRideCheckpointing => _isMobileTrackingPlatform;
+  bool get _hasActiveRideRuntime => _isRunning || _isFinalizingRecoveredRide;
 
   @override
   void initState() {
@@ -127,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _isAppInForeground = state == AppLifecycleState.resumed;
 
-    if (!_isRunning && _isMobileTrackingPlatform) {
+    if (!_hasActiveRideRuntime && _isMobileTrackingPlatform) {
       if (_isAppInForeground) {
         if (!kIsWeb && io.Platform.isAndroid) {
           unawaited(_hideBackgroundRideNotification(force: true));

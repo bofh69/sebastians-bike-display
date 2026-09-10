@@ -269,8 +269,12 @@ extension _HomeScreenRecovery on _HomeScreenState {
     } else {
       _interruptedRideRecoveryRetryScheduled = false;
     }
+    _isFinalizingRecoveredRide = true;
     final readyToFinalizeRecoveredRide = await _prepareRideRuntime();
-    if (!readyToFinalizeRecoveredRide) return;
+    if (!readyToFinalizeRecoveredRide) {
+      _isFinalizingRecoveredRide = false;
+      return;
+    }
     try {
       await _HomeScreenExport(this)._finalizeRide(
         rideStartTime: checkpoint.startTime,
@@ -282,6 +286,7 @@ extension _HomeScreenRecovery on _HomeScreenState {
         preserveCheckpointOnFailure: true,
       );
     } finally {
+      _isFinalizingRecoveredRide = false;
       await _stopTemporaryRecoveryRuntime();
     }
   }
