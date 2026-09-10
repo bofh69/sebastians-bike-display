@@ -413,14 +413,21 @@ List<Map<String, dynamic>> parseRideCheckpointSampleJsonLines(
   return decodedSamples;
 }
 
-double restoreRollingAverage({
+double restoreWindowedRollingAverage({
   required RollingAverage average,
-  required Iterable<double?> values,
+  required Iterable<({DateTime timestamp, double value})> values,
+  required DateTime windowEnd,
+  required Duration window,
 }) {
   average.reset();
   var restored = 0.0;
+  final windowStart = windowEnd.subtract(window);
   for (final value in values) {
-    restored = average.add(value ?? 0);
+    if (value.timestamp.isBefore(windowStart) ||
+        value.timestamp.isAfter(windowEnd)) {
+      continue;
+    }
+    restored = average.add(value.value);
   }
   return restored;
 }
@@ -1567,49 +1574,67 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     final readyToRun = await _prepareRideRuntime();
     if (!readyToRun) return false;
-    if (!mounted) return false;
-    final restoredPosition = _positionFromSample(
-      checkpoint.samples.isEmpty ? null : checkpoint.samples.last,
-    );
-    final restoredPower3s = restoreRollingAverage(
-      average: _power3sAverage,
-      values: checkpoint.samples.map((sample) => sample.power),
-    );
-    final restoredPower20min = restoreRollingAverage(
-      average: _power20MinAverage,
-      values: checkpoint.samples.map((sample) => sample.power),
-    );
+    var resumed = false;
+    try {
+      if (!mounted) return false;
+      final restoredPosition = _positionFromSample(
+        checkpoint.samples.isEmpty ? null : checkpoint.samples.last,
+      );
+      final restoredPowerSamples = checkpoint.samples.map(
+        (sample) => (
+          timestamp: sample.timestamp,
+          value: sample.power ?? 0.0,
+        ),
+      );
+      final restoredPower3s = restoreWindowedRollingAverage(
+        average: _power3sAverage,
+        values: restoredPowerSamples,
+        windowEnd: checkpoint.lastSavedAt,
+        window: const Duration(seconds: 3),
+      );
+      final restoredPower20min = restoreWindowedRollingAverage(
+        average: _power20MinAverage,
+        values: restoredPowerSamples,
+        windowEnd: checkpoint.lastSavedAt,
+        window: const Duration(minutes: 20),
+      );
 
-    setState(() {
-      _isRunning = true;
-      _startTime = checkpoint.startTime;
-      _samples
-        ..clear()
-        ..addAll(checkpoint.samples);
-      _data.distance = checkpoint.distanceKm;
-      _data.duration = DateTime.now().difference(checkpoint.startTime);
-      _data.avgSpeed = checkpoint.avgSpeedKph;
-      _data.speed = checkpoint.speedKph;
-      _data.power3s = restoredPower3s;
-      _data.power20min = restoredPower20min;
-      _data.totalClimb = checkpoint.totalClimbMeters;
-      _data.cadence = checkpoint.cadence;
-      _data.heartRate = checkpoint.heartRate;
-      _data.leftBalance = checkpoint.leftBalance;
-      _data.rightBalance = checkpoint.rightBalance;
-      _currentPowerWatts = 0;
-      _lastAcceptedPosition = restoredPosition;
-      _lastAcceptedTimestamp = restoredPosition?.timestamp;
-      _lastAcceptedBearingDegrees =
-          _bearingFromRecentSamples(checkpoint.samples);
-      _smoothedSpeedMps = checkpoint.smoothedSpeedMps;
-      _filteredAltitudeForClimb = checkpoint.filteredAltitudeForClimb;
-      _climbReferenceAltitude = checkpoint.climbReferenceAltitude;
-      _leftBalanceAverage.clear();
-      _rightBalanceAverage.clear();
-      _lastCheckpointSavedAt = checkpoint.lastSavedAt;
-      _lastCheckpointSampleCount = checkpoint.sampleCount;
-    });
+      setState(() {
+        _isRunning = true;
+        _startTime = checkpoint.startTime;
+        _samples
+          ..clear()
+          ..addAll(checkpoint.samples);
+        _data.distance = checkpoint.distanceKm;
+        _data.duration = DateTime.now().difference(checkpoint.startTime);
+        _data.avgSpeed = checkpoint.avgSpeedKph;
+        _data.speed = checkpoint.speedKph;
+        _data.power3s = restoredPower3s;
+        _data.power20min = restoredPower20min;
+        _data.totalClimb = checkpoint.totalClimbMeters;
+        _data.cadence = checkpoint.cadence;
+        _data.heartRate = checkpoint.heartRate;
+        _data.leftBalance = checkpoint.leftBalance;
+        _data.rightBalance = checkpoint.rightBalance;
+        _currentPowerWatts = 0;
+        _lastAcceptedPosition = restoredPosition;
+        _lastAcceptedTimestamp = restoredPosition?.timestamp;
+        _lastAcceptedBearingDegrees =
+            _bearingFromRecentSamples(checkpoint.samples);
+        _smoothedSpeedMps = checkpoint.smoothedSpeedMps;
+        _filteredAltitudeForClimb = checkpoint.filteredAltitudeForClimb;
+        _climbReferenceAltitude = checkpoint.climbReferenceAltitude;
+        _leftBalanceAverage.clear();
+        _rightBalanceAverage.clear();
+        _lastCheckpointSavedAt = checkpoint.lastSavedAt;
+        _lastCheckpointSampleCount = checkpoint.sampleCount;
+      });
+      resumed = true;
+    } finally {
+      if (!resumed) {
+        await _stopPreparedRideRuntime();
+      }
+    }
     _recordingTimer?.cancel();
     _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       _recordSample();

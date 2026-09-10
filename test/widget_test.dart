@@ -237,16 +237,40 @@ void main() {
     expect(reconciled['sampleCount'], 4);
   });
 
-  test('restoreRollingAverage repopulates the rolling window', () {
+  test('restoreWindowedRollingAverage only replays samples inside the window',
+      () {
     final average = RollingAverage(windowSize: 3);
 
-    final restored = restoreRollingAverage(
+    final restored = restoreWindowedRollingAverage(
       average: average,
-      values: const <double?>[100, 200, 300, null],
+      values: <({DateTime timestamp, double value})>[
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 0, 0), value: 100),
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 0, 5), value: 200),
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 0, 6), value: 300),
+      ],
+      windowEnd: DateTime.utc(2026, 1, 1, 12, 0, 6),
+      window: const Duration(seconds: 3),
     );
 
-    expect(restored, closeTo(500 / 3, 0.001));
-    expect(average.add(300), closeTo(200, 0.001));
+    expect(restored, 250);
+    expect(average.add(300), closeTo(800 / 3, 0.001));
+  });
+
+  test('restoreWindowedRollingAverage supports longer recovery windows', () {
+    final average = RollingAverage(windowSize: 20 * 60);
+
+    final restored = restoreWindowedRollingAverage(
+      average: average,
+      values: <({DateTime timestamp, double value})>[
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 0, 0), value: 100),
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 15, 0), value: 200),
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 19, 30), value: 300),
+      ],
+      windowEnd: DateTime.utc(2026, 1, 1, 12, 19, 30),
+      window: const Duration(minutes: 20),
+    );
+
+    expect(restored, 200);
   });
 
   test('didRecoveredRideFinalizeCompletely requires all exports to succeed',
