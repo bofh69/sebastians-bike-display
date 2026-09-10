@@ -315,6 +315,23 @@ void main() {
     expect(restored, 200);
   });
 
+  test('restoreWindowedTimeAverage replays recent balance samples', () {
+    final average = TimeWindowAverage(window: const Duration(minutes: 1));
+
+    final restored = restoreWindowedTimeAverage(
+      average: average,
+      values: <({DateTime timestamp, double value})>[
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 0, 0), value: 49),
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 0, 30), value: 51),
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 1, 0), value: 50),
+      ],
+      windowEnd: DateTime.utc(2026, 1, 1, 12, 1, 0),
+      window: const Duration(minutes: 1),
+    );
+
+    expect(restored, 50);
+  });
+
   test('didRecoveredRideFinalizeCompletely requires all exports to succeed',
       () {
     expect(
@@ -755,6 +772,31 @@ void main() {
     await tester.pumpAndSettle();
     await tester.binding.handlePopRoute();
     await tester.pump();
+
+    expect(find.text('Resume interrupted ride?'), findsOneWidget);
+    expect(result, isNull);
+  });
+
+  testWidgets('resume interrupted ride dialog ignores barrier taps',
+      (WidgetTester tester) async {
+    bool? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              result = await showResumeInterruptedRideDialog(context);
+            },
+            child: const Text('Open'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
 
     expect(find.text('Resume interrupted ride?'), findsOneWidget);
     expect(result, isNull);

@@ -39,42 +39,44 @@ extension _HomeScreenRecovery on _HomeScreenState {
 
   Future<void> _persistRideCheckpoint({bool force = false}) async {
     if (!_supportsRideCheckpointing || !_isRunning) return;
+    final startTime = _startTime;
+    if (startTime == null) {
+      return;
+    }
+    final now = DateTime.now();
+    final lastSavedAt = _lastCheckpointSavedAt;
+    if (!force &&
+        lastSavedAt != null &&
+        now.difference(lastSavedAt) < _rideCheckpointWriteInterval) {
+      return;
+    }
+    final persistedSamplesSnapshot = List<_RideSample>.from(_samples);
+    final checkpoint = _InterruptedRideCheckpoint(
+      startTime: startTime,
+      lastSavedAt: now,
+      samples: persistedSamplesSnapshot,
+      distanceKm: _data.distance ?? 0,
+      totalClimbMeters: _data.totalClimb ?? 0,
+      speedKph: _data.speed,
+      avgSpeedKph: _data.avgSpeed,
+      cadence: _data.cadence,
+      heartRate: _data.heartRate,
+      leftBalance: _data.leftBalance,
+      rightBalance: _data.rightBalance,
+      smoothedSpeedMps: _smoothedSpeedMps,
+      filteredAltitudeForClimb: _filteredAltitudeForClimb,
+      climbReferenceAltitude: _climbReferenceAltitude,
+      sampleCount: persistedSamplesSnapshot.length,
+    );
+    final checkpointMetadataJson = jsonEncode(checkpoint.toMetadataJson());
+    final legacyCheckpointJson = jsonEncode(checkpoint.toJson());
     _rideCheckpointWriteQueue = _rideCheckpointWriteQueue.then((_) async {
-      final startTime = _startTime;
-      if (!_isRunning || startTime == null) {
-        return;
-      }
-      final now = DateTime.now();
-      final lastSavedAt = _lastCheckpointSavedAt;
-      if (!force &&
-          lastSavedAt != null &&
-          now.difference(lastSavedAt) < _rideCheckpointWriteInterval) {
-        return;
-      }
-      final persistedSamplesSnapshot = List<_RideSample>.from(_samples);
-      final checkpoint = _InterruptedRideCheckpoint(
-        startTime: startTime,
-        lastSavedAt: now,
-        samples: persistedSamplesSnapshot,
-        distanceKm: _data.distance ?? 0,
-        totalClimbMeters: _data.totalClimb ?? 0,
-        speedKph: _data.speed,
-        avgSpeedKph: _data.avgSpeed,
-        cadence: _data.cadence,
-        heartRate: _data.heartRate,
-        leftBalance: _data.leftBalance,
-        rightBalance: _data.rightBalance,
-        smoothedSpeedMps: _smoothedSpeedMps,
-        filteredAltitudeForClimb: _filteredAltitudeForClimb,
-        climbReferenceAltitude: _climbReferenceAltitude,
-        sampleCount: persistedSamplesSnapshot.length,
-      );
-      final checkpointMetadataJson = jsonEncode(checkpoint.toMetadataJson());
-      final legacyCheckpointJson = jsonEncode(checkpoint.toJson());
       try {
         final samplesFile = await _rideCheckpointSamplesFile();
+        final pendingSampleStartIndex = _lastCheckpointSampleCount.clamp(
+            0, persistedSamplesSnapshot.length);
         final pendingSamples = persistedSamplesSnapshot
-            .skip(_lastCheckpointSampleCount)
+            .skip(pendingSampleStartIndex)
             .map((sample) => jsonEncode(sample.toJson()))
             .join('\n');
         if (pendingSamples.isNotEmpty) {
@@ -425,6 +427,34 @@ extension _HomeScreenRecovery on _HomeScreenState {
         windowEnd: restoredPowerWindowEnd,
         window: const Duration(minutes: 20),
       );
+      final restoredBalanceSamples = restoredSamples
+          .where((sample) =>
+              sample.leftBalance != null && sample.rightBalance != null)
+          .where((sample) =>
+              (sample.power ?? 0) >= _minimumPowerForBalanceAverageWatts)
+          .toList();
+      final restoredLeftBalance = restoreWindowedTimeAverage(
+        average: _leftBalanceAverage,
+        values: restoredBalanceSamples.map(
+          (sample) => (
+            timestamp: sample.timestamp,
+            value: sample.leftBalance!,
+          ),
+        ),
+        windowEnd: restoredPowerWindowEnd,
+        window: const Duration(minutes: 1),
+      );
+      final restoredRightBalance = restoreWindowedTimeAverage(
+        average: _rightBalanceAverage,
+        values: restoredBalanceSamples.map(
+          (sample) => (
+            timestamp: sample.timestamp,
+            value: sample.rightBalance!,
+          ),
+        ),
+        windowEnd: restoredPowerWindowEnd,
+        window: const Duration(minutes: 1),
+      );
 
       _applyState(() {
         _isRunning = true;
@@ -441,8 +471,8 @@ extension _HomeScreenRecovery on _HomeScreenState {
         _data.totalClimb = checkpoint.totalClimbMeters;
         _data.cadence = checkpoint.cadence;
         _data.heartRate = checkpoint.heartRate;
-        _data.leftBalance = checkpoint.leftBalance;
-        _data.rightBalance = checkpoint.rightBalance;
+        _data.leftBalance = restoredLeftBalance ?? checkpoint.leftBalance;
+        _data.rightBalance = restoredRightBalance ?? checkpoint.rightBalance;
         _currentPowerWatts = restoredCurrentPowerWatts;
         _lastAcceptedPosition = restoredPosition;
         _lastAcceptedTimestamp = restoredPosition?.timestamp;
@@ -451,8 +481,6 @@ extension _HomeScreenRecovery on _HomeScreenState {
         _smoothedSpeedMps = checkpoint.smoothedSpeedMps;
         _filteredAltitudeForClimb = checkpoint.filteredAltitudeForClimb;
         _climbReferenceAltitude = checkpoint.climbReferenceAltitude;
-        _leftBalanceAverage.clear();
-        _rightBalanceAverage.clear();
         _lastCheckpointSavedAt = checkpoint.lastSavedAt;
         _lastCheckpointSampleCount = restoredSamples.length;
       });
@@ -508,6 +536,8 @@ extension _HomeScreenRecovery on _HomeScreenState {
         power: null,
         cadence: null,
         heartRate: null,
+        leftBalance: null,
+        rightBalance: null,
         distanceMeters: lastSample.distanceMeters,
         speedMps: 0,
       ),

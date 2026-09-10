@@ -103,6 +103,8 @@ class _RideSample {
   final double? power;
   final double? cadence;
   final double? heartRate;
+  final double? leftBalance;
+  final double? rightBalance;
   final double distanceMeters;
   final double speedMps;
 
@@ -116,6 +118,8 @@ class _RideSample {
     required this.power,
     required this.cadence,
     required this.heartRate,
+    required this.leftBalance,
+    required this.rightBalance,
     required this.distanceMeters,
     required this.speedMps,
   });
@@ -130,6 +134,8 @@ class _RideSample {
         'power': power,
         'cadence': cadence,
         'heartRate': heartRate,
+        'leftBalance': leftBalance,
+        'rightBalance': rightBalance,
         'distanceMeters': distanceMeters,
         'speedMps': speedMps,
       };
@@ -144,6 +150,8 @@ class _RideSample {
         power: (json['power'] as num?)?.toDouble(),
         cadence: (json['cadence'] as num?)?.toDouble(),
         heartRate: (json['heartRate'] as num?)?.toDouble(),
+        leftBalance: (json['leftBalance'] as num?)?.toDouble(),
+        rightBalance: (json['rightBalance'] as num?)?.toDouble(),
         distanceMeters: (json['distanceMeters'] as num?)?.toDouble() ?? 0,
         speedMps: (json['speedMps'] as num?)?.toDouble() ?? 0,
       );
@@ -445,6 +453,26 @@ double restoreWindowedRollingAverage({
     restored = average.add(value.value);
   }
   return restored;
+}
+
+double? restoreWindowedTimeAverage({
+  required TimeWindowAverage average,
+  required Iterable<({DateTime timestamp, double value})> values,
+  required DateTime windowEnd,
+  required Duration window,
+}) {
+  average.clear();
+  final windowStart = windowEnd.subtract(window);
+  final sortedValues = values.toList()
+    ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+  for (final value in sortedValues) {
+    if (value.timestamp.isBefore(windowStart) ||
+        value.timestamp.isAfter(windowEnd)) {
+      continue;
+    }
+    average.add(value.timestamp, value.value);
+  }
+  return average.average;
 }
 
 bool didRecoveredRideFinalizeCompletely({

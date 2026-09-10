@@ -512,6 +512,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         power: _currentPowerWatts,
         cadence: _data.cadence,
         heartRate: _data.heartRate,
+        leftBalance: _data.leftBalance,
+        rightBalance: _data.rightBalance,
         distanceMeters: (_data.distance ?? 0) * 1000,
         speedMps: (_data.speed ?? 0) / 3.6,
       ),
