@@ -238,6 +238,8 @@ extension _HomeScreenRecovery on _HomeScreenState {
     if (!mounted || !routeReady || _hasActiveRideRuntime) return;
     if (shouldOfferInterruptedRideResume(lastSavedAt: checkpoint.lastSavedAt)) {
       final wantsResume = await showResumeInterruptedRideDialog(context);
+      final routeStillReady = await _waitForCurrentHomeRoute();
+      if (!mounted || !routeStillReady || _hasActiveRideRuntime) return;
       final action = await resolveInterruptedRideRecovery(
         promptForResume: () async => wantsResume,
         resumeRide: () => _resumeInterruptedRide(checkpoint),
@@ -465,18 +467,22 @@ extension _HomeScreenRecovery on _HomeScreenState {
         _lastCheckpointSavedAt = checkpoint.lastSavedAt;
         _lastCheckpointSampleCount = restoredSamples.length;
       });
+      try {
+        await _startLocationStream();
+      } catch (error, stackTrace) {
+        debugPrint(
+          'Failed to restart location stream after ride resume: $error\n$stackTrace',
+        );
+        _applyState(() {
+          _isRunning = false;
+        });
+        return false;
+      }
       resumed = true;
     } finally {
       if (!resumed) {
         await _stopTemporaryRecoveryRuntime();
       }
-    }
-    try {
-      await _startLocationStream();
-    } catch (error, stackTrace) {
-      debugPrint(
-        'Failed to restart location stream after ride resume: $error\n$stackTrace',
-      );
     }
     _recordingTimer?.cancel();
     _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {

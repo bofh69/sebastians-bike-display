@@ -378,7 +378,11 @@ Map<String, dynamic>? tryParseRideCheckpointSampleJsonLine(String line) {
   if (trimmedLine.isEmpty) {
     return null;
   }
-  return jsonDecode(trimmedLine) as Map<String, dynamic>;
+  final decoded = jsonDecode(trimmedLine);
+  if (decoded is! Map) {
+    throw const FormatException('Checkpoint sample line is not a JSON object.');
+  }
+  return Map<String, dynamic>.from(decoded);
 }
 
 List<Map<String, dynamic>> parseRideCheckpointSampleJsonLines(
