@@ -1064,7 +1064,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _endRide() async {
     _recordingTimer?.cancel();
     _recordingTimer = null;
-    await _stopPreparedRideRuntime();
+    await _stopActiveRideRuntime();
 
     setState(() {
       _isRunning = false;
@@ -1484,11 +1484,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _restoreInterruptedRideIfNeeded() async {
-    _restoreInterruptedRideFuture ??= _restoreInterruptedRideIfNeededInternal();
+    final restoreFuture = _restoreInterruptedRideFuture ??=
+        _restoreInterruptedRideIfNeededInternal();
     try {
-      await _restoreInterruptedRideFuture;
+      await restoreFuture;
     } finally {
-      _restoreInterruptedRideFuture = null;
+      if (identical(_restoreInterruptedRideFuture, restoreFuture)) {
+        _restoreInterruptedRideFuture = null;
+      }
     }
   }
 
@@ -1522,11 +1525,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         preserveCheckpointOnFailure: true,
       );
     } finally {
-      await _stopPreparedRideRuntime();
+      await _stopTemporaryRecoveryRuntime();
     }
   }
 
-  Future<void> _stopPreparedRideRuntime() async {
+  Future<void> _stopActiveRideRuntime() async {
+    if (_isMobileTrackingPlatform) {
+      try {
+        await WakelockPlus.disable();
+      } catch (error, stackTrace) {
+        debugPrint('Failed to disable wakelock: $error\n$stackTrace');
+      }
+    }
+    try {
+      await _hideBackgroundRideNotification(force: true);
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Failed to hide background ride notification: $error\n$stackTrace',
+      );
+    }
+    if (_supportsBackgroundRideService && _serviceConfigured) {
+      try {
+        _backgroundService.invoke('stopService');
+      } catch (error, stackTrace) {
+        debugPrint('Failed to stop ride service: $error\n$stackTrace');
+      }
+    }
+  }
+
+  Future<void> _stopTemporaryRecoveryRuntime() async {
     if (_isMobileTrackingPlatform) {
       try {
         await WakelockPlus.disable();
@@ -1658,7 +1685,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       resumed = true;
     } finally {
       if (!resumed) {
-        await _stopPreparedRideRuntime();
+        await _stopTemporaryRecoveryRuntime();
       }
     }
     _recordingTimer?.cancel();
