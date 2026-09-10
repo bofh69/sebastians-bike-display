@@ -1020,14 +1020,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final start = rideSamples.first.timestamp;
     final fileName = 'ride_${start.toIso8601String().replaceAll(':', '-')}.gpx';
 
+    final metadataTime = _escapeXmlText(start.toUtc().toIso8601String());
+    final trackName = _escapeXmlText('Ride ${start.toIso8601String()}');
+
     final buffer = StringBuffer()
       ..writeln('<?xml version="1.0" encoding="UTF-8"?>')
       ..writeln(
         '<gpx version="1.1" creator="sebastians-bike-display" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1" xmlns:sbd="https://sebastians-bike-display.dev/xmlschemas/TrackPointQuality/v1">',
       )
-      ..writeln(
-          '<metadata><time>${start.toUtc().toIso8601String()}</time></metadata>')
-      ..writeln('<trk><name>Ride ${start.toIso8601String()}</name><trkseg>');
+      ..writeln('<metadata><time>$metadataTime</time></metadata>')
+      ..writeln('<trk><name>$trackName</name><trkseg>');
 
     for (final sample in rideSamples) {
       if (sample.latitude == null || sample.longitude == null) {
@@ -1037,8 +1039,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final hasAltitude = altitude != null && altitude.isFinite;
       final hasAccuracy =
           sample.accuracyMeters != null && sample.accuracyMeters!.isFinite;
+      final pointTime =
+          _escapeXmlText(sample.timestamp.toUtc().toIso8601String());
+      final pointComment = _escapeXmlText(
+        'distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}',
+      );
+      final speedText = _escapeXmlText(sample.speedMps.toStringAsFixed(2));
+      final powerText = _escapeXmlText((sample.power ?? 0).toStringAsFixed(0));
+      final confidenceText = _escapeXmlText(
+        sample.gpsConfidence.toStringAsFixed(2),
+      );
+      final altitudeText =
+          hasAltitude ? _escapeXmlText(altitude.toStringAsFixed(1)) : null;
+      final accuracyText = hasAccuracy
+          ? _escapeXmlText(sample.accuracyMeters!.toStringAsFixed(1))
+          : null;
+      final heartRateText = sample.heartRate != null
+          ? _escapeXmlText(sample.heartRate!.round().toString())
+          : null;
+      final cadenceText = sample.cadence != null
+          ? _escapeXmlText(sample.cadence!.round().toString())
+          : null;
       buffer.writeln(
-        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}">${hasAltitude ? '<ele>${altitude.toStringAsFixed(1)}</ele>' : ''}<time>${sample.timestamp.toUtc().toIso8601String()}</time><cmt>distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}</cmt><extensions><gpxtpx:TrackPointExtension>${sample.heartRate != null ? '<gpxtpx:hr>${sample.heartRate!.round()}</gpxtpx:hr>' : ''}${sample.cadence != null ? '<gpxtpx:cad>${sample.cadence!.round()}</gpxtpx:cad>' : ''}<gpxtpx:speed>${sample.speedMps.toStringAsFixed(2)}</gpxtpx:speed></gpxtpx:TrackPointExtension><sbd:power_w>${(sample.power ?? 0).toStringAsFixed(0)}</sbd:power_w>${hasAccuracy ? '<sbd:gps_accuracy_m>${sample.accuracyMeters!.toStringAsFixed(1)}</sbd:gps_accuracy_m>' : ''}<sbd:gps_confidence>${sample.gpsConfidence.toStringAsFixed(2)}</sbd:gps_confidence></extensions></trkpt>',
+        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}">${altitudeText != null ? '<ele>$altitudeText</ele>' : ''}<time>$pointTime</time><cmt>$pointComment</cmt><extensions><gpxtpx:TrackPointExtension>${heartRateText != null ? '<gpxtpx:hr>$heartRateText</gpxtpx:hr>' : ''}${cadenceText != null ? '<gpxtpx:cad>$cadenceText</gpxtpx:cad>' : ''}<gpxtpx:speed>$speedText</gpxtpx:speed></gpxtpx:TrackPointExtension><sbd:power_w>$powerText</sbd:power_w>${accuracyText != null ? '<sbd:gps_accuracy_m>$accuracyText</sbd:gps_accuracy_m>' : ''}<sbd:gps_confidence>$confidenceText</sbd:gps_confidence></extensions></trkpt>',
       );
     }
 
@@ -1112,6 +1135,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       try {
         final file = await _rideCheckpointFile();
         final tempFile = io.File('${file.path}.tmp');
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
         await tempFile.writeAsString(
           jsonEncode(checkpoint.toJson()),
           flush: true,
@@ -1202,7 +1228,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         if (resumed) {
           return;
         }
-        return;
       }
     }
     await _finalizeRide(
@@ -1218,11 +1243,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_isRunning) return false;
     final hasPermission = await _ensureLocationPermission();
     if (!hasPermission) {
-      if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Location permission is required to resume.'),
-        ),
+      await _finalizeRide(
+        rideStartTime: checkpoint.startTime,
+        rideSamples: checkpoint.samples,
+        completionPrefix:
+            'Location permission is required to resume. Recovered interrupted ride.',
       );
       return false;
     }
@@ -1230,17 +1255,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final canStartForegroundTracking =
         await _ensureForegroundTrackingPermission();
     if (!canStartForegroundTracking) {
-      if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Notification permission is required to resume.'),
-        ),
+      await _finalizeRide(
+        rideStartTime: checkpoint.startTime,
+        rideSamples: checkpoint.samples,
+        completionPrefix:
+            'Notification permission is required to resume. Recovered interrupted ride.',
       );
       return false;
     }
 
     final readyToRun = await _prepareRideRuntime();
-    if (!readyToRun) return false;
+    if (!readyToRun) {
+      await _finalizeRide(
+        rideStartTime: checkpoint.startTime,
+        rideSamples: checkpoint.samples,
+        completionPrefix:
+            'Unable to restart ride tracking. Recovered interrupted ride.',
+      );
+      return false;
+    }
     if (!mounted) return false;
     final restoredPosition = _positionFromSample(
       checkpoint.samples.isEmpty ? null : checkpoint.samples.last,
@@ -1317,6 +1350,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       filteredAltitudeForClimb: _filteredAltitudeForClimb,
       climbReferenceAltitude: _climbReferenceAltitude,
     );
+  }
+
+  String _escapeXmlText(String value) {
+    return value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;');
   }
 
   Position? _positionFromSample(_RideSample? sample) {
