@@ -52,13 +52,25 @@ extension _HomeScreenRecovery on _HomeScreenState {
         return;
       }
       final persistedSamplesSnapshot = List<_RideSample>.from(_samples);
-      final checkpointMetadataJson = jsonEncode(
-        _buildInterruptedRideCheckpointMetadata(
-          startTime: startTime,
-          lastSavedAt: now,
-          sampleCount: persistedSamplesSnapshot.length,
-        ),
+      final checkpoint = _InterruptedRideCheckpoint(
+        startTime: startTime,
+        lastSavedAt: now,
+        samples: persistedSamplesSnapshot,
+        distanceKm: _data.distance ?? 0,
+        totalClimbMeters: _data.totalClimb ?? 0,
+        speedKph: _data.speed,
+        avgSpeedKph: _data.avgSpeed,
+        cadence: _data.cadence,
+        heartRate: _data.heartRate,
+        leftBalance: _data.leftBalance,
+        rightBalance: _data.rightBalance,
+        smoothedSpeedMps: _smoothedSpeedMps,
+        filteredAltitudeForClimb: _filteredAltitudeForClimb,
+        climbReferenceAltitude: _climbReferenceAltitude,
+        sampleCount: persistedSamplesSnapshot.length,
       );
+      final checkpointMetadataJson = jsonEncode(checkpoint.toMetadataJson());
+      final legacyCheckpointJson = jsonEncode(checkpoint.toJson());
       try {
         final samplesFile = await _rideCheckpointSamplesFile();
         final pendingSamples = persistedSamplesSnapshot
@@ -88,13 +100,18 @@ extension _HomeScreenRecovery on _HomeScreenState {
         }
         await tempFile.rename(publishedFile.path);
         await metadataFile.writeAsString(checkpointMetadataJson, flush: true);
-        for (final file in await _rideCheckpointMetadataFiles()) {
-          if (file.path != publishedFile.path &&
-              file.path != metadataFile.path &&
-              await file.exists()) {
-            await file.delete();
+        final previousPublishedMetadataPath =
+            _lastPublishedRideCheckpointMetadataPath;
+        if (previousPublishedMetadataPath != null &&
+            previousPublishedMetadataPath != publishedFile.path) {
+          final previousPublishedFile = io.File(previousPublishedMetadataPath);
+          if (await previousPublishedFile.exists()) {
+            await previousPublishedFile.delete();
           }
         }
+        _lastPublishedRideCheckpointMetadataPath = publishedFile.path;
+        final legacyFile = await _rideCheckpointFile();
+        await legacyFile.writeAsString(legacyCheckpointJson, flush: true);
         _lastCheckpointSavedAt = now;
         _lastCheckpointSampleCount = persistedSamplesSnapshot.length;
       } catch (error, stackTrace) {
@@ -120,6 +137,7 @@ extension _HomeScreenRecovery on _HomeScreenState {
         }
         _lastCheckpointSavedAt = null;
         _lastCheckpointSampleCount = 0;
+        _lastPublishedRideCheckpointMetadataPath = null;
         _interruptedRideRecoveryRetryScheduled = false;
       } catch (error, stackTrace) {
         debugPrint('Failed to clear ride checkpoint: $error\n$stackTrace');
@@ -470,29 +488,6 @@ extension _HomeScreenRecovery on _HomeScreenState {
       const SnackBar(content: Text('Interrupted ride resumed.')),
     );
     return true;
-  }
-
-  Map<String, dynamic> _buildInterruptedRideCheckpointMetadata({
-    required DateTime startTime,
-    required DateTime lastSavedAt,
-    required int sampleCount,
-  }) {
-    return <String, dynamic>{
-      'startTime': startTime.toIso8601String(),
-      'lastSavedAt': lastSavedAt.toIso8601String(),
-      'distanceKm': _data.distance ?? 0,
-      'totalClimbMeters': _data.totalClimb ?? 0,
-      'speedKph': _data.speed,
-      'avgSpeedKph': _data.avgSpeed,
-      'cadence': _data.cadence,
-      'heartRate': _data.heartRate,
-      'leftBalance': _data.leftBalance,
-      'rightBalance': _data.rightBalance,
-      'smoothedSpeedMps': _smoothedSpeedMps,
-      'filteredAltitudeForClimb': _filteredAltitudeForClimb,
-      'climbReferenceAltitude': _climbReferenceAltitude,
-      'sampleCount': sampleCount,
-    };
   }
 
   List<_RideSample> _samplesWithRecoveredEndTime(

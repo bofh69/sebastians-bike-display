@@ -78,6 +78,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   double? _climbReferenceAltitude;
   DateTime? _lastCheckpointSavedAt;
   int _lastCheckpointSampleCount = 0;
+  String? _lastPublishedRideCheckpointMetadataPath;
   Future<void> _rideCheckpointWriteQueue = Future<void>.value();
   Future<void>? _restoreInterruptedRideFuture;
   bool _interruptedRideRecoveryRetryScheduled = false;

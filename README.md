@@ -6,9 +6,10 @@ the ride.
 Active rides are checkpointed locally about once per minute so an interrupted
 ride can be resumed on the next launch when it is less than 10 minutes old, or
 finalized automatically later. Recent recoveries prompt before resuming, while
-older recoveries, or rides you decline to resume, are exported as FIT/GPX and
-continue through the usual Strava upload flow. The resume prompt requires an
-explicit choice between resuming and ending the recovered ride.
+older recoveries, or rides you explicitly end, are exported as FIT/GPX and
+continue through the usual Strava upload flow. Dismissing the resume prompt, or
+failing to restart the ride, keeps the checkpoint so the ride can be retried
+instead of being finalized immediately.
 
 The app is tailored to my needs and I probably won't accept PRs that changes
 how it works, except bug fixes. However, feel free to fork the repo and do your own
