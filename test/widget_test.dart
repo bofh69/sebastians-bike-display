@@ -1,5 +1,9 @@
+import 'dart:io' as io;
+
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_bike_display/main.dart';
+import 'package:simple_bike_display/models/rolling_average.dart';
 import 'package:simple_bike_display/models/time_window_average.dart';
 import 'package:simple_bike_display/screens/home_screen.dart';
 import 'package:simple_bike_display/services/power_cadence_sensor_service.dart';
@@ -108,6 +112,304 @@ void main() {
     expect(totalClimb, greaterThan(0));
   });
 
+  test('shouldOfferInterruptedRideResume only allows recent rides', () {
+    final now = DateTime(2026, 1, 1, 12);
+
+    expect(
+      shouldOfferInterruptedRideResume(
+        lastSavedAt: now.subtract(const Duration(minutes: 9, seconds: 59)),
+        now: now,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldOfferInterruptedRideResume(
+        lastSavedAt: now.subtract(const Duration(minutes: 10)),
+        now: now,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldOfferInterruptedRideResume(
+        lastSavedAt: now.add(const Duration(minutes: 2)),
+        now: now,
+      ),
+      isFalse,
+    );
+  });
+
+  test('resolveInterruptedRideRecoveryAction keeps failed resumes resumable',
+      () {
+    expect(
+      resolveInterruptedRideRecoveryAction(
+        wantsResume: true,
+        resumeStarted: false,
+      ),
+      InterruptedRideRecoveryAction.keepCheckpoint,
+    );
+    expect(
+      resolveInterruptedRideRecoveryAction(
+        wantsResume: true,
+        resumeStarted: true,
+      ),
+      InterruptedRideRecoveryAction.resumeRide,
+    );
+    expect(
+      resolveInterruptedRideRecoveryAction(
+        wantsResume: false,
+        resumeStarted: false,
+      ),
+      InterruptedRideRecoveryAction.finalizeRide,
+    );
+    expect(
+      resolveInterruptedRideRecoveryAction(
+        wantsResume: null,
+        resumeStarted: false,
+      ),
+      InterruptedRideRecoveryAction.keepCheckpoint,
+    );
+  });
+
+  test('resolveInterruptedRideRecovery keeps failed resumes resumable',
+      () async {
+    var promptCalls = 0;
+    var resumeCalls = 0;
+
+    final action = await resolveInterruptedRideRecovery(
+      promptForResume: () async {
+        promptCalls += 1;
+        return true;
+      },
+      resumeRide: () async {
+        resumeCalls += 1;
+        return false;
+      },
+    );
+
+    expect(action, InterruptedRideRecoveryAction.keepCheckpoint);
+    expect(promptCalls, 1);
+    expect(resumeCalls, 1);
+  });
+
+  test('resolveRecoveredCheckpointSampleCount keeps the larger sample count',
+      () {
+    expect(
+      resolveRecoveredCheckpointSampleCount(
+        metadataSampleCount: 10,
+        parsedSampleCount: 12,
+      ),
+      12,
+    );
+    expect(
+      resolveRecoveredCheckpointSampleCount(
+        metadataSampleCount: 10,
+        parsedSampleCount: 8,
+      ),
+      10,
+    );
+  });
+
+  test('reconcileRecoveredCheckpointMetadata updates sample count from log',
+      () {
+    final reconciled = reconcileRecoveredCheckpointMetadata(
+      metadata: <String, dynamic>{
+        'startTime': DateTime.utc(2024).toIso8601String(),
+        'lastSavedAt': DateTime.utc(2024).toIso8601String(),
+        'sampleCount': 3,
+      },
+      parsedSampleCount: 5,
+    );
+
+    expect(reconciled['sampleCount'], 5);
+  });
+
+  test('checkpoint sample parsing keeps the valid prefix on a bad line', () {
+    final parsed = parseRideCheckpointSampleJsonLines(<String>[
+      '{"timestamp":"2026-01-01T00:00:00.000Z","power":100}',
+      '{"timestamp":"2026-01-01T00:00:01.000Z","power":200}',
+      '{"timestamp":',
+      '{"timestamp":"2026-01-01T00:00:02.000Z","power":300}',
+    ]);
+    final reconciled = reconcileRecoveredCheckpointMetadata(
+      metadata: <String, dynamic>{'sampleCount': 4},
+      parsedSampleCount: parsed.length,
+    );
+
+    expect(parsed, hasLength(2));
+    expect(reconciled['sampleCount'], 4);
+  });
+
+  test('checkpoint sample file loading keeps the valid prefix on a bad line',
+      () async {
+    final tempDir = await io.Directory.systemTemp.createTemp('checkpoint-test');
+    addTearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    final file = io.File('${tempDir.path}/samples.jsonl');
+    await file.writeAsString(
+      '{"timestamp":"2026-01-01T00:00:00.000Z","power":100}\n'
+      '{"timestamp":"2026-01-01T00:00:01.000Z","power":200}\n'
+      '{"timestamp":\n'
+      '{"timestamp":"2026-01-01T00:00:02.000Z","power":300}\n',
+    );
+
+    final parsed = await loadRideCheckpointSampleJsonFromFile(file);
+
+    expect(parsed, hasLength(2));
+  });
+
+  testWidgets('scheduleInterruptedRideRecoveryRetry defers the retry',
+      (WidgetTester tester) async {
+    var called = false;
+    final future = scheduleInterruptedRideRecoveryRetry(() async {
+      called = true;
+    });
+
+    await tester.pump(const Duration(milliseconds: 49));
+    expect(called, isFalse);
+
+    await tester.pump(const Duration(milliseconds: 1));
+    await future;
+    expect(called, isTrue);
+  });
+
+  test(
+      'shouldScheduleInterruptedRideRecoveryRetry retries dismissed or failed resumes',
+      () {
+    expect(
+      shouldScheduleInterruptedRideRecoveryRetry(
+        wantsResume: null,
+        action: InterruptedRideRecoveryAction.keepCheckpoint,
+        retryAlreadyScheduled: false,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldScheduleInterruptedRideRecoveryRetry(
+        wantsResume: true,
+        action: InterruptedRideRecoveryAction.keepCheckpoint,
+        retryAlreadyScheduled: false,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldScheduleInterruptedRideRecoveryRetry(
+        wantsResume: true,
+        action: InterruptedRideRecoveryAction.keepCheckpoint,
+        retryAlreadyScheduled: true,
+      ),
+      isFalse,
+    );
+  });
+
+  test('restoreWindowedRollingAverage only replays samples inside the window',
+      () {
+    final average = RollingAverage(windowSize: 3);
+
+    final restored = restoreWindowedRollingAverage(
+      average: average,
+      values: <({DateTime timestamp, double value})>[
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 0, 0), value: 100),
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 0, 5), value: 200),
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 0, 6), value: 300),
+      ],
+      windowEnd: DateTime.utc(2026, 1, 1, 12, 0, 6),
+      window: const Duration(seconds: 3),
+    );
+
+    expect(restored, 250);
+    expect(average.add(300), closeTo(800 / 3, 0.001));
+  });
+
+  test('restoreWindowedRollingAverage supports longer recovery windows', () {
+    final average = RollingAverage(windowSize: 20 * 60);
+
+    final restored = restoreWindowedRollingAverage(
+      average: average,
+      values: <({DateTime timestamp, double value})>[
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 0, 0), value: 100),
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 15, 0), value: 200),
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 19, 30), value: 300),
+      ],
+      windowEnd: DateTime.utc(2026, 1, 1, 12, 19, 30),
+      window: const Duration(minutes: 20),
+    );
+
+    expect(restored, 200);
+  });
+
+  test('restoreWindowedTimeAverage replays recent balance samples', () {
+    final average = TimeWindowAverage(window: const Duration(minutes: 1));
+
+    final restored = restoreWindowedTimeAverage(
+      average: average,
+      values: <({DateTime timestamp, double value})>[
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 0, 0), value: 49),
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 0, 30), value: 51),
+        (timestamp: DateTime.utc(2026, 1, 1, 12, 1, 0), value: 50),
+      ],
+      windowEnd: DateTime.utc(2026, 1, 1, 12, 1, 0),
+      window: const Duration(minutes: 1),
+    );
+
+    expect(restored, 50);
+  });
+
+  test('didRecoveredRideFinalizeCompletely requires all exports to succeed',
+      () {
+    expect(
+      didRecoveredRideFinalizeCompletely(
+        hasSamples: true,
+        fitExported: true,
+        gpxExported: true,
+        uploadAttempted: true,
+        uploadSucceeded: true,
+      ),
+      isTrue,
+    );
+    expect(
+      didRecoveredRideFinalizeCompletely(
+        hasSamples: true,
+        fitExported: true,
+        gpxExported: true,
+        uploadAttempted: false,
+        uploadSucceeded: false,
+      ),
+      isTrue,
+    );
+    expect(
+      didRecoveredRideFinalizeCompletely(
+        hasSamples: true,
+        fitExported: true,
+        gpxExported: false,
+        uploadAttempted: false,
+        uploadSucceeded: false,
+      ),
+      isFalse,
+    );
+  });
+
+  test(
+      'shouldClearRideCheckpointAfterFinalization only preserves recovery retries',
+      () {
+    expect(
+      shouldClearRideCheckpointAfterFinalization(
+        completedSuccessfully: false,
+        preserveCheckpointOnFailure: false,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldClearRideCheckpointAfterFinalization(
+        completedSuccessfully: false,
+        preserveCheckpointOnFailure: true,
+      ),
+      isFalse,
+    );
+  });
+
   test('shouldRetrySavedSensorConnection only retries when idle and saved', () {
     expect(
       shouldRetrySavedSensorConnection(
@@ -166,7 +468,8 @@ void main() {
     expect(coordinator.takeNextTurnAt(base), heartRateReconnectKey);
     expect(coordinator.takeNextTurnAt(base), powerCadenceReconnectKey);
     expect(
-      coordinator.takeNextTurnAt(base.add(aggressiveSavedSensorReconnectInterval)),
+      coordinator
+          .takeNextTurnAt(base.add(aggressiveSavedSensorReconnectInterval)),
       heartRateReconnectKey,
     );
 
@@ -190,16 +493,19 @@ void main() {
       isNull,
     );
     expect(
-      coordinator.takeNextTurnAt(base.add(aggressiveSavedSensorReconnectInterval)),
+      coordinator
+          .takeNextTurnAt(base.add(aggressiveSavedSensorReconnectInterval)),
       heartRateReconnectKey,
     );
     expect(
-      coordinator.takeNextTurnAt(base.add(aggressiveSavedSensorReconnectWindow)),
+      coordinator
+          .takeNextTurnAt(base.add(aggressiveSavedSensorReconnectWindow)),
       heartRateReconnectKey,
     );
     expect(
       coordinator.takeNextTurnAt(
-        base.add(aggressiveSavedSensorReconnectWindow + const Duration(seconds: 5)),
+        base.add(
+            aggressiveSavedSensorReconnectWindow + const Duration(seconds: 5)),
       ),
       isNull,
     );
@@ -222,7 +528,9 @@ void main() {
     coordinator.unregister(heartRateReconnectKey);
   });
 
-  test('buildStravaAccountLabel prefers full name then username then athlete ID', () {
+  test(
+      'buildStravaAccountLabel prefers full name then username then athlete ID',
+      () {
     expect(
       buildStravaAccountLabel(
         firstName: 'Ada',
@@ -263,16 +571,26 @@ void main() {
   });
 
   test('buildStravaRideNameForMidpoint maps time buckets', () {
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 6)), 'Morning ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 10, 59)), 'Morning ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 11)), 'Lunch ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 13, 59)), 'Lunch ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 14)), 'Afternoon ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 17, 59)), 'Afternoon ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 18)), 'Evening ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 21, 59)), 'Evening ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 22)), 'Night ride');
-    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 5, 59)), 'Night ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 6)),
+        'Morning ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 10, 59)),
+        'Morning ride');
+    expect(
+        buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 11)), 'Lunch ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 13, 59)),
+        'Lunch ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 14)),
+        'Afternoon ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 17, 59)),
+        'Afternoon ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 18)),
+        'Evening ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 21, 59)),
+        'Evening ride');
+    expect(
+        buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 22)), 'Night ride');
+    expect(buildStravaRideNameForMidpoint(DateTime(2026, 1, 1, 5, 59)),
+        'Night ride');
   });
 
   test('buildStravaUploadFields applies selected bike', () {
@@ -304,7 +622,8 @@ void main() {
     expect(fields.containsKey('gear_id'), isFalse);
   });
 
-  test('parseStravaBikeOptions prioritizes default and filters malformed bikes', () {
+  test('parseStravaBikeOptions prioritizes default and filters malformed bikes',
+      () {
     final bikes = parseStravaBikeOptions(<String, dynamic>{
       'default_bike': '2',
       'bikes': <dynamic>[
@@ -330,7 +649,8 @@ void main() {
     expect(bikes.single.name, 'Bike 9');
   });
 
-  test('parseStravaAuthenticationPayload accepts token refresh without athlete', () {
+  test('parseStravaAuthenticationPayload accepts token refresh without athlete',
+      () {
     final parsed = parseStravaAuthenticationPayload(<String, dynamic>{
       'access_token': 'a',
       'refresh_token': 'r',
@@ -407,5 +727,103 @@ void main() {
     await tester.tap(find.text('Start'));
     await tester.pump();
     expect(find.text('End'), findsOneWidget);
+  });
+
+  testWidgets('resume interrupted ride dialog returns End ride',
+      (WidgetTester tester) async {
+    bool? result = true;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              result = await showResumeInterruptedRideDialog(context);
+            },
+            child: const Text('Open'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('End ride'));
+    await tester.pumpAndSettle();
+
+    expect(result, isFalse);
+  });
+
+  testWidgets('resume interrupted ride dialog returns Resume',
+      (WidgetTester tester) async {
+    bool? result = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              result = await showResumeInterruptedRideDialog(context);
+            },
+            child: const Text('Open'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Resume'));
+    await tester.pumpAndSettle();
+
+    expect(result, isTrue);
+  });
+
+  testWidgets('resume interrupted ride dialog ignores back',
+      (WidgetTester tester) async {
+    bool? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              result = await showResumeInterruptedRideDialog(context);
+            },
+            child: const Text('Open'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+
+    expect(find.text('Resume interrupted ride?'), findsOneWidget);
+    expect(result, isNull);
+  });
+
+  testWidgets('resume interrupted ride dialog ignores barrier taps',
+      (WidgetTester tester) async {
+    bool? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              result = await showResumeInterruptedRideDialog(context);
+            },
+            child: const Text('Open'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Resume interrupted ride?'), findsOneWidget);
+    expect(result, isNull);
   });
 }

@@ -24,155 +24,9 @@ import '../services/strava_upload_service.dart';
 import '../widgets/metric_tile.dart';
 import '../widgets/power_bar.dart';
 
-const int _fitEpochOffsetSeconds = 631065600;
-const int _fitSportCycling = 2;
-const int _fitActivityTypeManual = 0;
-const double _minimumPowerForBalanceAverageWatts = 10;
-const double _climbAltitudeSmoothingFactor = 0.25;
-const double _minimumClimbGainMeters = 0.75;
-const String _rideTrackingNotificationChannelId = 'ride_tracking_lockscreen';
-const int _rideTrackingForegroundServiceNotificationId = 888;
-const String _rideTrackingNotificationContent =
-    'Ride recording active in background';
-
-String formatPowerBalance(double? leftBalance, double? rightBalance) {
-  if (leftBalance == null || rightBalance == null) return 'N/A';
-
-  String formatSide(double value) {
-    return value == value.roundToDouble()
-        ? value.toStringAsFixed(0)
-        : value.toStringAsFixed(1);
-  }
-
-  return '${formatSide(leftBalance)}/${formatSide(rightBalance)}';
-}
-
-bool shouldAccumulatePowerBalanceSample({
-  required bool isConnected,
-  required double? power,
-  required double? leftBalance,
-  required double? rightBalance,
-}) {
-  return isConnected &&
-      (power ?? 0) >= _minimumPowerForBalanceAverageWatts &&
-      leftBalance != null &&
-      rightBalance != null;
-}
-
-({
-  double filteredAltitude,
-  double climbReferenceAltitude,
-  double additionalClimb,
-}) updateClimbTracking({
-  required double? previousFilteredAltitude,
-  required double? previousClimbReferenceAltitude,
-  required double currentAltitude,
-}) {
-  final filteredAltitude = previousFilteredAltitude == null
-      ? currentAltitude
-      : previousFilteredAltitude +
-          (currentAltitude - previousFilteredAltitude) *
-              _climbAltitudeSmoothingFactor;
-  var climbReferenceAltitude =
-      previousClimbReferenceAltitude ?? filteredAltitude;
-  var additionalClimb = 0.0;
-
-  if (filteredAltitude < climbReferenceAltitude) {
-    climbReferenceAltitude = filteredAltitude;
-  } else {
-    final climbGain = filteredAltitude - climbReferenceAltitude;
-    if (climbGain >= _minimumClimbGainMeters) {
-      additionalClimb = climbGain;
-      climbReferenceAltitude = filteredAltitude;
-    }
-  }
-
-  return (
-    filteredAltitude: filteredAltitude,
-    climbReferenceAltitude: climbReferenceAltitude,
-    additionalClimb: additionalClimb,
-  );
-}
-
-@pragma('vm:entry-point')
-void rideBackgroundServiceStart(ServiceInstance service) {
-  DartPluginRegistrant.ensureInitialized();
-  if (service is AndroidServiceInstance) {
-    service.on('setAsForeground').listen((_) {
-      service.setAsForegroundService();
-    });
-    service.on('setAsBackground').listen((_) {
-      service.setAsBackgroundService();
-    });
-  }
-  service.on('stopService').listen((_) {
-    service.stopSelf();
-  });
-}
-
-class _RideSample {
-  final DateTime timestamp;
-  final double? latitude;
-  final double? longitude;
-  final double? altitudeMeters;
-  final double? accuracyMeters;
-  final double gpsConfidence;
-  final double? power;
-  final double? cadence;
-  final double? heartRate;
-  final double distanceMeters;
-  final double speedMps;
-
-  const _RideSample({
-    required this.timestamp,
-    required this.latitude,
-    required this.longitude,
-    required this.altitudeMeters,
-    required this.accuracyMeters,
-    required this.gpsConfidence,
-    required this.power,
-    required this.cadence,
-    required this.heartRate,
-    required this.distanceMeters,
-    required this.speedMps,
-  });
-}
-
-class _ExportedRideFile {
-  final String fileName;
-  final String path;
-  final Uint8List bytes;
-
-  const _ExportedRideFile({
-    required this.fileName,
-    required this.path,
-    required this.bytes,
-  });
-}
-
-class StravaUploadDecision {
-  final bool skipUpload;
-  final String? selectedGearId;
-  final bool clearGear;
-
-  const StravaUploadDecision({
-    required this.skipUpload,
-    required this.selectedGearId,
-    required this.clearGear,
-  });
-}
-
-({bool shouldUpload, String? selectedGearId, bool clearGear})
-resolveStravaUploadDecision(StravaUploadDecision? decision) {
-  if (decision == null || decision.skipUpload) {
-    return (shouldUpload: false, selectedGearId: null, clearGear: false);
-  }
-  return (
-    shouldUpload: true,
-    selectedGearId: decision.selectedGearId,
-    clearGear: decision.clearGear,
-  );
-}
+part 'home/home_support.dart';
+part 'home/home_recovery.dart';
+part 'home/home_export.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -209,7 +63,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       TimeWindowAverage(window: const Duration(minutes: 1));
   double _currentPowerWatts = 0;
 
-  final FlutterBackgroundService _backgroundService = FlutterBackgroundService();
+  final FlutterBackgroundService _backgroundService =
+      FlutterBackgroundService();
 
   StreamSubscription<Position>? _positionSubscription;
   Timer? _recordingTimer;
@@ -221,11 +76,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Position? _latestPosition;
   double? _filteredAltitudeForClimb;
   double? _climbReferenceAltitude;
+  DateTime? _lastCheckpointSavedAt;
+  int _lastCheckpointSampleCount = 0;
+  String? _lastPublishedRideCheckpointMetadataPath;
+  Future<void> _rideCheckpointWriteQueue = Future<void>.value();
+  Future<void>? _restoreInterruptedRideFuture;
+  bool _interruptedRideRecoveryRetryScheduled = false;
+  bool _isFinalizingRecoveredRide = false;
 
   bool get _isMobileTrackingPlatform =>
       !kIsWeb && (io.Platform.isAndroid || io.Platform.isIOS);
-  bool get _supportsBackgroundRideService =>
-      !kIsWeb && io.Platform.isIOS;
+  bool get _supportsBackgroundRideService => !kIsWeb && io.Platform.isIOS;
+  bool get _supportsRideCheckpointing => _isMobileTrackingPlatform;
+  bool get _hasActiveRideRuntime => _isRunning || _isFinalizingRecoveredRide;
 
   @override
   void initState() {
@@ -242,6 +105,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     unawaited(_stravaUploadService.initialize());
     unawaited(_hideBackgroundRideNotification(force: true));
     _startLocationStream();
+    if (_supportsRideCheckpointing) {
+      unawaited(_HomeScreenRecovery(this)._restoreInterruptedRideIfNeeded());
+    }
   }
 
   @override
@@ -264,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _isAppInForeground = state == AppLifecycleState.resumed;
 
-    if (!_isRunning && _isMobileTrackingPlatform) {
+    if (!_hasActiveRideRuntime && _isMobileTrackingPlatform) {
       if (_isAppInForeground) {
         if (!kIsWeb && io.Platform.isAndroid) {
           unawaited(_hideBackgroundRideNotification(force: true));
@@ -276,6 +142,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         unawaited(_pauseSensorsAndLocationWhileIdle());
       }
       return;
+    }
+
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      unawaited(_HomeScreenRecovery(this)._persistRideCheckpoint(force: true));
     }
 
     if (!kIsWeb && io.Platform.isAndroid) {
@@ -378,8 +250,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final double? displayedPower3s = !isConnected
         ? null
         : _isRunning
-        ? _data.power3s
-        : (normalizedPower > 0 ? normalizedPower : 0.0);
+            ? _data.power3s
+            : (normalizedPower > 0 ? normalizedPower : 0.0);
     if (_data.power3s == displayedPower3s &&
         _data.cadence == cadence &&
         _data.leftBalance == leftBalance &&
@@ -450,10 +322,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!hasPermission) return;
 
     final LocationSettings settings;
-    if (!kIsWeb &&
-        io.Platform.isAndroid &&
-        _isRunning &&
-        !_isAppInForeground) {
+    if (!kIsWeb && io.Platform.isAndroid && _isRunning && !_isAppInForeground) {
       settings = AndroidSettings(
         accuracy: LocationAccuracy.bestForNavigation,
         distanceFilter: 0,
@@ -506,6 +375,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         permission == LocationPermission.whileInUse;
   }
 
+  void _applyState(VoidCallback updates) {
+    setState(updates);
+  }
+
+  void _setRecoveredRideFinalizationActive(bool isActive) {
+    if (!mounted) {
+      _isFinalizingRecoveredRide = isActive;
+      return;
+    }
+    _applyState(() {
+      _isFinalizingRecoveredRide = isActive;
+    });
+  }
+
   void _handlePosition(Position position) {
     final wasReliableGpsForSpeed = _hasReliableGpsForSpeed;
     _latestPosition = position;
@@ -537,7 +420,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    final deltaSeconds = now.difference(previousTimestamp).inMilliseconds / 1000;
+    final deltaSeconds =
+        now.difference(previousTimestamp).inMilliseconds / 1000;
     if (deltaSeconds <= 0) return;
 
     final distanceMeters = Geolocator.distanceBetween(
@@ -548,7 +432,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
 
     final rawSpeedMps = distanceMeters / deltaSeconds;
-    final isLikelyMoving = (_smoothedSpeedMps > 1.5) || ((_data.cadence ?? 0) >= 20);
+    final isLikelyMoving =
+        (_smoothedSpeedMps > 1.5) || ((_data.cadence ?? 0) >= 20);
     final jitterThreshold = _adaptiveJitterThresholdMeters(
       accuracyMeters: position.accuracy,
       isLikelyMoving: isLikelyMoving,
@@ -566,8 +451,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           deltaSeconds: deltaSeconds,
           bearingDegrees: bearingDegrees,
         )) {
-      if (mounted && distanceMeters < jitterThreshold && (_data.speed ?? 0) > 0) {
-        _smoothedSpeedMps = _smoothSpeedMps(rawSpeedMps: 0, deltaSeconds: deltaSeconds);
+      if (mounted &&
+          distanceMeters < jitterThreshold &&
+          (_data.speed ?? 0) > 0) {
+        _smoothedSpeedMps =
+            _smoothSpeedMps(rawSpeedMps: 0, deltaSeconds: deltaSeconds);
         setState(() {
           _data.speed = _smoothedSpeedMps * 3.6;
         });
@@ -634,10 +522,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         power: _currentPowerWatts,
         cadence: _data.cadence,
         heartRate: _data.heartRate,
+        leftBalance: _data.leftBalance,
+        rightBalance: _data.rightBalance,
         distanceMeters: (_data.distance ?? 0) * 1000,
         speedMps: (_data.speed ?? 0) / 3.6,
       ),
     );
+    unawaited(_HomeScreenRecovery(this)._persistRideCheckpoint());
     if (!kIsWeb && io.Platform.isAndroid && !_isAppInForeground) {
       unawaited(_showBackgroundRideNotification());
     }
@@ -658,7 +549,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    final canStartForegroundTracking = await _ensureForegroundTrackingPermission();
+    final canStartForegroundTracking =
+        await _ensureForegroundTrackingPermission();
     if (!canStartForegroundTracking) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -667,31 +559,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    if (_supportsBackgroundRideService) {
-      try {
-        await _configureBackgroundService();
-        final started = await _backgroundService.startService();
-        if (!started) {
-          throw Exception('Unable to start ride tracking service.');
-        }
-      } catch (error, stackTrace) {
-        debugPrint('Failed to start ride tracking service: $error\n$stackTrace');
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to start ride tracking service: $error'),
-          ),
-        );
-        return;
-      }
-    }
-    if (_isMobileTrackingPlatform) {
-      try {
-        await WakelockPlus.enable();
-      } catch (error, stackTrace) {
-        debugPrint('Failed to enable wakelock: $error\n$stackTrace');
-      }
-    }
+    final readyToRun = await _prepareRideRuntime();
+    if (!readyToRun) return;
+    await _HomeScreenRecovery(this)._clearRideCheckpoint();
 
     setState(() {
       _isRunning = true;
@@ -714,6 +584,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _rightBalanceAverage.clear();
       _power3sAverage.reset();
       _power20MinAverage.reset();
+      _lastCheckpointSavedAt = null;
+      _lastCheckpointSampleCount = 0;
     });
 
     _recordSample();
@@ -730,6 +602,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<bool> _prepareRideRuntime() async {
+    if (_supportsBackgroundRideService) {
+      try {
+        await _configureBackgroundService();
+        final started = await _backgroundService.startService();
+        if (!started) {
+          throw Exception('Unable to start ride tracking service.');
+        }
+      } catch (error, stackTrace) {
+        debugPrint(
+            'Failed to start ride tracking service: $error\n$stackTrace');
+        if (!mounted) return false;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to start ride tracking service: $error'),
+          ),
+        );
+        return false;
+      }
+    }
+    if (_isMobileTrackingPlatform) {
+      try {
+        await WakelockPlus.enable();
+      } catch (error, stackTrace) {
+        debugPrint('Failed to enable wakelock: $error\n$stackTrace');
+      }
+    }
+    return true;
+  }
+
   Future<bool> _ensureForegroundTrackingPermission() async {
     if (kIsWeb || !io.Platform.isAndroid) return true;
     final status = await Permission.notification.request();
@@ -739,17 +641,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _endRide() async {
     _recordingTimer?.cancel();
     _recordingTimer = null;
-    if (_isMobileTrackingPlatform) {
-      await WakelockPlus.disable();
-    }
-    await _hideBackgroundRideNotification(force: true);
-    if (_supportsBackgroundRideService && _serviceConfigured) {
-      try {
-        _backgroundService.invoke('stopService');
-      } catch (error, stackTrace) {
-        debugPrint('Failed to stop ride service: $error\n$stackTrace');
-      }
-    }
+    await _HomeScreenRecovery(this)._stopActiveRideRuntime();
 
     setState(() {
       _isRunning = false;
@@ -773,239 +665,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     }
 
-    final rideStartTime = _startTime;
-    final rideMidpointTime = _samples.isEmpty
-        ? rideStartTime
-        : _samples.first.timestamp.add(
-            Duration(
-              milliseconds:
-                  _samples.last.timestamp
-                      .difference(_samples.first.timestamp)
-                      .inMilliseconds ~/
-                  2,
-            ),
-          );
-    _ExportedRideFile? fitFile;
-    _ExportedRideFile? gpxFile;
-    try {
-      fitFile = await _writeFitFile();
-    } catch (error, stackTrace) {
-      debugPrint('Failed to export FIT file: $error\n$stackTrace');
-    }
-    try {
-      gpxFile = await _writeGpxFile();
-    } catch (error, stackTrace) {
-      debugPrint('Failed to export GPX file: $error\n$stackTrace');
-    }
-    StravaUploadResult uploadResult = const StravaUploadResult.skipped();
-    if (fitFile != null) {
-      final stravaState = _stravaUploadService.state.value;
-      if (stravaState.autoUploadEnabled && stravaState.isAuthenticated) {
-        try {
-          final decision = await _selectStravaUploadDecision();
-          final resolvedDecision = resolveStravaUploadDecision(decision);
-          if (!resolvedDecision.shouldUpload) {
-            uploadResult = const StravaUploadResult(
-              attempted: false,
-              succeeded: false,
-              message: 'Strava upload skipped.',
-              activityId: null,
-            );
-          } else {
-            uploadResult = await _stravaUploadService.uploadFinishedRide(
-              fileName: fitFile.fileName,
-              fileBytes: fitFile.bytes,
-              midpointAt: rideMidpointTime,
-              selectedGearId: resolvedDecision.selectedGearId,
-              clearGear: resolvedDecision.clearGear,
-            );
-          }
-        } catch (error, stackTrace) {
-          debugPrint('Strava upload flow failed: $error\n$stackTrace');
-          uploadResult = const StravaUploadResult(
-            attempted: true,
-            succeeded: false,
-            message: 'Strava upload failed.',
-            activityId: null,
-          );
-        }
-      }
-    }
-    if (mounted) {
-      final rideSavedMessage = fitFile == null && gpxFile == null
-          ? 'Ride ended. No files written (no samples).'
-          : 'Ride saved. FIT: ${fitFile?.path ?? 'N/A'} GPX: ${gpxFile?.path ?? 'N/A'}';
-      final uploadMessage =
-          uploadResult.message == null ? '' : ' ${uploadResult.message}';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$rideSavedMessage$uploadMessage'),
-        ),
-      );
-    }
-  }
-
-  int _fitTimestamp(DateTime dt) {
-    return dt.toUtc().millisecondsSinceEpoch ~/ 1000 - _fitEpochOffsetSeconds;
-  }
-
-  Future<_ExportedRideFile?> _writeFitFile() async {
-    if (_samples.isEmpty) return null;
-
-    final encoder = Encode();
-    encoder.open();
-
-    final start = _samples.first.timestamp;
-    final end = _samples.last.timestamp;
-    final elapsedSeconds = end.difference(start).inSeconds.clamp(1, 1 << 30);
-
-    final fileId = Mesg.fromMesgNum(MesgNum.fileId)
-      ..setFieldValue(0, 4)
-      ..setFieldValue(1, 1)
-      ..setFieldValue(2, 1)
-      ..setFieldValue(3, start.millisecondsSinceEpoch & 0xFFFFFFFF)
-      ..setFieldValue(4, _fitTimestamp(start));
-    final fileIdDef = MesgDefinition.fromMesg(fileId);
-    encoder.writeMesgDefinition(fileIdDef);
-    encoder.writeMesg(fileId);
-
-    for (final sample in _samples) {
-      final record = Mesg.fromMesgNum(MesgNum.record)
-        ..setFieldValue(253, _fitTimestamp(sample.timestamp));
-
-      if (sample.latitude != null) {
-        record.setFieldValue(0, (sample.latitude! * 11930464.7111).round());
-      }
-      if (sample.longitude != null) {
-        record.setFieldValue(1, (sample.longitude! * 11930464.7111).round());
-      }
-      if (sample.heartRate != null) {
-        record.setFieldValue(3, sample.heartRate!.round());
-      }
-      if (sample.cadence != null) {
-        record.setFieldValue(4, sample.cadence!.round());
-      }
-      if (sample.altitudeMeters != null && sample.altitudeMeters!.isFinite) {
-        record.setFieldValue(2, sample.altitudeMeters);
-      }
-      if (sample.accuracyMeters != null && sample.accuracyMeters!.isFinite) {
-        record.setFieldValue(30, sample.accuracyMeters!.round().clamp(0, 254));
-      }
-      if (sample.power != null) {
-        record.setFieldValue(7, sample.power!.round());
-      }
-
-      final recordDef = MesgDefinition.fromMesg(record);
-      encoder.writeMesgDefinition(recordDef);
-      encoder.writeMesg(record);
-    }
-
-    final session = Mesg.fromMesgNum(MesgNum.session)
-      ..setFieldValue(253, _fitTimestamp(end))
-      ..setFieldValue(2, _fitTimestamp(start))
-      ..setFieldValue(5, _fitSportCycling)
-      ..setFieldValue(7, elapsedSeconds.toDouble())
-      ..setFieldValue(8, elapsedSeconds.toDouble());
-    final sessionDef = MesgDefinition.fromMesg(session);
-    encoder.writeMesgDefinition(sessionDef);
-    encoder.writeMesg(session);
-
-    final lap = Mesg.fromMesgNum(MesgNum.lap)
-      ..setFieldValue(253, _fitTimestamp(end))
-      ..setFieldValue(2, _fitTimestamp(start))
-      ..setFieldValue(7, elapsedSeconds.toDouble())
-      ..setFieldValue(8, elapsedSeconds.toDouble())
-      ..setFieldValue(25, _fitSportCycling);
-    final lapDef = MesgDefinition.fromMesg(lap);
-    encoder.writeMesgDefinition(lapDef);
-    encoder.writeMesg(lap);
-
-    final activity = Mesg.fromMesgNum(MesgNum.activity)
-      ..setFieldValue(253, _fitTimestamp(end))
-      ..setFieldValue(0, elapsedSeconds)
-      ..setFieldValue(1, 1)
-      ..setFieldValue(2, _fitActivityTypeManual);
-    final activityDef = MesgDefinition.fromMesg(activity);
-    encoder.writeMesgDefinition(activityDef);
-    encoder.writeMesg(activity);
-
-    final fitBytes = encoder.close();
-
-    final fileName = 'ride_${start.toIso8601String().replaceAll(':', '-')}.fit';
-    return _writeExportFile(
-      fileName: fileName,
-      mimeType: 'application/octet-stream',
-      bytes: Uint8List.fromList(fitBytes),
+    await _HomeScreenExport(this)._finalizeRide(
+      rideStartTime: _startTime,
+      rideSamples: List<_RideSample>.from(_samples),
+      completionPrefix: 'Ride ended.',
+      preserveCheckpointOnFailure: false,
     );
   }
 
-  Future<_ExportedRideFile?> _writeGpxFile() async {
-    if (_samples.isEmpty) return null;
-
-    final start = _samples.first.timestamp;
-    final fileName = 'ride_${start.toIso8601String().replaceAll(':', '-')}.gpx';
-
-    final buffer = StringBuffer()
-      ..writeln('<?xml version="1.0" encoding="UTF-8"?>')
-      ..writeln(
-        '<gpx version="1.1" creator="sebastians-bike-display" xmlns="http://www.topografix.com/GPX/1/1" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1" xmlns:sbd="https://sebastians-bike-display.dev/xmlschemas/TrackPointQuality/v1">',
-      )
-      ..writeln('<metadata><time>${start.toUtc().toIso8601String()}</time></metadata>')
-      ..writeln('<trk><name>Ride ${start.toIso8601String()}</name><trkseg>');
-
-    for (final sample in _samples) {
-      if (sample.latitude == null || sample.longitude == null) {
-        continue;
-      }
-      final altitude = sample.altitudeMeters;
-      final hasAltitude = altitude != null && altitude.isFinite;
-      final hasAccuracy = sample.accuracyMeters != null && sample.accuracyMeters!.isFinite;
-      buffer.writeln(
-        '<trkpt lat="${sample.latitude!.toStringAsFixed(7)}" lon="${sample.longitude!.toStringAsFixed(7)}">${hasAltitude ? '<ele>${altitude.toStringAsFixed(1)}</ele>' : ''}<time>${sample.timestamp.toUtc().toIso8601String()}</time><cmt>distance_km=${(sample.distanceMeters / 1000).toStringAsFixed(3)}</cmt><extensions><gpxtpx:TrackPointExtension>${sample.heartRate != null ? '<gpxtpx:hr>${sample.heartRate!.round()}</gpxtpx:hr>' : ''}${sample.cadence != null ? '<gpxtpx:cad>${sample.cadence!.round()}</gpxtpx:cad>' : ''}<gpxtpx:speed>${sample.speedMps.toStringAsFixed(2)}</gpxtpx:speed></gpxtpx:TrackPointExtension><sbd:power_w>${(sample.power ?? 0).toStringAsFixed(0)}</sbd:power_w>${hasAccuracy ? '<sbd:gps_accuracy_m>${sample.accuracyMeters!.toStringAsFixed(1)}</sbd:gps_accuracy_m>' : ''}<sbd:gps_confidence>${sample.gpsConfidence.toStringAsFixed(2)}</sbd:gps_confidence></extensions></trkpt>',
-      );
-    }
-
-    buffer.writeln('</trkseg></trk></gpx>');
-
-    return _writeExportFile(
-      fileName: fileName,
-      mimeType: 'application/gpx+xml',
-      bytes: Uint8List.fromList(utf8.encode(buffer.toString())),
-    );
-  }
-
-  Future<_ExportedRideFile> _writeExportFile({
-    required String fileName,
-    required String mimeType,
-    required Uint8List bytes,
-  }) async {
-    String? uriOrPath;
-    if (!kIsWeb && io.Platform.isAndroid) {
-      try {
-        uriOrPath = await _fileExportChannel.invokeMethod<String>(
-          'saveToDownloads',
-          <String, Object>{
-            'fileName': fileName,
-            'mimeType': mimeType,
-            'bytes': bytes,
-          },
-        );
-        if (uriOrPath != null && uriOrPath.isNotEmpty) {
-          return _ExportedRideFile(
-            fileName: fileName,
-            path: uriOrPath,
-            bytes: bytes,
-          );
-        }
-      } catch (_) {
-        // Fall back to app document directory.
-      }
-    }
-    final docsDir = await getApplicationDocumentsDirectory();
-    await docsDir.create(recursive: true);
-    final file = io.File('${docsDir.path}/$fileName');
-    await file.writeAsBytes(bytes, flush: true);
-    return _ExportedRideFile(fileName: fileName, path: file.path, bytes: bytes);
+  String _escapeXmlText(String value) {
+    return value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;');
   }
 
   String _formatDuration(Duration? d) {
@@ -1051,7 +725,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   );
                 },
-                child: Text(bike.isDefault ? '${bike.name} (default)' : bike.name),
+                child:
+                    Text(bike.isDefault ? '${bike.name} (default)' : bike.name),
               ),
           if (bikes.isEmpty)
             Semantics(
@@ -1102,7 +777,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         );
   }
 
-  bool get _isPowerSensorConnected => _powerCadenceSensorService.state.value.isConnected;
+  bool get _isPowerSensorConnected =>
+      _powerCadenceSensorService.state.value.isConnected;
 
   bool get _hasReliableGpsForSpeed {
     final latest = _latestPosition;
@@ -1128,7 +804,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (deltaSeconds <= 0) return _smoothedSpeedMps;
     final alpha = deltaSeconds >= 1 ? 0.35 : (0.2 + (deltaSeconds * 0.15));
     final clampedAlpha = alpha.clamp(0.2, 0.6).toDouble();
-    final smoothed = _smoothedSpeedMps + (rawSpeedMps - _smoothedSpeedMps) * clampedAlpha;
+    final smoothed =
+        _smoothedSpeedMps + (rawSpeedMps - _smoothedSpeedMps) * clampedAlpha;
     if (!smoothed.isFinite || smoothed < 0) return 0;
     if (smoothed < 0.15 && rawSpeedMps < 0.2) return 0;
     return smoothed;
@@ -1147,7 +824,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
 
     final previousBearing = _lastAcceptedBearingDegrees;
-    if (previousBearing == null || candidateSpeedMps < 2 || _smoothedSpeedMps < 2) {
+    if (previousBearing == null ||
+        candidateSpeedMps < 2 ||
+        _smoothedSpeedMps < 2) {
       return false;
     }
 
@@ -1162,7 +841,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   double _gpsConfidenceFromAccuracy(double? accuracyMeters) {
-    if (accuracyMeters == null || !accuracyMeters.isFinite || accuracyMeters <= 0) {
+    if (accuracyMeters == null ||
+        !accuracyMeters.isFinite ||
+        accuracyMeters <= 0) {
       return 0;
     }
     if (accuracyMeters <= 5) return 1;
@@ -1228,8 +909,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   title: 'Speed',
                   value: _data.speed?.toStringAsFixed(1) ?? 'N/A',
                   unit: 'km/h',
-                  valueColor:
-                      _hasReliableGpsForSpeed ? null : Theme.of(context).colorScheme.error,
+                  valueColor: _hasReliableGpsForSpeed
+                      ? null
+                      : Theme.of(context).colorScheme.error,
                 ),
                 MetricTile(
                   title: 'Duration',
