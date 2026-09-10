@@ -1533,7 +1533,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<bool> _waitForCurrentHomeRoute() async {
-    for (var attempt = 0; attempt < 5; attempt++) {
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while (DateTime.now().isBefore(deadline)) {
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) {
         return false;
@@ -1542,7 +1543,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (route == null) {
         continue;
       }
-      return route.isCurrent;
+      if (route.isCurrent) {
+        return true;
+      }
     }
     return false;
   }
