@@ -167,6 +167,24 @@ void main() {
     );
   });
 
+  test('resolveRecoveredCheckpointSampleCount keeps the larger sample count',
+      () {
+    expect(
+      resolveRecoveredCheckpointSampleCount(
+        metadataSampleCount: 10,
+        parsedSampleCount: 12,
+      ),
+      12,
+    );
+    expect(
+      resolveRecoveredCheckpointSampleCount(
+        metadataSampleCount: 10,
+        parsedSampleCount: 8,
+      ),
+      10,
+    );
+  });
+
   test('shouldRetrySavedSensorConnection only retries when idle and saved', () {
     expect(
       shouldRetrySavedSensorConnection(

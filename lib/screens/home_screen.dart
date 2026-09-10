@@ -355,6 +355,15 @@ InterruptedRideRecoveryAction resolveInterruptedRideRecoveryAction({
   return InterruptedRideRecoveryAction.keepCheckpoint;
 }
 
+int resolveRecoveredCheckpointSampleCount({
+  required int metadataSampleCount,
+  required int parsedSampleCount,
+}) {
+  return parsedSampleCount > metadataSampleCount
+      ? parsedSampleCount
+      : metadataSampleCount;
+}
+
 Future<bool?> showResumeInterruptedRideDialog(BuildContext context) {
   return showDialog<bool>(
     context: context,
@@ -1320,8 +1329,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         final persistedSampleCount =
             (metadataDecoded['sampleCount'] as num?)?.toInt();
         if (persistedSampleCount == null ||
-            samples.length > persistedSampleCount) {
-          metadataDecoded['sampleCount'] = samples.length;
+            samples.length != persistedSampleCount) {
+          metadataDecoded['sampleCount'] =
+              resolveRecoveredCheckpointSampleCount(
+            metadataSampleCount: persistedSampleCount ?? 0,
+            parsedSampleCount: samples.length,
+          );
         }
         return _InterruptedRideCheckpoint.fromMetadataJson(
           json: metadataDecoded,
@@ -1489,7 +1502,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _lastCheckpointSavedAt = checkpoint.lastSavedAt;
       _lastCheckpointSampleCount = checkpoint.sampleCount;
     });
-    _recordSample();
     _recordingTimer?.cancel();
     _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       _recordSample();
