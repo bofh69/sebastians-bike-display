@@ -1207,7 +1207,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (shouldOfferInterruptedRideResume(lastSavedAt: checkpoint.lastSavedAt)) {
       final resumeRide = await showDialog<bool>(
         context: context,
-        barrierDismissible: false,
+        barrierDismissible: true,
         builder: (context) => AlertDialog(
           title: const Text('Resume interrupted ride?'),
           content: const Text(
@@ -1234,7 +1234,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     await _finalizeRide(
       rideStartTime: checkpoint.startTime,
-      rideSamples: checkpoint.samples,
+      rideSamples: _samplesWithRecoveredEndTime(
+        checkpoint.samples,
+        checkpoint.lastSavedAt,
+      ),
       completionPrefix: 'Recovered interrupted ride.',
     );
   }
@@ -1247,7 +1250,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!hasPermission) {
       await _finalizeRide(
         rideStartTime: checkpoint.startTime,
-        rideSamples: checkpoint.samples,
+        rideSamples: _samplesWithRecoveredEndTime(
+          checkpoint.samples,
+          checkpoint.lastSavedAt,
+        ),
         completionPrefix:
             'Location permission is required to resume. Recovered interrupted ride.',
       );
@@ -1259,7 +1265,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!canStartForegroundTracking) {
       await _finalizeRide(
         rideStartTime: checkpoint.startTime,
-        rideSamples: checkpoint.samples,
+        rideSamples: _samplesWithRecoveredEndTime(
+          checkpoint.samples,
+          checkpoint.lastSavedAt,
+        ),
         completionPrefix:
             'Notification permission is required to resume. Recovered interrupted ride.',
       );
@@ -1270,7 +1279,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!readyToRun) {
       await _finalizeRide(
         rideStartTime: checkpoint.startTime,
-        rideSamples: checkpoint.samples,
+        rideSamples: _samplesWithRecoveredEndTime(
+          checkpoint.samples,
+          checkpoint.lastSavedAt,
+        ),
         completionPrefix:
             'Unable to restart ride tracking. Recovered interrupted ride.',
       );
@@ -1352,6 +1364,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       filteredAltitudeForClimb: _filteredAltitudeForClimb,
       climbReferenceAltitude: _climbReferenceAltitude,
     );
+  }
+
+  List<_RideSample> _samplesWithRecoveredEndTime(
+    List<_RideSample> samples,
+    DateTime recoveredEndTime,
+  ) {
+    if (samples.isEmpty) return samples;
+    final lastSample = samples.last;
+    if (!recoveredEndTime.isAfter(lastSample.timestamp)) {
+      return samples;
+    }
+    return <_RideSample>[
+      ...samples,
+      _RideSample(
+        timestamp: recoveredEndTime,
+        latitude: lastSample.latitude,
+        longitude: lastSample.longitude,
+        altitudeMeters: lastSample.altitudeMeters,
+        accuracyMeters: lastSample.accuracyMeters,
+        gpsConfidence: lastSample.gpsConfidence,
+        power: lastSample.power,
+        cadence: lastSample.cadence,
+        heartRate: lastSample.heartRate,
+        distanceMeters: lastSample.distanceMeters,
+        speedMps: lastSample.speedMps,
+      ),
+    ];
   }
 
   String _escapeXmlText(String value) {
