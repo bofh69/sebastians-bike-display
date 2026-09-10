@@ -240,6 +240,14 @@ extension _HomeScreenExport on _HomeScreenState {
               activityId: null,
             );
             deferredUploadUntilRouteReady = true;
+            if (!_interruptedRideRecoveryRetryScheduled) {
+              _interruptedRideRecoveryRetryScheduled = true;
+              unawaited(
+                scheduleInterruptedRideRecoveryRetry(
+                  _HomeScreenRecovery(this)._restoreInterruptedRideIfNeeded,
+                ),
+              );
+            }
           } else {
             final resolvedDecision = shouldPromptForUpload
                 ? resolveStravaUploadDecision(

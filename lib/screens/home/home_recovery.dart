@@ -269,12 +269,11 @@ extension _HomeScreenRecovery on _HomeScreenState {
     } else {
       _interruptedRideRecoveryRetryScheduled = false;
     }
-    _setRecoveredRideFinalizationActive(true);
     final readyToFinalizeRecoveredRide = await _prepareRideRuntime();
     if (!readyToFinalizeRecoveredRide) {
-      _setRecoveredRideFinalizationActive(false);
       return;
     }
+    _setRecoveredRideFinalizationActive(true);
     try {
       final routeReadyToFinalize = await _waitForCurrentHomeRoute();
       if (!mounted || !routeReadyToFinalize) {
@@ -404,12 +403,7 @@ extension _HomeScreenRecovery on _HomeScreenState {
         windowEnd: restoredPowerWindowEnd,
         window: const Duration(seconds: 3),
       );
-      final restoredPower20min = restoreWindowedRollingAverage(
-        average: _power20MinAverage,
-        values: restoredPowerSamples,
-        windowEnd: restoredPowerWindowEnd,
-        window: const Duration(minutes: 20),
-      );
+      _power20MinAverage.reset();
       final restoredBalanceSamples = restoredSamples
           .where((sample) =>
               sample.leftBalance != null && sample.rightBalance != null)
@@ -450,7 +444,7 @@ extension _HomeScreenRecovery on _HomeScreenState {
         _data.avgSpeed = checkpoint.avgSpeedKph;
         _data.speed = checkpoint.speedKph;
         _data.power3s = restoredPower3s;
-        _data.power20min = restoredPower20min;
+        _data.power20min = 0;
         _data.totalClimb = checkpoint.totalClimbMeters;
         _data.cadence = checkpoint.cadence;
         _data.heartRate = checkpoint.heartRate;
