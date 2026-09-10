@@ -401,6 +401,32 @@ List<Map<String, dynamic>> parseRideCheckpointSampleJsonLines(
   return decodedSamples;
 }
 
+Future<List<Map<String, dynamic>>> loadRideCheckpointSampleJsonFromFile(
+  io.File file,
+) async {
+  if (!await file.exists()) {
+    return <Map<String, dynamic>>[];
+  }
+  final decodedSamples = <Map<String, dynamic>>[];
+  final lines = file.openRead().transform(utf8.decoder).transform(
+        const LineSplitter(),
+      );
+  await for (final line in lines) {
+    try {
+      final decoded = tryParseRideCheckpointSampleJsonLine(line);
+      if (decoded != null) {
+        decodedSamples.add(decoded);
+      }
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Failed to parse ride checkpoint sample line: $error\n$stackTrace',
+      );
+      break;
+    }
+  }
+  return decodedSamples;
+}
+
 Future<void> scheduleInterruptedRideRecoveryRetry(
   Future<void> Function() retry,
 ) {

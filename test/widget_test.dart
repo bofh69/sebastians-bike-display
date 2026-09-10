@@ -1,3 +1,5 @@
+import 'dart:io' as io;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_bike_display/main.dart';
@@ -235,6 +237,27 @@ void main() {
 
     expect(parsed, hasLength(2));
     expect(reconciled['sampleCount'], 4);
+  });
+
+  test('checkpoint sample file loading keeps the valid prefix on a bad line',
+      () async {
+    final tempDir = await io.Directory.systemTemp.createTemp('checkpoint-test');
+    addTearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+    final file = io.File('${tempDir.path}/samples.jsonl');
+    await file.writeAsString(
+      '{"timestamp":"2026-01-01T00:00:00.000Z","power":100}\n'
+      '{"timestamp":"2026-01-01T00:00:01.000Z","power":200}\n'
+      '{"timestamp":\n'
+      '{"timestamp":"2026-01-01T00:00:02.000Z","power":300}\n',
+    );
+
+    final parsed = await loadRideCheckpointSampleJsonFromFile(file);
+
+    expect(parsed, hasLength(2));
   });
 
   test('scheduleInterruptedRideRecoveryRetry defers the retry', () async {

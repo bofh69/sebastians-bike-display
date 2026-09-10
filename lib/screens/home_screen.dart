@@ -379,6 +379,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     setState(updates);
   }
 
+  void _setRecoveredRideFinalizationActive(bool isActive) {
+    if (!mounted) {
+      _isFinalizingRecoveredRide = isActive;
+      return;
+    }
+    _applyState(() {
+      _isFinalizingRecoveredRide = isActive;
+    });
+  }
+
   void _handlePosition(Position position) {
     final wasReliableGpsForSpeed = _hasReliableGpsForSpeed;
     _latestPosition = position;

@@ -215,27 +215,8 @@ extension _HomeScreenRecovery on _HomeScreenState {
   }
 
   Future<List<_RideSample>> _loadRideCheckpointSamples(io.File file) async {
-    if (!await file.exists()) {
-      return <_RideSample>[];
-    }
-    final samples = <_RideSample>[];
-    final lines = file.openRead().transform(utf8.decoder).transform(
-          const LineSplitter(),
-        );
-    await for (final line in lines) {
-      try {
-        final decoded = tryParseRideCheckpointSampleJsonLine(line);
-        if (decoded != null) {
-          samples.add(_RideSample.fromJson(decoded));
-        }
-      } catch (error, stackTrace) {
-        debugPrint(
-          'Failed to parse ride checkpoint sample line: $error\n$stackTrace',
-        );
-        break;
-      }
-    }
-    return samples;
+    final samples = await loadRideCheckpointSampleJsonFromFile(file);
+    return samples.map(_RideSample.fromJson).toList();
   }
 
   Future<void> _restoreInterruptedRideIfNeeded() async {
@@ -286,10 +267,10 @@ extension _HomeScreenRecovery on _HomeScreenState {
     } else {
       _interruptedRideRecoveryRetryScheduled = false;
     }
-    _isFinalizingRecoveredRide = true;
+    _setRecoveredRideFinalizationActive(true);
     final readyToFinalizeRecoveredRide = await _prepareRideRuntime();
     if (!readyToFinalizeRecoveredRide) {
-      _isFinalizingRecoveredRide = false;
+      _setRecoveredRideFinalizationActive(false);
       return;
     }
     try {
@@ -314,7 +295,7 @@ extension _HomeScreenRecovery on _HomeScreenState {
         requireCurrentRouteForUpload: true,
       );
     } finally {
-      _isFinalizingRecoveredRide = false;
+      _setRecoveredRideFinalizationActive(false);
       await _stopTemporaryRecoveryRuntime();
     }
   }
