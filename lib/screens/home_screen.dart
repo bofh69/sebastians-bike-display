@@ -1417,9 +1417,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final metadataFiles = await _rideCheckpointMetadataFiles();
       final publishedMetadataFiles =
           metadataFiles.where((file) => !file.path.endsWith('.tmp')).toList();
-      if (publishedMetadataFiles.isNotEmpty) {
-        publishedMetadataFiles.sort((a, b) => b.path.compareTo(a.path));
-        final metadataFile = publishedMetadataFiles.first;
+      final readableMetadataFiles = publishedMetadataFiles.isNotEmpty
+          ? publishedMetadataFiles
+          : List<io.File>.from(metadataFiles);
+      if (readableMetadataFiles.isNotEmpty) {
+        readableMetadataFiles.sort((a, b) => b.path.compareTo(a.path));
+        final metadataFile = readableMetadataFiles.first;
         final metadataRaw = await metadataFile.readAsString();
         if (metadataRaw.trim().isEmpty) {
           await _clearRideCheckpoint();
@@ -1441,9 +1444,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           json: reconciledMetadata,
           samples: samples,
         );
-      } else if (metadataFiles.isNotEmpty) {
-        await _clearRideCheckpoint();
-        return null;
       }
       final file = await _rideCheckpointFile();
       if (!await file.exists()) {
@@ -1501,12 +1501,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final routeReady = await _waitForCurrentHomeRoute();
     if (!mounted || !routeReady || _isRunning) return;
     if (shouldOfferInterruptedRideResume(lastSavedAt: checkpoint.lastSavedAt)) {
+      final wantsResume = await showResumeInterruptedRideDialog(context);
       switch (await resolveInterruptedRideRecovery(
-        promptForResume: () => showResumeInterruptedRideDialog(context),
+        promptForResume: () async => wantsResume,
         resumeRide: () => _resumeInterruptedRide(checkpoint),
       )) {
         case InterruptedRideRecoveryAction.resumeRide:
+          return;
         case InterruptedRideRecoveryAction.keepCheckpoint:
+          if (wantsResume == null && mounted && !_isRunning) {
+            unawaited(
+              Future<void>.delayed(
+                const Duration(milliseconds: 50),
+                _restoreInterruptedRideIfNeeded,
+              ),
+            );
+          }
           return;
         case InterruptedRideRecoveryAction.finalizeRide:
           break;
