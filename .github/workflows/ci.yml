@@ -125,13 +125,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: simple-bike-display-release-apk
-          path: build/app/outputs/flutter-apk/*-release.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
       - name: Upload APK to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.release.tag_name }}
-          files: build/app/outputs/flutter-apk/*-release.apk
+          files: build/app/outputs/flutter-apk/app-release.apk
       - name: Cleanup signing files
         if: always()
         run: rm -f android/upload-keystore.jks android/key.properties
