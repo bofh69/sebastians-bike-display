@@ -389,6 +389,53 @@ Future<InterruptedRideRecoveryAction> resolveInterruptedRideRecovery({
   );
 }
 
+List<Map<String, dynamic>> parseRideCheckpointSampleJsonLines(
+  Iterable<String> lines,
+) {
+  final decodedSamples = <Map<String, dynamic>>[];
+  for (final line in lines) {
+    final trimmedLine = line.trim();
+    if (trimmedLine.isEmpty) {
+      continue;
+    }
+    try {
+      final decoded = jsonDecode(trimmedLine);
+      if (decoded is Map<String, dynamic>) {
+        decodedSamples.add(decoded);
+      }
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Failed to parse ride checkpoint sample line: $error\n$stackTrace',
+      );
+      break;
+    }
+  }
+  return decodedSamples;
+}
+
+double restoreRollingAverage({
+  required RollingAverage average,
+  required Iterable<double?> values,
+}) {
+  average.reset();
+  var restored = 0.0;
+  for (final value in values) {
+    restored = average.add(value ?? 0);
+  }
+  return restored;
+}
+
+bool didRecoveredRideFinalizeCompletely({
+  required bool hasSamples,
+  required bool fitExported,
+  required bool gpxExported,
+  required bool uploadAttempted,
+  required bool uploadSucceeded,
+}) {
+  return !hasSamples ||
+      (fitExported && gpxExported && (!uploadAttempted || uploadSucceeded));
+}
+
 Future<bool?> showResumeInterruptedRideDialog(BuildContext context) {
   return showDialog<bool>(
     context: context,
@@ -1419,21 +1466,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!await file.exists()) {
       return <_RideSample>[];
     }
-    final samples = <_RideSample>[];
     final lines = file.openRead().transform(utf8.decoder).transform(
           const LineSplitter(),
         );
+    final sampleLines = <String>[];
     await for (final line in lines) {
-      final trimmedLine = line.trim();
-      if (trimmedLine.isEmpty) {
-        continue;
-      }
-      final decoded = jsonDecode(trimmedLine);
-      if (decoded is Map<String, dynamic>) {
-        samples.add(_RideSample.fromJson(decoded));
-      }
+      sampleLines.add(line);
     }
-    return samples;
+    return parseRideCheckpointSampleJsonLines(sampleLines)
+        .map(_RideSample.fromJson)
+        .toList();
   }
 
   Future<void> _restoreInterruptedRideIfNeeded() async {
@@ -1519,6 +1561,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final restoredPosition = _positionFromSample(
       checkpoint.samples.isEmpty ? null : checkpoint.samples.last,
     );
+    final restoredPower3s = restoreRollingAverage(
+      average: _power3sAverage,
+      values: checkpoint.samples.map((sample) => sample.power),
+    );
+    final restoredPower20min = restoreRollingAverage(
+      average: _power20MinAverage,
+      values: checkpoint.samples.map((sample) => sample.power),
+    );
 
     setState(() {
       _isRunning = true;
@@ -1530,8 +1580,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _data.duration = DateTime.now().difference(checkpoint.startTime);
       _data.avgSpeed = checkpoint.avgSpeedKph;
       _data.speed = checkpoint.speedKph;
-      _data.power3s = 0;
-      _data.power20min = 0;
+      _data.power3s = restoredPower3s;
+      _data.power20min = restoredPower20min;
       _data.totalClimb = checkpoint.totalClimbMeters;
       _data.cadence = checkpoint.cadence;
       _data.heartRate = checkpoint.heartRate;
@@ -1547,8 +1597,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _climbReferenceAltitude = checkpoint.climbReferenceAltitude;
       _leftBalanceAverage.clear();
       _rightBalanceAverage.clear();
-      _power3sAverage.reset();
-      _power20MinAverage.reset();
       _lastCheckpointSavedAt = checkpoint.lastSavedAt;
       _lastCheckpointSampleCount = checkpoint.sampleCount;
     });
@@ -1730,10 +1778,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
       }
     }
-    final completedSuccessfully = rideSamples.isEmpty ||
-        (fitFile != null &&
-            gpxFile != null &&
-            (!uploadResult.attempted || uploadResult.succeeded));
+    final completedSuccessfully = didRecoveredRideFinalizeCompletely(
+      hasSamples: rideSamples.isNotEmpty,
+      fitExported: fitFile != null,
+      gpxExported: gpxFile != null,
+      uploadAttempted: uploadResult.attempted,
+      uploadSucceeded: uploadResult.succeeded,
+    );
     if (completedSuccessfully || !preserveCheckpointOnFailure) {
       await _clearRideCheckpoint();
     }

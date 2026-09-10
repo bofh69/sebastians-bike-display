@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_bike_display/main.dart';
+import 'package:simple_bike_display/models/rolling_average.dart';
 import 'package:simple_bike_display/models/time_window_average.dart';
 import 'package:simple_bike_display/screens/home_screen.dart';
 import 'package:simple_bike_display/services/power_cadence_sensor_service.dart';
@@ -218,6 +219,58 @@ void main() {
     );
 
     expect(reconciled['sampleCount'], 5);
+  });
+
+  test('checkpoint sample parsing keeps the valid prefix on a bad line', () {
+    final parsed = parseRideCheckpointSampleJsonLines(<String>[
+      '{"timestamp":"2026-01-01T00:00:00.000Z","power":100}',
+      '{"timestamp":"2026-01-01T00:00:01.000Z","power":200}',
+      '{"timestamp":',
+      '{"timestamp":"2026-01-01T00:00:02.000Z","power":300}',
+    ]);
+    final reconciled = reconcileRecoveredCheckpointMetadata(
+      metadata: <String, dynamic>{'sampleCount': 4},
+      parsedSampleCount: parsed.length,
+    );
+
+    expect(parsed, hasLength(2));
+    expect(reconciled['sampleCount'], 4);
+  });
+
+  test('restoreRollingAverage repopulates the rolling window', () {
+    final average = RollingAverage(windowSize: 3);
+
+    final restored = restoreRollingAverage(
+      average: average,
+      values: const <double?>[100, 200, 300, null],
+    );
+
+    expect(restored, closeTo(500 / 3, 0.001));
+    expect(average.add(300), closeTo(200, 0.001));
+  });
+
+  test('didRecoveredRideFinalizeCompletely requires all exports to succeed',
+      () {
+    expect(
+      didRecoveredRideFinalizeCompletely(
+        hasSamples: true,
+        fitExported: true,
+        gpxExported: true,
+        uploadAttempted: true,
+        uploadSucceeded: true,
+      ),
+      isTrue,
+    );
+    expect(
+      didRecoveredRideFinalizeCompletely(
+        hasSamples: true,
+        fitExported: true,
+        gpxExported: false,
+        uploadAttempted: false,
+        uploadSucceeded: false,
+      ),
+      isFalse,
+    );
   });
 
   test('shouldRetrySavedSensorConnection only retries when idle and saved', () {
