@@ -60,7 +60,12 @@ android {
             if (keystorePropertiesFile.exists()) {
                 keyAlias = keystoreProperties["keyAlias"]
                 keyPassword = keystoreProperties["keyPassword"]
-                storeFile = file(keystoreProperties["storeFile"])
+                def storeFilePath = keystoreProperties["storeFile"]
+                def resolvedStoreFile = new File(storeFilePath)
+                if (!resolvedStoreFile.isAbsolute()) {
+                    resolvedStoreFile = new File(keystorePropertiesFile.parentFile, storeFilePath)
+                }
+                storeFile = resolvedStoreFile
                 storePassword = keystoreProperties["storePassword"]
             }
         }
