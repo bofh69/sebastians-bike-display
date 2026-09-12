@@ -42,7 +42,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   static const MethodChannel _backgroundNotificationChannel = MethodChannel(
     '$kAppChannelNamespace/background_notification',
   );
+  static const MethodChannel _mediaControlChannel = MethodChannel(
+    '$kAppChannelNamespace/media_control',
+  );
   bool _isRunning = false;
+  bool _isMusicPlaying = false;
   bool _isBackgroundNotificationVisible = false;
   bool _isAppInForeground = true;
   bool _serviceConfigured = false;
@@ -846,6 +850,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         accuracyMeters <= 0) {
       return 0;
     }
+
+    Future<void> _toggleMusicPlayback() async {
+      try {
+        await _mediaControlChannel.invokeMethod<void>('togglePlayPause');
+        if (!mounted) return;
+        setState(() {
+          _isMusicPlaying = !_isMusicPlaying;
+        });
+      } on PlatformException catch (error, stackTrace) {
+        debugPrint('Failed to toggle media playback: $error\n$stackTrace');
+      } on MissingPluginException {
+        debugPrint('Media control is not available on this platform.');
+      }
+    }
     if (accuracyMeters <= 5) return 1;
     if (accuracyMeters >= 50) return 0;
     return ((50 - accuracyMeters) / 45).clamp(0, 1).toDouble();
@@ -864,6 +882,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       appBar: AppBar(
         title: const Text(kAppDisplayName),
         actions: [
+          IconButton(
+            icon: Icon(_isMusicPlaying ? Icons.pause : Icons.play_arrow),
+            onPressed: _toggleMusicPlayback,
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () async {
