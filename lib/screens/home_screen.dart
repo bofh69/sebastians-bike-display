@@ -848,10 +848,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final response = await _mediaControlChannel
           .invokeMethod<Map<dynamic, dynamic>>('togglePlayPause');
       final status = response?['status'] as String?;
-      if (status != 'dispatched' && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Music control is unavailable.')),
-        );
+      if (!mounted) return;
+      switch (status) {
+        case 'best_effort':
+          return;
+        case 'unavailable':
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Music control is unavailable.')),
+          );
+          return;
+        default:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to control music playback.')),
+          );
+          return;
       }
     } on PlatformException catch (error, stackTrace) {
       debugPrint('Failed to toggle media playback: $error\n$stackTrace');

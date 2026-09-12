@@ -98,7 +98,7 @@ class MainActivity : FlutterActivity() {
         val keyUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
         audioManager.dispatchMediaKeyEvent(keyDown)
         audioManager.dispatchMediaKeyEvent(keyUp)
-        return mapOf("status" to "dispatched")
+        return mapOf("status" to "best_effort")
     }
 
     private fun showRideNotification(
