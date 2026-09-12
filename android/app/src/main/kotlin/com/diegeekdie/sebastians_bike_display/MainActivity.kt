@@ -94,9 +94,6 @@ class MainActivity : FlutterActivity() {
     private fun togglePlayPause(): Map<String, String> {
         val audioManager = getSystemService(AUDIO_SERVICE) as? AudioManager
             ?: return mapOf("status" to "unavailable")
-        if (!audioManager.isMusicActive) {
-            return mapOf("status" to "unavailable")
-        }
         val keyDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
         val keyUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
         audioManager.dispatchMediaKeyEvent(keyDown)
