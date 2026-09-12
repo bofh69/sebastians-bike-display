@@ -845,11 +845,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _toggleMusicPlayback() async {
     try {
-      await _mediaControlChannel.invokeMethod<void>('togglePlayPause');
+      final success =
+          await _mediaControlChannel.invokeMethod<bool>('togglePlayPause') ??
+          false;
+      if (!success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Music control is unavailable.')),
+        );
+      }
     } on PlatformException catch (error, stackTrace) {
       debugPrint('Failed to toggle media playback: $error\n$stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to control music playback.')),
+        );
+      }
     } on MissingPluginException {
       debugPrint('Media control is not available on this platform.');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Music control is unavailable.')),
+        );
+      }
     }
   }
 
