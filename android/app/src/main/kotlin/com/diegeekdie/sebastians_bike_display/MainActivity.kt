@@ -95,11 +95,12 @@ class MainActivity : FlutterActivity() {
 
     private fun togglePlayPause(): Boolean {
         val audioManager = getSystemService(AUDIO_SERVICE) as? AudioManager ?: return false
+        val wasMusicActive = audioManager.isMusicActive
         val keyDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
         val keyUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
         audioManager.dispatchMediaKeyEvent(keyDown)
         audioManager.dispatchMediaKeyEvent(keyUp)
-        return true
+        return wasMusicActive || audioManager.isMusicActive
     }
 
     private fun showRideNotification(
