@@ -843,21 +843,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return delta > 180 ? 360 - delta : delta;
   }
 
+  Future<void> _toggleMusicPlayback() async {
+    try {
+      await _mediaControlChannel.invokeMethod<void>('togglePlayPause');
+    } on PlatformException catch (error, stackTrace) {
+      debugPrint('Failed to toggle media playback: $error\n$stackTrace');
+    } on MissingPluginException {
+      debugPrint('Media control is not available on this platform.');
+    }
+  }
+
   double _gpsConfidenceFromAccuracy(double? accuracyMeters) {
     if (accuracyMeters == null ||
         !accuracyMeters.isFinite ||
         accuracyMeters <= 0) {
       return 0;
-    }
-
-    Future<void> _toggleMusicPlayback() async {
-      try {
-        await _mediaControlChannel.invokeMethod<void>('togglePlayPause');
-      } on PlatformException catch (error, stackTrace) {
-        debugPrint('Failed to toggle media playback: $error\n$stackTrace');
-      } on MissingPluginException {
-        debugPrint('Media control is not available on this platform.');
-      }
     }
     if (accuracyMeters <= 5) return 1;
     if (accuracyMeters >= 50) return 0;
@@ -878,7 +878,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         title: const Text(kAppDisplayName),
         actions: [
           IconButton(
-            icon: const Icon(Icons.play_arrow),
+            icon: const Icon(Icons.music_note),
             tooltip: 'Play/Pause music',
             onPressed: _toggleMusicPlayback,
           ),
