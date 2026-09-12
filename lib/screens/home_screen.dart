@@ -905,8 +905,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         title: const Text(kAppDisplayName),
         actions: [
           IconButton(
-            icon: const Icon(Icons.play_pause),
-            tooltip: 'Toggle music playback',
+            icon: const Icon(
+              Icons.play_pause,
+              semanticLabel: 'Toggle music playback command',
+            ),
+            tooltip: 'Send play/pause command to music player',
             onPressed: _toggleMusicPlayback,
           ),
           IconButton(
