@@ -845,10 +845,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _toggleMusicPlayback() async {
     try {
-      final success =
-          await _mediaControlChannel.invokeMethod<bool>('togglePlayPause') ??
-          false;
-      if (!success && mounted) {
+      final status =
+          await _mediaControlChannel.invokeMethod<String>('togglePlayPause');
+      if (status != 'dispatched' && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Music control is unavailable.')),
         );
@@ -895,7 +894,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         title: const Text(kAppDisplayName),
         actions: [
           IconButton(
-            icon: const Icon(Icons.music_note),
+            icon: const Icon(Icons.play_circle_fill),
             tooltip: 'Play/Pause music',
             onPressed: _toggleMusicPlayback,
           ),

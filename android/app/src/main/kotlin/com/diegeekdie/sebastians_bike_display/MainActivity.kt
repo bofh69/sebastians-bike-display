@@ -85,22 +85,20 @@ class MainActivity : FlutterActivity() {
             mediaControlChannelName
         ).setMethodCallHandler { call, result ->
             when (call.method) {
-                "togglePlayPause" -> {
-                    result.success(togglePlayPause())
-                }
+                "togglePlayPause" -> result.success(togglePlayPause())
                 else -> result.notImplemented()
             }
         }
     }
 
-    private fun togglePlayPause(): Boolean {
-        val audioManager = getSystemService(AUDIO_SERVICE) as? AudioManager ?: return false
-        val wasMusicActive = audioManager.isMusicActive
+    private fun togglePlayPause(): String {
+        val audioManager = getSystemService(AUDIO_SERVICE) as? AudioManager
+            ?: return "unavailable"
         val keyDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
         val keyUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
         audioManager.dispatchMediaKeyEvent(keyDown)
         audioManager.dispatchMediaKeyEvent(keyUp)
-        return wasMusicActive || audioManager.isMusicActive
+        return "dispatched"
     }
 
     private fun showRideNotification(
