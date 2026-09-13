@@ -908,7 +908,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             label: 'Send play/pause command to music player',
             button: true,
             child: IconButton(
-              icon: const Icon(Icons.play_pause),
+              icon: const Icon(Icons.music_note),
               tooltip: 'Send play/pause command to music player',
               onPressed: _toggleMusicPlayback,
             ),
