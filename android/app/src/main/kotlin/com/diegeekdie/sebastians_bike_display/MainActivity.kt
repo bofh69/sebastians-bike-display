@@ -8,9 +8,11 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.view.KeyEvent
 import androidx.core.app.NotificationCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -22,6 +24,7 @@ class MainActivity : FlutterActivity() {
     private val exportChannelName = "sebastians_bike_display/file_export"
     private val backgroundNotificationChannelName =
         "sebastians_bike_display/background_notification"
+    private val mediaControlChannelName = "sebastians_bike_display/media_control"
     private val rideTrackingChannelName = "Ride Tracking"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -77,6 +80,25 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            mediaControlChannelName
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "togglePlayPause" -> result.success(togglePlayPause())
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    private fun togglePlayPause(): Map<String, String> {
+        val audioManager = getSystemService(AUDIO_SERVICE) as? AudioManager
+            ?: return mapOf("status" to "unavailable")
+        val keyDown = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+        val keyUp = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+        audioManager.dispatchMediaKeyEvent(keyDown)
+        audioManager.dispatchMediaKeyEvent(keyUp)
+        return mapOf("status" to "best_effort")
     }
 
     private fun showRideNotification(

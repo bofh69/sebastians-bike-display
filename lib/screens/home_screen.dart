@@ -42,6 +42,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   static const MethodChannel _backgroundNotificationChannel = MethodChannel(
     '$kAppChannelNamespace/background_notification',
   );
+  static const MethodChannel _mediaControlChannel = MethodChannel(
+    '$kAppChannelNamespace/media_control',
+  );
   bool _isRunning = false;
   bool _isBackgroundNotificationVisible = false;
   bool _isAppInForeground = true;
@@ -840,6 +843,43 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return delta > 180 ? 360 - delta : delta;
   }
 
+  Future<void> _toggleMusicPlayback() async {
+    try {
+      final response = await _mediaControlChannel
+          .invokeMethod<Map<dynamic, dynamic>>('togglePlayPause');
+      final status = response?['status'] as String?;
+      if (!mounted) return;
+      switch (status) {
+        case 'best_effort':
+          return;
+        case 'unavailable':
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Music control is unavailable.')),
+          );
+          return;
+        default:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to control music playback.')),
+          );
+          return;
+      }
+    } on PlatformException catch (error, stackTrace) {
+      debugPrint('Failed to toggle media playback: $error\n$stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to control music playback.')),
+        );
+      }
+    } on MissingPluginException {
+      debugPrint('Media control is not available on this platform.');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Music control is unavailable.')),
+        );
+      }
+    }
+  }
+
   double _gpsConfidenceFromAccuracy(double? accuracyMeters) {
     if (accuracyMeters == null ||
         !accuracyMeters.isFinite ||
@@ -864,6 +904,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       appBar: AppBar(
         title: const Text(kAppDisplayName),
         actions: [
+          Semantics(
+            label: 'Send play/pause command to music player',
+            button: true,
+            child: IconButton(
+              icon: const Icon(Icons.music_note),
+              tooltip: 'Send play/pause command to music player',
+              onPressed: _toggleMusicPlayback,
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () async {
