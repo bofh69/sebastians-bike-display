@@ -18,10 +18,10 @@ void main() {
       final result = updateClimbTracking(
         previousFilteredAltitude: 100,
         previousClimbReferenceAltitude: 100,
-        currentAltitude: 84,
+        currentAltitude: 56,
       );
 
-      expect(result.climbReferenceAltitude, 96);
+      expect(result.climbReferenceAltitude, 89);
       expect(result.additionalClimb, 0);
     });
 
@@ -56,7 +56,7 @@ void main() {
       final deepDip = updateClimbTracking(
         previousFilteredAltitude: initialClimb.filteredAltitude,
         previousClimbReferenceAltitude: initialClimb.climbReferenceAltitude,
-        currentAltitude: 86,
+        currentAltitude: 62,
       );
       final recoveryClimb = updateClimbTracking(
         previousFilteredAltitude: deepDip.filteredAltitude,
@@ -65,8 +65,8 @@ void main() {
       );
 
       expect(initialClimb.additionalClimb, 2);
-      expect(deepDip.climbReferenceAltitude, 98);
-      expect(recoveryClimb.additionalClimb, 2);
+      expect(deepDip.climbReferenceAltitude, 92);
+      expect(recoveryClimb.additionalClimb, 3.5);
     });
   });
 }
