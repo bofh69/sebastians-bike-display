@@ -5,7 +5,8 @@ const int _fitSportCycling = 2;
 const int _fitActivityTypeManual = 0;
 const double _minimumPowerForBalanceAverageWatts = 10;
 const double _climbAltitudeSmoothingFactor = 0.25;
-const double _minimumClimbGainMeters = 0.75;
+const double _minimumClimbGainMeters = 1.5;
+const double _minimumDescentBeforeClimbResetMeters = 3.0;
 const String _rideTrackingNotificationChannelId = 'ride_tracking_lockscreen';
 const int _rideTrackingForegroundServiceNotificationId = 888;
 const String _rideTrackingNotificationContent =
@@ -60,7 +61,8 @@ bool shouldAccumulatePowerBalanceSample({
       previousClimbReferenceAltitude ?? filteredAltitude;
   var additionalClimb = 0.0;
 
-  if (filteredAltitude < climbReferenceAltitude) {
+  if (filteredAltitude <=
+      climbReferenceAltitude - _minimumDescentBeforeClimbResetMeters) {
     climbReferenceAltitude = filteredAltitude;
   } else {
     final climbGain = filteredAltitude - climbReferenceAltitude;
