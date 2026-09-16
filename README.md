@@ -5,8 +5,6 @@ the ride.
 
 ![Screenshot of main screen](images/main-screen.jpg)
 
-The app includes a credits screen that is generated from the bundled SBOM.
-
 The app is tailored to my needs and I probably won't accept PRs that changes
 how it works, except bug fixes. However, feel free to fork the repo and do your own
 thing.
