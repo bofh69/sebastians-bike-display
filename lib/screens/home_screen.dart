@@ -325,7 +325,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!_isRunning && !_isAppInForeground) return;
     final hasPermission = await _ensureLocationPermission(
       requiresBackgroundUpdates:
-          !kIsWeb && io.Platform.isAndroid && _hasActiveRideRuntime,
+          !kIsWeb &&
+          io.Platform.isAndroid &&
+          _hasActiveRideRuntime &&
+          !_isAppInForeground,
     );
     if (!hasPermission) return;
 
@@ -576,7 +579,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         SnackBar(
           content: Text(
             requiresBackgroundLocation
-                ? 'Allow all the time location permission is required to record rides in the background.'
+                ? 'Android ride recording needs background location access ("Allow all the time").'
                 : 'Location permission is required.',
           ),
         ),
