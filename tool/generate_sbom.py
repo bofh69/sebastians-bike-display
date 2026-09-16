@@ -78,13 +78,13 @@ def parse_pubspec_file(path: Path, *, require_identity: bool) -> dict[str, objec
     }
 
 
-def parse_pubspec_lock(path: Path) -> dict[str, dict[str, str]]:
+def parse_pubspec_lock(path: Path) -> dict[str, dict[str, object]]:
     document = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
     packages = document.get('packages') or {}
     if not isinstance(packages, dict):
         raise ValueError(f'Unexpected lockfile structure in {path}')
 
-    parsed_packages: dict[str, dict[str, str]] = {}
+    parsed_packages: dict[str, dict[str, object]] = {}
     for name, package_data in packages.items():
         if not isinstance(name, str) or not isinstance(package_data, dict):
             continue
@@ -92,6 +92,7 @@ def parse_pubspec_lock(path: Path) -> dict[str, dict[str, str]]:
             'source': str(package_data.get('source', 'unknown')),
             'version': str(package_data.get('version', '')),
             'dependency': str(package_data.get('dependency', '')),
+            'description': package_data.get('description'),
         }
     return parsed_packages
 
@@ -197,7 +198,20 @@ def fallback_links(package_name: str) -> list[dict[str, str]]:
     return [{'type': 'website', 'url': f'{PUB_HOST}/packages/{package_name}'}]
 
 
-def pubspec_dependency_names(pubspec: dict[str, object], locked_packages: dict[str, dict[str, str]]) -> list[str]:
+def git_links(locked_info: dict[str, object], package_name: str) -> list[dict[str, str]]:
+    description = locked_info.get('description')
+    if not isinstance(description, dict):
+        return fallback_links(package_name)
+    url = string_or_none(description.get('url'))
+    if not url:
+        return fallback_links(package_name)
+    return [{'type': 'vcs', 'url': url}]
+
+
+def pubspec_dependency_names(
+    pubspec: dict[str, object],
+    locked_packages: dict[str, dict[str, object]],
+) -> list[str]:
     dependencies = pubspec.get('dependencies') or {}
     if isinstance(dependencies, list):
         return [
@@ -210,8 +224,8 @@ def pubspec_dependency_names(pubspec: dict[str, object], locked_packages: dict[s
     return [name for name in dependencies.keys() if name in locked_packages]
 
 
-def package_component(name: str, locked_info: dict[str, str], description: str, links: list[dict[str, str]], is_direct: bool, component_type: str = 'library') -> dict[str, object]:
-    version = locked_info['version']
+def package_component(name: str, locked_info: dict[str, object], description: str, links: list[dict[str, str]], is_direct: bool, component_type: str = 'library') -> dict[str, object]:
+    version = str(locked_info['version'])
     properties = [
         {'name': 'pub:source', 'value': locked_info.get('source', 'unknown')},
         {'name': 'pub:relationship', 'value': 'direct' if is_direct else 'transitive'},
@@ -250,7 +264,9 @@ def build_sbom(repo_root: Path) -> dict[str, object]:
 
     for name in direct_dependencies:
         locked_info = locked_packages[name]
-        dependency_map[root_ref].add(make_pub_purl(name, locked_info['version']))
+        dependency_map[root_ref].add(
+            make_pub_purl(name, str(locked_info['version'])),
+        )
 
     while queue:
         package_name = queue.popleft()
@@ -268,7 +284,7 @@ def build_sbom(repo_root: Path) -> dict[str, object]:
             package_data = fetch_package_version(
                 repo_root,
                 package_name,
-                locked_info['version'],
+                str(locked_info['version']),
             )
             pubspec = package_data.get('pubspec', {})
             if not isinstance(pubspec, dict):
@@ -295,6 +311,30 @@ def build_sbom(repo_root: Path) -> dict[str, object]:
                 list(sdk_component.get('links', [])),
                 is_direct=package_name in direct_dependencies,
                 component_type=sdk_component.get('component_type', 'framework'),
+            )
+        elif source == 'git':
+            package_root = package_locations.get(package_name)
+            local_pubspec = (
+                parse_pubspec_file(
+                    package_root / PUBSPEC_FILE,
+                    require_identity=False,
+                )
+                if package_root and (package_root / PUBSPEC_FILE).exists()
+                else None
+            )
+            dependencies = (
+                pubspec_dependency_names(local_pubspec, locked_packages)
+                if local_pubspec
+                else []
+            )
+            component_cache[package_name] = package_component(
+                package_name,
+                locked_info,
+                str(local_pubspec.get('description', '')) if local_pubspec else '',
+                normalize_links(local_pubspec, package_name)
+                if local_pubspec
+                else git_links(locked_info, package_name),
+                is_direct=package_name in direct_dependencies,
             )
         else:
             package_root = package_locations.get(package_name)
@@ -323,7 +363,7 @@ def build_sbom(repo_root: Path) -> dict[str, object]:
                 is_direct=package_name in direct_dependencies,
             )
 
-        package_ref = make_pub_purl(package_name, locked_info['version'])
+        package_ref = make_pub_purl(package_name, str(locked_info['version']))
         dependency_map.setdefault(package_ref, set())
         for dependency_name in dependencies:
             dependency_info = locked_packages.get(dependency_name)

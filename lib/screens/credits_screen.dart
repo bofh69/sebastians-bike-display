@@ -68,9 +68,12 @@ class _CreditsScreenState extends State<CreditsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        kAppDisplayName,
-                        style: Theme.of(context).textTheme.headlineSmall,
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          kAppDisplayName,
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -116,9 +119,12 @@ class _CreditsScreenState extends State<CreditsScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              Text(
-                'Dependencies (${sbom.components.length})',
-                style: Theme.of(context).textTheme.titleLarge,
+              Semantics(
+                header: true,
+                child: Text(
+                  'Dependencies (${sbom.components.length})',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
               ),
               const SizedBox(height: 8),
               ...sbom.components.map(
@@ -164,46 +170,49 @@ class _DependencyCard extends StatelessWidget {
         ? 'Direct dependency'
         : 'Transitive dependency';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              component.name,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              component.version,
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              directLabel,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            if (component.description != null &&
-                component.description!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(component.description!),
-            ],
-            if (component.links.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: component.links.map((link) {
-                  return OutlinedButton(
-                    onPressed: () => onOpenLink(link.uri),
-                    child: Text(link.label),
-                  );
-                }).toList(),
+    return Semantics(
+      container: true,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                component.name,
+                style: Theme.of(context).textTheme.titleMedium,
               ),
+              const SizedBox(height: 8),
+              Text(
+                component.version,
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                directLabel,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              if (component.description != null &&
+                  component.description!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(component.description!),
+              ],
+              if (component.links.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: component.links.map((link) {
+                    return OutlinedButton(
+                      onPressed: () => onOpenLink(link.uri),
+                      child: Text(link.label),
+                    );
+                  }).toList(),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
