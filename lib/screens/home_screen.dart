@@ -430,7 +430,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           : RideRecordingLocationAccessFailure.locationPermissionRequired;
     }
 
-    if (!(!kIsWeb && io.Platform.isAndroid)) {
+    if (kIsWeb || !io.Platform.isAndroid) {
       final permission = await Geolocator.checkPermission();
       final hasPermission = isLocationPermissionSufficientForRideRecording(
         permission: permission,
@@ -472,18 +472,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     required bool requestBackgroundPermissionUpgrade,
   }) async {
     var foregroundPermission = await Permission.locationWhenInUse.status;
-    var genericLocationPermission = await Permission.location.status;
     var geolocatorPermission = await Geolocator.checkPermission();
     var hasForegroundPermission = foregroundPermission.isGranted ||
-        genericLocationPermission.isGranted ||
         geolocatorPermission == LocationPermission.whileInUse ||
         geolocatorPermission == LocationPermission.always;
     if (requestForegroundPermission && !hasForegroundPermission) {
       foregroundPermission = await Permission.locationWhenInUse.request();
-      genericLocationPermission = await Permission.location.status;
       geolocatorPermission = await Geolocator.checkPermission();
       hasForegroundPermission = foregroundPermission.isGranted ||
-          genericLocationPermission.isGranted ||
           geolocatorPermission == LocationPermission.whileInUse ||
           geolocatorPermission == LocationPermission.always;
     }
