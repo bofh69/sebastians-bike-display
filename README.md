@@ -5,6 +5,8 @@ the ride.
 
 ![Screenshot of main screen](images/main-screen.jpg)
 
+The app includes a credits screen that is generated from the bundled SBOM.
+
 The app is tailored to my needs and I probably won't accept PRs that changes
 how it works, except bug fixes. However, feel free to fork the repo and do your own
 thing.
@@ -49,10 +51,14 @@ There is a dev container with the needed tools for development.
 Build & test with:
 
 - `flutter pub get`
+- `python3 tool/generate_sbom.py`
 - `flutter analyze`
 - `flutter test`
 - `flutter build apk --debug`
 - Or with custom proxy: `flutter build apk --debug --dart-define=STRAVA_PROXY_BASE_URL=https://your-proxy.example.com/api/`
+
+If dependencies change, regenerate `assets/generated/sbom.json` before building so the in-app credits page stays up to date.
+CI also regenerates the SBOM and fails if `assets/generated/sbom.json` is out of date.
 
 ## Android release signing for CI
 

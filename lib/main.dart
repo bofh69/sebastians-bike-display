@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_constants.dart';
+import 'screens/credits_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/config_screen.dart';
 
@@ -30,6 +31,7 @@ class MyApp extends StatelessWidget {
       home: const HomeScreen(),
       routes: {
         '/config': (context) => const ConfigScreen(),
+        '/credits': (context) => const CreditsScreen(),
       },
     );
   }

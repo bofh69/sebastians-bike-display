@@ -22,6 +22,12 @@ jobs:
           channel: 'stable'
       - name: Install dependencies
         run: flutter pub get
+      - name: Install SBOM generator dependencies
+        run: python3 -m pip install pyyaml
+      - name: Verify SBOM is up to date
+        run: |
+          python3 tool/generate_sbom.py
+          git diff --exit-code -- assets/generated/sbom.json
       - name: Analyze
         run: flutter analyze
       - name: Run tests
