@@ -14,7 +14,7 @@ class CreditsScreen extends StatefulWidget {
 }
 
 class _CreditsScreenState extends State<CreditsScreen> {
-  late Future<_SbomDocument> _sbomFuture;
+  Future<_SbomDocument>? _sbomFuture;
   AssetBundle? _assetBundle;
 
   @override
@@ -42,6 +42,9 @@ class _CreditsScreenState extends State<CreditsScreen> {
       body: FutureBuilder<_SbomDocument>(
         future: _sbomFuture,
         builder: (context, snapshot) {
+          if (_sbomFuture == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }

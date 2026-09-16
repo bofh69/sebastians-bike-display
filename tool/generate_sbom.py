@@ -429,7 +429,12 @@ def main() -> int:
     repo_root = Path(__file__).resolve().parent.parent
     try:
         sbom = build_sbom(repo_root)
-    except (ValueError, urllib.error.URLError) as error:
+    except (
+        ValueError,
+        urllib.error.URLError,
+        urllib.error.HTTPError,
+        json.JSONDecodeError,
+    ) as error:
         print(f'Failed to generate SBOM: {error}', file=sys.stderr)
         return 1
 
