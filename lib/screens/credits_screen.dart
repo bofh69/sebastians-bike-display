@@ -288,7 +288,10 @@ class _SbomLink {
     final url = json['url'] as String?;
     final uri = url == null ? null : Uri.tryParse(url);
     final scheme = uri?.scheme.toLowerCase();
-    if (uri == null || (scheme != 'http' && scheme != 'https')) {
+    if (uri == null ||
+        !uri.hasScheme ||
+        uri.host.isEmpty ||
+        (scheme != 'http' && scheme != 'https')) {
       return null;
     }
     return _SbomLink(label: _labelForType(type), uri: uri);

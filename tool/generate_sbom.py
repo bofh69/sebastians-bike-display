@@ -186,6 +186,10 @@ def normalize_links(pubspec: dict[str, object], package_name: str) -> list[dict[
     return references
 
 
+def fallback_links(package_name: str) -> list[dict[str, str]]:
+    return [{'type': 'website', 'url': f'{PUB_HOST}/packages/{package_name}'}]
+
+
 def pubspec_dependency_names(pubspec: dict[str, object], locked_packages: dict[str, dict[str, str]]) -> list[str]:
     dependencies = pubspec.get('dependencies') or {}
     if isinstance(dependencies, list):
@@ -304,7 +308,11 @@ def build_sbom(repo_root: Path) -> dict[str, object]:
                 package_name,
                 locked_info,
                 str(local_pubspec.get('description', '')) if local_pubspec else '',
-                normalize_links(local_pubspec, package_name) if local_pubspec else [],
+                (
+                    normalize_links(local_pubspec, package_name)
+                    if local_pubspec
+                    else fallback_links(package_name)
+                ),
                 is_direct=package_name in direct_dependencies,
             )
 
