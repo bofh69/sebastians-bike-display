@@ -6,8 +6,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../app_constants.dart';
 
+typedef UrlLauncher = Future<bool> Function(Uri uri);
+
 class CreditsScreen extends StatefulWidget {
-  const CreditsScreen({super.key});
+  const CreditsScreen({super.key, this.urlLauncher});
+
+  final UrlLauncher? urlLauncher;
 
   @override
   State<CreditsScreen> createState() => _CreditsScreenState();
@@ -145,7 +149,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
 
   Future<void> _openLink(Uri uri) async {
     try {
-      final launched = await launchUrl(uri);
+      final launched = await (widget.urlLauncher?.call(uri) ?? launchUrl(uri));
       if (launched) {
         return;
       }

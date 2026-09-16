@@ -37,7 +37,11 @@ void main() {
     await tester.pumpWidget(
       DefaultAssetBundle(
         bundle: _ImmediateAssetBundle(_validSbomJson),
-        child: const MaterialApp(home: CreditsScreen()),
+        child: MaterialApp(
+          home: CreditsScreen(
+            urlLauncher: (uri) async => false,
+          ),
+        ),
       ),
     );
 

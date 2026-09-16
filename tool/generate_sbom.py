@@ -127,8 +127,11 @@ def fetch_package_version(
     if cache_file.exists():
         try:
             return json.loads(cache_file.read_text(encoding='utf-8'))
-        except json.JSONDecodeError:
-            cache_file.unlink(missing_ok=True)
+        except (OSError, json.JSONDecodeError):
+            try:
+                cache_file.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     package_data = fetch_json(
         f'{PUB_HOST}/api/packages/{package_name}/versions/{version}',
