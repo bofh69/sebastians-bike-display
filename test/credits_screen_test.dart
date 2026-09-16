@@ -28,6 +28,28 @@ void main() {
     expect(find.text('Licenses'), findsOneWidget);
   });
 
+  testWidgets('Credits screen shows an error when a link cannot open', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      DefaultAssetBundle(
+        bundle: _ImmediateAssetBundle(_validSbomJson),
+        child: const MaterialApp(home: CreditsScreen()),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Website').first);
+    await tester.pump();
+
+    expect(
+      find.text(
+        'Could not open https://github.com/bofh69/sebastians-bike-display',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('Credits screen shows a loader while SBOM is loading', (
     WidgetTester tester,
   ) async {
