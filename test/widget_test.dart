@@ -1,5 +1,6 @@
 import 'dart:io' as io;
 
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_bike_display/main.dart';
@@ -44,6 +45,44 @@ void main() {
         rightBalance: 55,
       ),
       isFalse,
+    );
+  });
+
+  test('background ride recording on Android requires always location', () {
+    expect(
+      isLocationPermissionSufficientForRideRecording(
+        permission: LocationPermission.whileInUse,
+        isAndroid: true,
+        requiresBackgroundUpdates: true,
+      ),
+      isFalse,
+    );
+    expect(
+      isLocationPermissionSufficientForRideRecording(
+        permission: LocationPermission.always,
+        isAndroid: true,
+        requiresBackgroundUpdates: true,
+      ),
+      isTrue,
+    );
+  });
+
+  test('foreground ride recording accepts while-in-use location', () {
+    expect(
+      isLocationPermissionSufficientForRideRecording(
+        permission: LocationPermission.whileInUse,
+        isAndroid: true,
+        requiresBackgroundUpdates: false,
+      ),
+      isTrue,
+    );
+    expect(
+      isLocationPermissionSufficientForRideRecording(
+        permission: LocationPermission.whileInUse,
+        isAndroid: false,
+        requiresBackgroundUpdates: true,
+      ),
+      isTrue,
     );
   });
 

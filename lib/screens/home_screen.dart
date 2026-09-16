@@ -374,8 +374,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
-    return permission == LocationPermission.always ||
-        permission == LocationPermission.whileInUse;
+    if (!kIsWeb &&
+        io.Platform.isAndroid &&
+        _hasActiveRideRuntime &&
+        permission == LocationPermission.whileInUse) {
+      final backgroundPermission = await Permission.locationAlways.request();
+      if (backgroundPermission.isGranted) {
+        permission = LocationPermission.always;
+      } else {
+        permission = await Geolocator.checkPermission();
+      }
+    }
+    return isLocationPermissionSufficientForRideRecording(
+      permission: permission,
+      isAndroid: !kIsWeb && io.Platform.isAndroid,
+      requiresBackgroundUpdates: _hasActiveRideRuntime,
+    );
   }
 
   void _applyState(VoidCallback updates) {
@@ -547,7 +561,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!hasPermission) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Location permission is required.')),
+        SnackBar(
+          content: Text(
+            !kIsWeb && io.Platform.isAndroid
+                ? 'Allow all the time location permission is required to record rides in the background.'
+                : 'Location permission is required.',
+          ),
+        ),
       );
       return;
     }

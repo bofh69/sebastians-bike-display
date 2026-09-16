@@ -42,6 +42,21 @@ bool shouldAccumulatePowerBalanceSample({
       rightBalance != null;
 }
 
+bool isLocationPermissionSufficientForRideRecording({
+  required LocationPermission permission,
+  required bool isAndroid,
+  required bool requiresBackgroundUpdates,
+}) {
+  if (permission != LocationPermission.always &&
+      permission != LocationPermission.whileInUse) {
+    return false;
+  }
+  if (isAndroid && requiresBackgroundUpdates) {
+    return permission == LocationPermission.always;
+  }
+  return true;
+}
+
 ({
   double filteredAltitude,
   double climbReferenceAltitude,
