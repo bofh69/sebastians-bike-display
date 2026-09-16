@@ -52,9 +52,9 @@ bool isLocationPermissionSufficientForRideRecording({
       permission != LocationPermission.whileInUse) {
     return false;
   }
-  if (isAndroid && requiresBackgroundUpdates) {
+  if (requiresBackgroundUpdates) {
     return permission == LocationPermission.always ||
-        hasAndroidBackgroundLocationPermission;
+        (isAndroid && hasAndroidBackgroundLocationPermission);
   }
   return true;
 }

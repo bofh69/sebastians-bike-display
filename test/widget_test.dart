@@ -89,6 +89,25 @@ void main() {
       isLocationPermissionSufficientForRideRecording(
         permission: LocationPermission.whileInUse,
         isAndroid: false,
+        requiresBackgroundUpdates: false,
+      ),
+      isTrue,
+    );
+  });
+
+  test('non-Android background ride recording requires always location', () {
+    expect(
+      isLocationPermissionSufficientForRideRecording(
+        permission: LocationPermission.whileInUse,
+        isAndroid: false,
+        requiresBackgroundUpdates: true,
+      ),
+      isFalse,
+    );
+    expect(
+      isLocationPermissionSufficientForRideRecording(
+        permission: LocationPermission.always,
+        isAndroid: false,
         requiresBackgroundUpdates: true,
       ),
       isTrue,
