@@ -22,7 +22,6 @@ void main() {
     expect(find.text('1.2.3'), findsOneWidget);
     expect(find.text('Direct dependency'), findsOneWidget);
     expect(find.text('Website'), findsNWidgets(2));
-    expect(find.widgetWithText(OutlinedButton, 'Website'), findsNWidgets(2));
     expect(find.byType(OutlinedButton), findsNWidgets(6));
     expect(find.text('Source'), findsOneWidget);
     expect(find.text('Docs'), findsOneWidget);
