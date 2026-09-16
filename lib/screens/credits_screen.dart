@@ -14,16 +14,21 @@ class CreditsScreen extends StatefulWidget {
 }
 
 class _CreditsScreenState extends State<CreditsScreen> {
-  late final Future<_SbomDocument> _sbomFuture;
+  late Future<_SbomDocument> _sbomFuture;
+  bool _didLoadSbom = false;
 
   @override
-  void initState() {
-    super.initState();
-    _sbomFuture = _loadSbom();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didLoadSbom) {
+      return;
+    }
+    _didLoadSbom = true;
+    _sbomFuture = _loadSbom(DefaultAssetBundle.of(context));
   }
 
-  Future<_SbomDocument> _loadSbom() async {
-    final rawJson = await rootBundle.loadString('assets/generated/sbom.json');
+  Future<_SbomDocument> _loadSbom(AssetBundle bundle) async {
+    final rawJson = await bundle.loadString('assets/generated/sbom.json');
     return _SbomDocument.fromJson(
       jsonDecode(rawJson) as Map<String, dynamic>,
     );

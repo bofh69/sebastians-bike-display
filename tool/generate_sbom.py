@@ -233,6 +233,12 @@ def normalize_links(pubspec: dict[str, object], package_name: str) -> list[dict[
 
 def pubspec_dependency_names(pubspec: dict[str, object], locked_packages: dict[str, dict[str, str]]) -> list[str]:
     dependencies = pubspec.get('dependencies') or {}
+    if isinstance(dependencies, list):
+        return [
+            name
+            for name in dependencies
+            if isinstance(name, str) and name in locked_packages
+        ]
     if not isinstance(dependencies, dict):
         return []
     return [name for name in dependencies.keys() if name in locked_packages]
