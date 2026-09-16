@@ -12,6 +12,7 @@ PUB_HOST = 'https://pub.dev'
 LOCK_FILE = 'pubspec.lock'
 PUBSPEC_FILE = 'pubspec.yaml'
 OUTPUT_FILE = 'assets/generated/sbom.json'
+CACHE_DIR = '.dart_tool/sbom-cache'
 TIMEOUT_SECONDS = 30
 
 SDK_COMPONENTS = {
@@ -120,6 +121,27 @@ def fetch_json(url: str) -> dict[str, object]:
         return json.load(response)
 
 
+def fetch_package_version(
+    repo_root: Path,
+    package_name: str,
+    version: str,
+) -> dict[str, object]:
+    cache_dir = repo_root / CACHE_DIR
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_file = cache_dir / f'{package_name}-{version}.json'
+    if cache_file.exists():
+        return json.loads(cache_file.read_text(encoding='utf-8'))
+
+    package_data = fetch_json(
+        f'{PUB_HOST}/api/packages/{package_name}/versions/{version}',
+    )
+    cache_file.write_text(
+        json.dumps(package_data, indent=2, sort_keys=True) + '\n',
+        encoding='utf-8',
+    )
+    return package_data
+
+
 def make_pub_purl(name: str, version: str) -> str:
     encoded_name = urllib.parse.quote(name, safe='')
     encoded_version = urllib.parse.quote(version, safe='')
@@ -188,8 +210,6 @@ def build_sbom(repo_root: Path) -> dict[str, object]:
     root_ref = make_pub_purl(str(root['name']), str(root['version']))
     component_cache: dict[str, dict[str, object]] = {}
     dependency_map: dict[str, set[str]] = {root_ref: set()}
-    package_dependencies_cache: dict[str, list[str]] = {}
-
     direct_dependencies = [
         name for name in root['dependencies'] if name in locked_packages
     ]
@@ -213,8 +233,11 @@ def build_sbom(repo_root: Path) -> dict[str, object]:
         source = locked_info.get('source', 'unknown')
         dependencies: list[str]
         if source == 'hosted':
-            url = f'{PUB_HOST}/api/packages/{package_name}/versions/{locked_info["version"]}'
-            package_data = fetch_json(url)
+            package_data = fetch_package_version(
+                repo_root,
+                package_name,
+                locked_info['version'],
+            )
             pubspec = package_data.get('pubspec', {})
             if not isinstance(pubspec, dict):
                 raise ValueError(f'Unexpected pubspec payload for {package_name}')
@@ -247,7 +270,6 @@ def build_sbom(repo_root: Path) -> dict[str, object]:
                 is_direct=package_name in direct_dependencies,
             )
 
-        package_dependencies_cache[package_name] = dependencies
         package_ref = make_pub_purl(package_name, locked_info['version'])
         dependency_map.setdefault(package_ref, set())
         for dependency_name in dependencies:

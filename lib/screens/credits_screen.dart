@@ -75,17 +75,20 @@ class CreditsScreen extends StatelessWidget {
                               label: Text(link.label),
                             ),
                           ),
-                          OutlinedButton.icon(
-                            onPressed: () {
-                              showLicensePage(
-                                context: context,
-                                applicationName: kAppDisplayName,
-                                applicationVersion:
-                                    sbom.rootComponent.version,
-                              );
-                            },
-                            icon: const Icon(Icons.gavel),
-                            label: const Text('Bundled licenses'),
+                          Tooltip(
+                            message: 'Open the bundled license viewer',
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                showLicensePage(
+                                  context: context,
+                                  applicationName: kAppDisplayName,
+                                  applicationVersion:
+                                      sbom.rootComponent.version,
+                                );
+                              },
+                              icon: const Icon(Icons.gavel),
+                              label: const Text('Bundled licenses'),
+                            ),
                           ),
                         ],
                       ),

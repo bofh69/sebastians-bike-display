@@ -57,7 +57,7 @@ Build & test with:
 - `flutter build apk --debug`
 - Or with custom proxy: `flutter build apk --debug --dart-define=STRAVA_PROXY_BASE_URL=https://your-proxy.example.com/api/`
 
-If dependencies change, regenerate `/home/runner/work/sebastians-bike-display/sebastians-bike-display/assets/generated/sbom.json` before building so the in-app credits page stays up to date.
+If dependencies change, regenerate `assets/generated/sbom.json` before building so the in-app credits page stays up to date.
 
 ## Android release signing for CI
 
