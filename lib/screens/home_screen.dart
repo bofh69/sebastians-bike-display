@@ -455,20 +455,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     required bool requestForegroundPermission,
     required bool requestBackgroundPermissionUpgrade,
   }) async {
-    var foregroundPermission = await Permission.location.status;
-    if (requestForegroundPermission && !foregroundPermission.isGranted) {
-      foregroundPermission = await Permission.location.request();
+    var foregroundPermission = await Permission.locationWhenInUse.status;
+    final genericLocationPermission = await Permission.location.status;
+    var hasForegroundPermission =
+        foregroundPermission.isGranted || genericLocationPermission.isGranted;
+    if (requestForegroundPermission && !hasForegroundPermission) {
+      foregroundPermission = await Permission.locationWhenInUse.request();
+      hasForegroundPermission = foregroundPermission.isGranted;
     }
 
     var backgroundPermission = await Permission.locationAlways.status;
-    if (foregroundPermission.isGranted &&
+    if (hasForegroundPermission &&
         requestBackgroundPermissionUpgrade &&
         !backgroundPermission.isGranted) {
       backgroundPermission = await Permission.locationAlways.request();
     }
 
     return (
-      hasForegroundPermission: foregroundPermission.isGranted,
+      hasForegroundPermission: hasForegroundPermission,
       hasBackgroundPermission: backgroundPermission.isGranted,
     );
   }
