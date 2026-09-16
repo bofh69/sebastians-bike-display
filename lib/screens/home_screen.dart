@@ -404,10 +404,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  String _locationPermissionRequiredMessage({
-    required bool requiresBackgroundUpdates,
-  }) {
-    if (!requiresBackgroundUpdates) {
+  Future<bool> _ensureRideRecordingLocationPermission() {
+    return _ensureLocationPermission(
+      requiresBackgroundUpdates: _rideRecordingRequiresBackgroundLocation,
+    );
+  }
+
+  String _rideRecordingLocationPermissionRequiredMessage() {
+    if (!_rideRecordingRequiresBackgroundLocation) {
       return 'Location permission is required.';
     }
     return 'Android ride recording needs background location access ("Allow all the time").';
@@ -578,19 +582,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    final requiresBackgroundLocation = _rideRecordingRequiresBackgroundLocation;
-    final hasPermission = await _ensureLocationPermission(
-      requiresBackgroundUpdates: requiresBackgroundLocation,
-    );
+    final hasPermission = await _ensureRideRecordingLocationPermission();
     if (!hasPermission) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            _locationPermissionRequiredMessage(
-              requiresBackgroundUpdates: requiresBackgroundLocation,
-            ),
-          ),
+          content: Text(_rideRecordingLocationPermissionRequiredMessage()),
         ),
       );
       return;
