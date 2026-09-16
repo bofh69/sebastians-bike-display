@@ -11,6 +11,7 @@ REPO_URL = 'https://github.com/bofh69/sebastians-bike-display'
 PUB_HOST = 'https://pub.dev'
 LOCK_FILE = 'pubspec.lock'
 PUBSPEC_FILE = 'pubspec.yaml'
+PACKAGE_CONFIG_FILE = '.dart_tool/package_config.json'
 OUTPUT_FILE = 'assets/generated/sbom.json'
 CACHE_DIR = '.dart_tool/sbom-cache'
 TIMEOUT_SECONDS = 30
@@ -50,12 +51,16 @@ def read_lines(path: Path) -> list[str]:
     return path.read_text(encoding='utf-8').splitlines()
 
 
-def parse_root_pubspec(path: Path) -> dict[str, object]:
+def parse_pubspec_file(path: Path, *, require_identity: bool) -> dict[str, object]:
     name = None
     description = None
     version = None
     dependencies = []
     in_dependencies = False
+    homepage = None
+    repository = None
+    documentation = None
+    issue_tracker = None
 
     for raw_line in read_lines(path):
         line = raw_line.rstrip()
@@ -71,6 +76,14 @@ def parse_root_pubspec(path: Path) -> dict[str, object]:
                 description = line.split(':', 1)[1].strip().strip('"\'')
             elif line.startswith('version:'):
                 version = line.split(':', 1)[1].strip().strip('"\'')
+            elif line.startswith('homepage:'):
+                homepage = line.split(':', 1)[1].strip().strip('"\'')
+            elif line.startswith('repository:'):
+                repository = line.split(':', 1)[1].strip().strip('"\'')
+            elif line.startswith('documentation:'):
+                documentation = line.split(':', 1)[1].strip().strip('"\'')
+            elif line.startswith('issue_tracker:'):
+                issue_tracker = line.split(':', 1)[1].strip().strip('"\'')
             continue
 
         if in_dependencies and line.startswith('  ') and not line.startswith('    '):
@@ -78,7 +91,7 @@ def parse_root_pubspec(path: Path) -> dict[str, object]:
             if dependency_name:
                 dependencies.append(dependency_name)
 
-    if not name or not version:
+    if require_identity and (not name or not version):
         raise ValueError('Failed to parse root package name/version from pubspec.yaml')
 
     return {
@@ -86,6 +99,10 @@ def parse_root_pubspec(path: Path) -> dict[str, object]:
         'description': description or '',
         'version': version,
         'dependencies': dependencies,
+        'homepage': homepage,
+        'repository': repository,
+        'documentation': documentation,
+        'issue_tracker': issue_tracker,
     }
 
 
@@ -161,6 +178,28 @@ def fetch_package_version(
     return package_data
 
 
+def load_package_locations(repo_root: Path) -> dict[str, Path]:
+    package_config_path = repo_root / PACKAGE_CONFIG_FILE
+    if not package_config_path.exists():
+        return {}
+
+    package_config = json.loads(package_config_path.read_text(encoding='utf-8'))
+    locations: dict[str, Path] = {}
+    for package in package_config.get('packages', []):
+        if not isinstance(package, dict):
+            continue
+        name = package.get('name')
+        root_uri = package.get('rootUri')
+        if not isinstance(name, str) or not isinstance(root_uri, str):
+            continue
+        parsed_uri = urllib.parse.urlparse(root_uri)
+        if parsed_uri.scheme == 'file':
+            locations[name] = Path(urllib.request.url2pathname(parsed_uri.path))
+            continue
+        locations[name] = (package_config_path.parent / root_uri).resolve()
+    return locations
+
+
 def make_pub_purl(name: str, version: str) -> str:
     encoded_name = urllib.parse.quote(name, safe='')
     encoded_version = urllib.parse.quote(version, safe='')
@@ -222,8 +261,9 @@ def package_component(name: str, locked_info: dict[str, str], description: str, 
 
 
 def build_sbom(repo_root: Path) -> dict[str, object]:
-    root = parse_root_pubspec(repo_root / PUBSPEC_FILE)
+    root = parse_pubspec_file(repo_root / PUBSPEC_FILE, require_identity=True)
     locked_packages = parse_pubspec_lock(repo_root / LOCK_FILE)
+    package_locations = load_package_locations(repo_root)
     if not locked_packages:
         raise ValueError('No packages found in pubspec.lock')
 
@@ -285,12 +325,25 @@ def build_sbom(repo_root: Path) -> dict[str, object]:
                 component_type=sdk_component.get('component_type', 'framework'),
             )
         else:
-            dependencies = []
+            package_root = package_locations.get(package_name)
+            local_pubspec = (
+                parse_pubspec_file(
+                    package_root / PUBSPEC_FILE,
+                    require_identity=False,
+                )
+                if package_root and (package_root / PUBSPEC_FILE).exists()
+                else None
+            )
+            dependencies = (
+                pubspec_dependency_names(local_pubspec, locked_packages)
+                if local_pubspec
+                else []
+            )
             component_cache[package_name] = package_component(
                 package_name,
                 locked_info,
-                '',
-                [],
+                str(local_pubspec.get('description', '')) if local_pubspec else '',
+                normalize_links(local_pubspec, package_name) if local_pubspec else [],
                 is_direct=package_name in direct_dependencies,
             )
 

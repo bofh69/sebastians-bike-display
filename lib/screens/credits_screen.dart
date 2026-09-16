@@ -89,7 +89,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
                             ),
                           ),
                           Tooltip(
-                            message: 'Open the bundled license viewer',
+                            message: 'Open the bundled licenses page',
                             child: OutlinedButton.icon(
                               onPressed: () {
                                 showLicensePage(
@@ -100,7 +100,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
                                 );
                               },
                               icon: const Icon(Icons.gavel),
-                              label: const Text('Bundled licenses'),
+                              label: const Text('Open bundled licenses page'),
                             ),
                           ),
                         ],
@@ -129,7 +129,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
   }
 
   Future<void> _openLink(Uri uri) async {
-    if (await canLaunchUrl(uri)) {
+    try {
       final launched = await launchUrl(
         uri,
         mode: LaunchMode.externalApplication,
@@ -137,6 +137,8 @@ class _CreditsScreenState extends State<CreditsScreen> {
       if (launched) {
         return;
       }
+    } catch (_) {
+      // Handled by the snackbar below.
     }
     if (!mounted) {
       return;
