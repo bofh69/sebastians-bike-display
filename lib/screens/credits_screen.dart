@@ -209,7 +209,8 @@ class _SbomDocument {
       metadata['component'] as Map<String, dynamic>? ?? const {},
     );
     final components = (json['components'] as List<dynamic>? ?? const [])
-        .whereType<Map<String, dynamic>>()
+        .whereType<Map>()
+        .map((entry) => Map<String, dynamic>.from(entry))
         .map(_SbomComponent.fromJson)
         .toList(growable: false);
     return _SbomDocument(rootComponent: rootComponent, components: components);
@@ -233,9 +234,11 @@ class _SbomComponent {
 
   factory _SbomComponent.fromJson(Map<String, dynamic> json) {
     final properties = (json['properties'] as List<dynamic>? ?? const [])
-        .whereType<Map<String, dynamic>>();
+        .whereType<Map>()
+        .map((entry) => Map<String, dynamic>.from(entry));
     final links = (json['externalReferences'] as List<dynamic>? ?? const [])
-        .whereType<Map<String, dynamic>>()
+        .whereType<Map>()
+        .map((entry) => Map<String, dynamic>.from(entry))
         .map(_SbomLink.fromJson)
         .where((link) => link.uri.hasScheme)
         .toList(growable: false);

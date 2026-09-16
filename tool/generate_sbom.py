@@ -158,14 +158,18 @@ def append_reference(references: list[dict[str, str]], ref_type: str, url: str |
     seen.add(key)
 
 
+def string_or_none(value: object) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
 def normalize_links(pubspec: dict[str, object], package_name: str) -> list[dict[str, str]]:
     references: list[dict[str, str]] = []
     seen: set[tuple[str, str]] = set()
     append_reference(references, 'website', f'{PUB_HOST}/packages/{package_name}', seen)
-    append_reference(references, 'website', pubspec.get('homepage'), seen)
-    append_reference(references, 'vcs', pubspec.get('repository'), seen)
-    append_reference(references, 'documentation', pubspec.get('documentation'), seen)
-    append_reference(references, 'issue-tracker', pubspec.get('issue_tracker'), seen)
+    append_reference(references, 'website', string_or_none(pubspec.get('homepage')), seen)
+    append_reference(references, 'vcs', string_or_none(pubspec.get('repository')), seen)
+    append_reference(references, 'documentation', string_or_none(pubspec.get('documentation')), seen)
+    append_reference(references, 'issue-tracker', string_or_none(pubspec.get('issue_tracker')), seen)
     return references
 
 
@@ -182,9 +186,6 @@ def package_component(name: str, locked_info: dict[str, str], description: str, 
         {'name': 'pub:source', 'value': locked_info.get('source', 'unknown')},
         {'name': 'pub:relationship', 'value': 'direct' if is_direct else 'transitive'},
     ]
-    dependency_kind = locked_info.get('dependency')
-    if dependency_kind:
-        properties.append({'name': 'pub:lock_dependency_kind', 'value': dependency_kind})
 
     component: dict[str, object] = {
         'bom-ref': make_pub_purl(name, version),
