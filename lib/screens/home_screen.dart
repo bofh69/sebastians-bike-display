@@ -329,6 +329,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           io.Platform.isAndroid &&
           _hasActiveRideRuntime &&
           !_isAppInForeground,
+      requestBackgroundPermissionUpgrade: false,
     );
     if (!hasPermission) return;
 
@@ -375,6 +376,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<bool> _ensureLocationPermission({
     bool requiresBackgroundUpdates = false,
+    bool requestBackgroundPermissionUpgrade = true,
   }) async {
     if (!_isMobileTrackingPlatform) return true;
     final isAndroid = !kIsWeb && io.Platform.isAndroid;
@@ -390,7 +392,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         requiresBackgroundUpdates &&
         permission == LocationPermission.whileInUse) {
       var backgroundPermission = await Permission.locationAlways.status;
-      if (!backgroundPermission.isGranted) {
+      if (requestBackgroundPermissionUpgrade && !backgroundPermission.isGranted) {
         backgroundPermission = await Permission.locationAlways.request();
       }
       hasAndroidBackgroundLocationPermission = backgroundPermission.isGranted;
