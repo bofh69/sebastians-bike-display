@@ -15,16 +15,17 @@ class CreditsScreen extends StatefulWidget {
 
 class _CreditsScreenState extends State<CreditsScreen> {
   late Future<_SbomDocument> _sbomFuture;
-  bool _didLoadSbom = false;
+  AssetBundle? _assetBundle;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_didLoadSbom) {
+    final assetBundle = DefaultAssetBundle.of(context);
+    if (identical(_assetBundle, assetBundle)) {
       return;
     }
-    _didLoadSbom = true;
-    _sbomFuture = _loadSbom(DefaultAssetBundle.of(context));
+    _assetBundle = assetBundle;
+    _sbomFuture = _loadSbom(assetBundle);
   }
 
   Future<_SbomDocument> _loadSbom(AssetBundle bundle) async {
@@ -282,7 +283,8 @@ class _SbomLink {
     final type = json['type'] as String? ?? 'link';
     final url = json['url'] as String?;
     final uri = url == null ? null : Uri.tryParse(url);
-    if (uri == null || !uri.hasScheme) {
+    final scheme = uri?.scheme.toLowerCase();
+    if (uri == null || (scheme != 'http' && scheme != 'https')) {
       return null;
     }
     return _SbomLink(label: _labelForType(type), uri: uri);

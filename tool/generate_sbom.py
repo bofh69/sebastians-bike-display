@@ -7,6 +7,8 @@ import urllib.request
 from collections import deque
 from pathlib import Path
 
+import yaml
+
 REPO_URL = 'https://github.com/bofh69/sebastians-bike-display'
 PUB_HOST = 'https://pub.dev'
 LOCK_FILE = 'pubspec.lock'
@@ -45,104 +47,52 @@ SDK_COMPONENTS = {
         'dependencies': ['flutter'],
     },
 }
-
-
-def read_lines(path: Path) -> list[str]:
-    return path.read_text(encoding='utf-8').splitlines()
-
-
 def parse_pubspec_file(path: Path, *, require_identity: bool) -> dict[str, object]:
-    name = None
-    description = None
-    version = None
-    dependencies = []
-    in_dependencies = False
-    homepage = None
-    repository = None
-    documentation = None
-    issue_tracker = None
+    document = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
+    if not isinstance(document, dict):
+        raise ValueError(f'Unexpected YAML document in {path}')
 
-    for raw_line in read_lines(path):
-        line = raw_line.rstrip()
-        stripped = line.strip()
-        if not stripped or stripped.startswith('#'):
-            continue
+    dependencies = document.get('dependencies') or {}
+    dependency_names = (
+        list(dependencies.keys())
+        if isinstance(dependencies, dict)
+        else dependencies
+    )
 
-        if not line.startswith(' '):
-            in_dependencies = line == 'dependencies:'
-            if line.startswith('name:'):
-                name = line.split(':', 1)[1].strip().strip('"\'')
-            elif line.startswith('description:'):
-                description = line.split(':', 1)[1].strip().strip('"\'')
-            elif line.startswith('version:'):
-                version = line.split(':', 1)[1].strip().strip('"\'')
-            elif line.startswith('homepage:'):
-                homepage = line.split(':', 1)[1].strip().strip('"\'')
-            elif line.startswith('repository:'):
-                repository = line.split(':', 1)[1].strip().strip('"\'')
-            elif line.startswith('documentation:'):
-                documentation = line.split(':', 1)[1].strip().strip('"\'')
-            elif line.startswith('issue_tracker:'):
-                issue_tracker = line.split(':', 1)[1].strip().strip('"\'')
-            continue
+    name = document.get('name')
+    version = document.get('version')
 
-        if in_dependencies and line.startswith('  ') and not line.startswith('    '):
-            dependency_name = line[2:].split(':', 1)[0].strip()
-            if dependency_name:
-                dependencies.append(dependency_name)
-
-    if require_identity and (not name or not version):
-        raise ValueError('Failed to parse root package name/version from pubspec.yaml')
+    if require_identity and (not isinstance(name, str) or not isinstance(version, str)):
+        raise ValueError(f'Failed to parse package name/version from {path}')
 
     return {
         'name': name,
-        'description': description or '',
+        'description': document.get('description') or '',
         'version': version,
-        'dependencies': dependencies,
-        'homepage': homepage,
-        'repository': repository,
-        'documentation': documentation,
-        'issue_tracker': issue_tracker,
+        'dependencies': dependency_names,
+        'homepage': document.get('homepage'),
+        'repository': document.get('repository'),
+        'documentation': document.get('documentation'),
+        'issue_tracker': document.get('issue_tracker'),
     }
 
 
 def parse_pubspec_lock(path: Path) -> dict[str, dict[str, str]]:
-    packages: dict[str, dict[str, str]] = {}
-    current_name = None
-    in_packages = False
+    document = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
+    packages = document.get('packages') or {}
+    if not isinstance(packages, dict):
+        raise ValueError(f'Unexpected lockfile structure in {path}')
 
-    for raw_line in read_lines(path):
-        line = raw_line.rstrip('\n')
-        if not line.strip() or line.lstrip().startswith('#'):
+    parsed_packages: dict[str, dict[str, str]] = {}
+    for name, package_data in packages.items():
+        if not isinstance(name, str) or not isinstance(package_data, dict):
             continue
-
-        if not line.startswith(' '):
-            if line == 'packages:':
-                in_packages = True
-                current_name = None
-                continue
-            if in_packages:
-                break
-            continue
-
-        if not in_packages:
-            continue
-
-        if line.startswith('  ') and not line.startswith('    '):
-            current_name = line[2:].split(':', 1)[0].strip()
-            packages[current_name] = {}
-            continue
-
-        if current_name and line.startswith('    '):
-            stripped = line.strip()
-            if stripped.startswith('source:'):
-                packages[current_name]['source'] = stripped.split(':', 1)[1].strip().strip('"\'')
-            elif stripped.startswith('version:'):
-                packages[current_name]['version'] = stripped.split(':', 1)[1].strip().strip('"\'')
-            elif stripped.startswith('dependency:'):
-                packages[current_name]['dependency'] = stripped.split(':', 1)[1].strip().strip('"\'')
-
-    return packages
+        parsed_packages[name] = {
+            'source': str(package_data.get('source', 'unknown')),
+            'version': str(package_data.get('version', '')),
+            'dependency': str(package_data.get('dependency', '')),
+        }
+    return parsed_packages
 
 
 def fetch_json(url: str) -> dict[str, object]:
