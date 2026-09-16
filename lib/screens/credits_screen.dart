@@ -96,7 +96,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
                           ...sbom.rootComponent.links.map(
                             (link) => OutlinedButton.icon(
                               onPressed: () => _openLink(link.uri),
-                              icon: const Icon(Icons.code),
+                              icon: Icon(link.iconData),
                               label: Text(link.label),
                             ),
                           ),
@@ -292,6 +292,20 @@ class _SbomLink {
 
   final String label;
   final Uri uri;
+
+  IconData get iconData {
+    switch (label) {
+      case 'Source':
+        return Icons.code;
+      case 'Docs':
+        return Icons.description_outlined;
+      case 'Issues':
+        return Icons.bug_report_outlined;
+      case 'Website':
+      default:
+        return Icons.public;
+    }
+  }
 
   static _SbomLink? tryFromJson(Map<String, dynamic> json) {
     final type = json['type'] as String? ?? 'link';

@@ -56,11 +56,15 @@ def parse_pubspec_file(path: Path, *, require_identity: bool) -> dict[str, objec
         raise ValueError(f'Unexpected YAML document in {path}')
 
     dependencies = document.get('dependencies') or {}
-    dependency_names = (
-        list(dependencies.keys())
-        if isinstance(dependencies, dict)
-        else dependencies
-    )
+    dependency_names = [
+        name
+        for name in (
+            list(dependencies.keys())
+            if isinstance(dependencies, dict)
+            else dependencies
+        )
+        if isinstance(name, str)
+    ]
 
     name = document.get('name')
     version = document.get('version')
@@ -124,7 +128,7 @@ def fetch_package_version(
         try:
             return json.loads(cache_file.read_text(encoding='utf-8'))
         except json.JSONDecodeError:
-            cache_file.unlink()
+            cache_file.unlink(missing_ok=True)
 
     package_data = fetch_json(
         f'{PUB_HOST}/api/packages/{package_name}/versions/{version}',
