@@ -1013,6 +1013,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () => Navigator.pushNamed(context, '/credits'),
+              icon: const Icon(Icons.info_outline),
+              label: const Text('Credits & licenses'),
+            ),
           ],
         ),
       ),

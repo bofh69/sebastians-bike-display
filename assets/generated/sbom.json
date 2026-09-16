@@ -1,0 +1,3731 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "pkg:pub/simple_bike_display@1.0.0%2B1",
+      "type": "application",
+      "name": "simple_bike_display",
+      "version": "1.0.0+1",
+      "description": "A simple bike computer app showing important stats and recording the ride.",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/bofh69/sebastians-bike-display"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/bofh69/sebastians-bike-display"
+        }
+      ],
+      "properties": [
+        {
+          "name": "app:display_name",
+          "value": "Sebastian's Bike Display"
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg:pub/crypto@3.0.7",
+      "type": "library",
+      "name": "crypto",
+      "version": "3.0.7",
+      "purl": "pkg:pub/crypto@3.0.7",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "direct"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "direct main"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/crypto"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/core/tree/main/pkgs/crypto"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/dart-lang/core/issues?q=is%3Aissue+is%3Aopen+label%3Apackage%3Acrypto"
+        }
+      ],
+      "description": "Implementations of SHA, MD5, and HMAC cryptographic functions."
+    },
+    {
+      "bom-ref": "pkg:pub/cupertino_icons@1.0.8",
+      "type": "library",
+      "name": "cupertino_icons",
+      "version": "1.0.8",
+      "purl": "pkg:pub/cupertino_icons@1.0.8",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "direct"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "direct main"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/cupertino_icons"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/third_party/packages/cupertino_icons"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+cupertino_icons%22"
+        }
+      ],
+      "description": "Default icons asset for Cupertino widgets based on Apple styled icons"
+    },
+    {
+      "bom-ref": "pkg:pub/fit_sdk@0.3.0",
+      "type": "library",
+      "name": "fit_sdk",
+      "version": "0.3.0",
+      "purl": "pkg:pub/fit_sdk@0.3.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "direct"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "direct main"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/fit_sdk"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/floatinghotpot/dart_fit_sdk"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/floatinghotpot/dart_fit_sdk"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/floatinghotpot/dart_fit_sdk/issues"
+        }
+      ],
+      "description": "A Dart port of the Garmin FIT SDK for encoding and decoding FIT (Flexible and Interoperable Data Transfer) files. This library allows you to read and write FIT files used by Garmin and other fitness devices."
+    },
+    {
+      "bom-ref": "pkg:pub/flutter@0.0.0",
+      "type": "framework",
+      "name": "flutter",
+      "version": "0.0.0",
+      "purl": "pkg:pub/flutter@0.0.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "sdk"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "direct"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "direct main"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://flutter.dev"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/flutter"
+        }
+      ],
+      "description": "Flutter SDK"
+    },
+    {
+      "bom-ref": "pkg:pub/flutter_background_service@5.1.0",
+      "type": "library",
+      "name": "flutter_background_service",
+      "version": "5.1.0",
+      "purl": "pkg:pub/flutter_background_service@5.1.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "direct"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "direct main"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/flutter_background_service"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/ekasetiawans/flutter_background_service"
+        }
+      ],
+      "description": "A flutter plugin for executing dart code continously even application closed."
+    },
+    {
+      "bom-ref": "pkg:pub/flutter_reactive_ble@5.4.1",
+      "type": "library",
+      "name": "flutter_reactive_ble",
+      "version": "5.4.1",
+      "purl": "pkg:pub/flutter_reactive_ble@5.4.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "direct"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "direct main"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/flutter_reactive_ble"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/PhilipsHue/flutter_reactive_ble"
+        }
+      ],
+      "description": "Reactive Bluetooth Low Energy (BLE) plugin that can communicate with multiple devices"
+    },
+    {
+      "bom-ref": "pkg:pub/flutter_secure_storage@10.3.1",
+      "type": "library",
+      "name": "flutter_secure_storage",
+      "version": "10.3.1",
+      "purl": "pkg:pub/flutter_secure_storage@10.3.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "direct"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "direct main"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/flutter_secure_storage"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/mogol/flutter_secure_storage/tree/develop/flutter_secure_storage"
+        }
+      ],
+      "description": "A Flutter plugin for securely storing sensitive data using encrypted storage."
+    },
+    {
+      "bom-ref": "pkg:pub/flutter_web_auth_2@4.1.0",
+      "type": "library",
+      "name": "flutter_web_auth_2",
+      "version": "4.1.0",
+      "purl": "pkg:pub/flutter_web_auth_2@4.1.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "direct"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "direct main"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/flutter_web_auth_2"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/ThexXTURBOXx/flutter_web_auth_2"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/ThexXTURBOXx/flutter_web_auth_2"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/ThexXTURBOXx/flutter_web_auth_2/issues"
+        }
+      ],
+      "description": "Flutter plugin for authenticating a user with a web service."
+    },
+    {
+      "bom-ref": "pkg:pub/geolocator@11.1.0",
+      "type": "library",
+      "name": "geolocator",
+      "version": "11.1.0",
+      "purl": "pkg:pub/geolocator@11.1.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "direct"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "direct main"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/geolocator"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/baseflow/flutter-geolocator/tree/main/geolocator"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/baseflow/flutter-geolocator/issues?q=is%3Aissue+is%3Aopen"
+        }
+      ],
+      "description": "Geolocation plugin for Flutter. This plugin provides a cross-platform (iOS, Android) API for generic location (GPS etc.) functions."
+    },
+    {
+      "bom-ref": "pkg:pub/http@1.6.0",
+      "type": "library",
+      "name": "http",
+      "version": "1.6.0",
+      "purl": "pkg:pub/http@1.6.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "direct"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "direct main"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/http"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/http/tree/master/pkgs/http"
+        }
+      ],
+      "description": "A composable, multi-platform, Future-based API for HTTP requests."
+    },
+    {
+      "bom-ref": "pkg:pub/path_provider@2.1.5",
+      "type": "library",
+      "name": "path_provider",
+      "version": "2.1.5",
+      "purl": "pkg:pub/path_provider@2.1.5",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "direct"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "direct main"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/path_provider"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/path_provider/path_provider"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+path_provider%22"
+        }
+      ],
+      "description": "Flutter plugin for getting commonly used locations on host platform file systems, such as the temp and app data directories."
+    },
+    {
+      "bom-ref": "pkg:pub/permission_handler@11.3.1",
+      "type": "library",
+      "name": "permission_handler",
+      "version": "11.3.1",
+      "purl": "pkg:pub/permission_handler@11.3.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "direct"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "direct main"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/permission_handler"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/baseflow/flutter-permission-handler"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/Baseflow/flutter-permission-handler/issues"
+        }
+      ],
+      "description": "Permission plugin for Flutter. This plugin provides a cross-platform (iOS, Android) API to request and check permissions."
+    },
+    {
+      "bom-ref": "pkg:pub/shared_preferences@2.3.3",
+      "type": "library",
+      "name": "shared_preferences",
+      "version": "2.3.3",
+      "purl": "pkg:pub/shared_preferences@2.3.3",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "direct"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "direct main"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/shared_preferences"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/shared_preferences/shared_preferences"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+shared_preferences%22"
+        }
+      ],
+      "description": "Flutter plugin for reading and writing simple key-value pairs. Wraps NSUserDefaults on iOS and SharedPreferences on Android."
+    },
+    {
+      "bom-ref": "pkg:pub/url_launcher@6.3.1",
+      "type": "library",
+      "name": "url_launcher",
+      "version": "6.3.1",
+      "purl": "pkg:pub/url_launcher@6.3.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "direct"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/url_launcher"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/url_launcher/url_launcher"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+url_launcher%22"
+        }
+      ],
+      "description": "Flutter plugin for launching a URL. Supports web, phone, SMS, and email schemes."
+    },
+    {
+      "bom-ref": "pkg:pub/wakelock_plus@1.3.0",
+      "type": "library",
+      "name": "wakelock_plus",
+      "version": "1.3.0",
+      "purl": "pkg:pub/wakelock_plus@1.3.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "direct"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "direct main"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/wakelock_plus"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/fluttercommunity/wakelock_plus/tree/main/wakelock_plus"
+        }
+      ],
+      "description": "Plugin that allows you to keep the device screen awake, i.e. prevent the screen from sleeping on Android, iOS, macOS, Windows, Linux, and web."
+    },
+    {
+      "bom-ref": "pkg:pub/args@2.7.0",
+      "type": "library",
+      "name": "args",
+      "version": "2.7.0",
+      "purl": "pkg:pub/args@2.7.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/args"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/core/tree/main/pkgs/args"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/dart-lang/core/issues?q=is%3Aissue+is%3Aopen+label%3Apackage%3Aargs"
+        }
+      ],
+      "description": "Library for defining parsers for parsing raw command-line arguments into a set of options and values using GNU and POSIX style options."
+    },
+    {
+      "bom-ref": "pkg:pub/async@2.11.0",
+      "type": "library",
+      "name": "async",
+      "version": "2.11.0",
+      "purl": "pkg:pub/async@2.11.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/async"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/async"
+        }
+      ],
+      "description": "Utility functions and classes related to the 'dart:async' library."
+    },
+    {
+      "bom-ref": "pkg:pub/clock@1.1.1",
+      "type": "library",
+      "name": "clock",
+      "version": "1.1.1",
+      "purl": "pkg:pub/clock@1.1.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/clock"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/clock"
+        }
+      ],
+      "description": "A fakeable wrapper for dart:core clock APIs."
+    },
+    {
+      "bom-ref": "pkg:pub/collection@1.18.0",
+      "type": "library",
+      "name": "collection",
+      "version": "1.18.0",
+      "purl": "pkg:pub/collection@1.18.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/collection"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/collection"
+        }
+      ],
+      "description": "Collections and utilities functions and classes related to collections."
+    },
+    {
+      "bom-ref": "pkg:pub/dbus@0.7.12",
+      "type": "library",
+      "name": "dbus",
+      "version": "0.7.12",
+      "purl": "pkg:pub/dbus@0.7.12",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/dbus"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/canonical/dbus.dart"
+        }
+      ],
+      "description": "A native Dart implementation of the D-Bus message bus client. This package allows Dart applications to directly access services on the Linux desktop."
+    },
+    {
+      "bom-ref": "pkg:pub/desktop_webview_window@0.2.3",
+      "type": "library",
+      "name": "desktop_webview_window",
+      "version": "0.2.3",
+      "purl": "pkg:pub/desktop_webview_window@0.2.3",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/desktop_webview_window"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/MixinNetwork/flutter-plugins/tree/main/packages/desktop_webview_window"
+        }
+      ],
+      "description": "Show a webview window on your flutter desktop application."
+    },
+    {
+      "bom-ref": "pkg:pub/ffi@2.1.3",
+      "type": "library",
+      "name": "ffi",
+      "version": "2.1.3",
+      "purl": "pkg:pub/ffi@2.1.3",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/ffi"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/native/tree/main/pkgs/ffi"
+        }
+      ],
+      "description": "Utilities for working with Foreign Function Interface (FFI) code."
+    },
+    {
+      "bom-ref": "pkg:pub/file@7.0.1",
+      "type": "library",
+      "name": "file",
+      "version": "7.0.1",
+      "purl": "pkg:pub/file@7.0.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/file"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/tools/tree/main/pkgs/file"
+        }
+      ],
+      "description": "A pluggable, mockable file system abstraction for Dart. Supports local file system access, as well as in-memory file systems, record-replay file systems, and chroot file systems."
+    },
+    {
+      "bom-ref": "pkg:pub/fixnum@1.1.1",
+      "type": "library",
+      "name": "fixnum",
+      "version": "1.1.1",
+      "purl": "pkg:pub/fixnum@1.1.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/fixnum"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/core/tree/main/pkgs/fixnum"
+        }
+      ],
+      "description": "Library for 32- and 64-bit signed fixed-width integers with consistent behavior between native and JS runtimes."
+    },
+    {
+      "bom-ref": "pkg:pub/flutter_background_service_android@6.3.1",
+      "type": "library",
+      "name": "flutter_background_service_android",
+      "version": "6.3.1",
+      "purl": "pkg:pub/flutter_background_service_android@6.3.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/flutter_background_service_android"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/ekasetiawans/flutter_background_service"
+        }
+      ],
+      "description": "A flutter plugin for executing dart code continously even application closed."
+    },
+    {
+      "bom-ref": "pkg:pub/flutter_background_service_ios@5.0.3",
+      "type": "library",
+      "name": "flutter_background_service_ios",
+      "version": "5.0.3",
+      "purl": "pkg:pub/flutter_background_service_ios@5.0.3",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/flutter_background_service_ios"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/ekasetiawans/flutter_background_service"
+        }
+      ],
+      "description": "A flutter plugin for executing dart code continously even application closed."
+    },
+    {
+      "bom-ref": "pkg:pub/flutter_background_service_platform_interface@5.1.2",
+      "type": "library",
+      "name": "flutter_background_service_platform_interface",
+      "version": "5.1.2",
+      "purl": "pkg:pub/flutter_background_service_platform_interface@5.1.2",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/flutter_background_service_platform_interface"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/ekasetiawans/flutter_background_service"
+        }
+      ],
+      "description": "A platform interface for flutter background service."
+    },
+    {
+      "bom-ref": "pkg:pub/flutter_secure_storage_darwin@0.3.2",
+      "type": "library",
+      "name": "flutter_secure_storage_darwin",
+      "version": "0.3.2",
+      "purl": "pkg:pub/flutter_secure_storage_darwin@0.3.2",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/flutter_secure_storage_darwin"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/juliansteenbakker/flutter_secure_storage"
+        }
+      ],
+      "description": "Apple (ios and macos) implementation of flutter_secure_storage"
+    },
+    {
+      "bom-ref": "pkg:pub/flutter_secure_storage_linux@3.0.1",
+      "type": "library",
+      "name": "flutter_secure_storage_linux",
+      "version": "3.0.1",
+      "purl": "pkg:pub/flutter_secure_storage_linux@3.0.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/flutter_secure_storage_linux"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/mogol/flutter_secure_storage"
+        }
+      ],
+      "description": "Linux implementation of flutter_secure_storage"
+    },
+    {
+      "bom-ref": "pkg:pub/flutter_secure_storage_platform_interface@2.0.1",
+      "type": "library",
+      "name": "flutter_secure_storage_platform_interface",
+      "version": "2.0.1",
+      "purl": "pkg:pub/flutter_secure_storage_platform_interface@2.0.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/flutter_secure_storage_platform_interface"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/mogol/flutter_secure_storage"
+        }
+      ],
+      "description": "A common platform interface for the flutter_secure_storage plugin."
+    },
+    {
+      "bom-ref": "pkg:pub/flutter_secure_storage_web@2.1.1",
+      "type": "library",
+      "name": "flutter_secure_storage_web",
+      "version": "2.1.1",
+      "purl": "pkg:pub/flutter_secure_storage_web@2.1.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/flutter_secure_storage_web"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/mogol/flutter_secure_storage"
+        }
+      ],
+      "description": "Web implementation of flutter_secure_storage. Use flutter_secure_storage for the full flutter package."
+    },
+    {
+      "bom-ref": "pkg:pub/flutter_secure_storage_windows@4.1.0",
+      "type": "library",
+      "name": "flutter_secure_storage_windows",
+      "version": "4.1.0",
+      "purl": "pkg:pub/flutter_secure_storage_windows@4.1.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/flutter_secure_storage_windows"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/mogol/flutter_secure_storage"
+        }
+      ],
+      "description": "Windows implementation of flutter_secure_storage. Please use flutter_secure_storage instead of this package."
+    },
+    {
+      "bom-ref": "pkg:pub/flutter_web_auth_2_platform_interface@4.1.0",
+      "type": "library",
+      "name": "flutter_web_auth_2_platform_interface",
+      "version": "4.1.0",
+      "purl": "pkg:pub/flutter_web_auth_2_platform_interface@4.1.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/flutter_web_auth_2_platform_interface"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/ThexXTURBOXx/flutter_web_auth_2"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/ThexXTURBOXx/flutter_web_auth_2"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/ThexXTURBOXx/flutter_web_auth_2/issues"
+        }
+      ],
+      "description": "A common platform interface for the flutter_web_auth_2 plugin."
+    },
+    {
+      "bom-ref": "pkg:pub/flutter_web_plugins@0.0.0",
+      "type": "framework",
+      "name": "flutter_web_plugins",
+      "version": "0.0.0",
+      "purl": "pkg:pub/flutter_web_plugins@0.0.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "sdk"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": []
+    },
+    {
+      "bom-ref": "pkg:pub/functional_data@1.2.0",
+      "type": "library",
+      "name": "functional_data",
+      "version": "1.2.0",
+      "purl": "pkg:pub/functional_data@1.2.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/functional_data"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/spkersten/dart_functional_data"
+        }
+      ],
+      "description": "Annotations and helpers for lenses for code generated with the `function_data_generator` package."
+    },
+    {
+      "bom-ref": "pkg:pub/geolocator_android@4.6.1",
+      "type": "library",
+      "name": "geolocator_android",
+      "version": "4.6.1",
+      "purl": "pkg:pub/geolocator_android@4.6.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/geolocator_android"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/baseflow/flutter-geolocator/tree/main/geolocator_android"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/baseflow/flutter-geolocator/issues?q=is%3Aissue+is%3Aopen"
+        }
+      ],
+      "description": "Geolocation plugin for Flutter. This plugin provides the Android implementation for the geolocator."
+    },
+    {
+      "bom-ref": "pkg:pub/geolocator_apple@2.3.9",
+      "type": "library",
+      "name": "geolocator_apple",
+      "version": "2.3.9",
+      "purl": "pkg:pub/geolocator_apple@2.3.9",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/geolocator_apple"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/baseflow/flutter-geolocator/tree/main/geolocator_apple"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/baseflow/flutter-geolocator/issues?q=is%3Aissue+is%3Aopen"
+        }
+      ],
+      "description": "Geolocation Apple plugin for Flutter. This plugin provides the Apple implementation for the geolocator."
+    },
+    {
+      "bom-ref": "pkg:pub/geolocator_platform_interface@4.2.4",
+      "type": "library",
+      "name": "geolocator_platform_interface",
+      "version": "4.2.4",
+      "purl": "pkg:pub/geolocator_platform_interface@4.2.4",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/geolocator_platform_interface"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/baseflow/flutter-geolocator/tree/main/geolocator_platform_interface"
+        }
+      ],
+      "description": "A common platform interface for the geolocator plugin."
+    },
+    {
+      "bom-ref": "pkg:pub/geolocator_web@3.0.0",
+      "type": "library",
+      "name": "geolocator_web",
+      "version": "3.0.0",
+      "purl": "pkg:pub/geolocator_web@3.0.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/geolocator_web"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/baseflow/flutter-geolocator/tree/main/geolocator_web"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/baseflow/flutter-geolocator/issues?q=is%3Aissue+is%3Aopen"
+        }
+      ],
+      "description": "Official web implementation of the geolocator plugin."
+    },
+    {
+      "bom-ref": "pkg:pub/geolocator_windows@0.2.3",
+      "type": "library",
+      "name": "geolocator_windows",
+      "version": "0.2.3",
+      "purl": "pkg:pub/geolocator_windows@0.2.3",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/geolocator_windows"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/baseflow/flutter-geolocators"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/baseflow/flutter-geolocator/issues?q=is%3Aissue+is%3Aopen"
+        }
+      ],
+      "description": "Geolocation Windows plugin for Flutter. This plugin provides the Windows implementation for the geolocator."
+    },
+    {
+      "bom-ref": "pkg:pub/http_parser@4.0.2",
+      "type": "library",
+      "name": "http_parser",
+      "version": "4.0.2",
+      "purl": "pkg:pub/http_parser@4.0.2",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/http_parser"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/http_parser"
+        }
+      ],
+      "description": "A platform-independent package for parsing and serializing HTTP formats."
+    },
+    {
+      "bom-ref": "pkg:pub/meta@1.12.0",
+      "type": "library",
+      "name": "meta",
+      "version": "1.12.0",
+      "purl": "pkg:pub/meta@1.12.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/meta"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/sdk/tree/main/pkg/meta"
+        }
+      ],
+      "description": "Annotations used to express developer intentions that can't otherwise be deduced by statically analyzing source code."
+    },
+    {
+      "bom-ref": "pkg:pub/package_info_plus@8.3.1",
+      "type": "library",
+      "name": "package_info_plus",
+      "version": "8.3.1",
+      "purl": "pkg:pub/package_info_plus@8.3.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/package_info_plus"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/fluttercommunity/plus_plugins"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/fluttercommunity/plus_plugins/tree/main/packages/package_info_plus/package_info_plus"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/fluttercommunity/plus_plugins/labels/package_info_plus"
+        }
+      ],
+      "description": "Flutter plugin for querying information about the application package, such as CFBundleVersion on iOS or versionCode on Android."
+    },
+    {
+      "bom-ref": "pkg:pub/package_info_plus_platform_interface@3.2.1",
+      "type": "library",
+      "name": "package_info_plus_platform_interface",
+      "version": "3.2.1",
+      "purl": "pkg:pub/package_info_plus_platform_interface@3.2.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/package_info_plus_platform_interface"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/fluttercommunity/plus_plugins"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/fluttercommunity/plus_plugins/tree/main/packages/"
+        }
+      ],
+      "description": "A common platform interface for the package_info_plus plugin."
+    },
+    {
+      "bom-ref": "pkg:pub/path@1.9.0",
+      "type": "library",
+      "name": "path",
+      "version": "1.9.0",
+      "purl": "pkg:pub/path@1.9.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/path"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/path"
+        }
+      ],
+      "description": "A string-based path manipulation library. All of the path operations you know and love, with solid support for Windows, POSIX (Linux and Mac OS X), and the web."
+    },
+    {
+      "bom-ref": "pkg:pub/path_provider_android@2.2.10",
+      "type": "library",
+      "name": "path_provider_android",
+      "version": "2.2.10",
+      "purl": "pkg:pub/path_provider_android@2.2.10",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/path_provider_android"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/path_provider/path_provider_android"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+path_provider%22"
+        }
+      ],
+      "description": "Android implementation of the path_provider plugin."
+    },
+    {
+      "bom-ref": "pkg:pub/path_provider_foundation@2.4.1",
+      "type": "library",
+      "name": "path_provider_foundation",
+      "version": "2.4.1",
+      "purl": "pkg:pub/path_provider_foundation@2.4.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/path_provider_foundation"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/path_provider/path_provider_foundation"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+path_provider%22"
+        }
+      ],
+      "description": "iOS and macOS implementation of the path_provider plugin"
+    },
+    {
+      "bom-ref": "pkg:pub/path_provider_linux@2.2.1",
+      "type": "library",
+      "name": "path_provider_linux",
+      "version": "2.2.1",
+      "purl": "pkg:pub/path_provider_linux@2.2.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/path_provider_linux"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/path_provider/path_provider_linux"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+path_provider%22"
+        }
+      ],
+      "description": "Linux implementation of the path_provider plugin"
+    },
+    {
+      "bom-ref": "pkg:pub/path_provider_platform_interface@2.1.2",
+      "type": "library",
+      "name": "path_provider_platform_interface",
+      "version": "2.1.2",
+      "purl": "pkg:pub/path_provider_platform_interface@2.1.2",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/path_provider_platform_interface"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/path_provider/path_provider_platform_interface"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+path_provider%22"
+        }
+      ],
+      "description": "A common platform interface for the path_provider plugin."
+    },
+    {
+      "bom-ref": "pkg:pub/path_provider_windows@2.3.0",
+      "type": "library",
+      "name": "path_provider_windows",
+      "version": "2.3.0",
+      "purl": "pkg:pub/path_provider_windows@2.3.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/path_provider_windows"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/path_provider/path_provider_windows"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+path_provider%22"
+        }
+      ],
+      "description": "Windows implementation of the path_provider plugin"
+    },
+    {
+      "bom-ref": "pkg:pub/permission_handler_android@12.0.13",
+      "type": "library",
+      "name": "permission_handler_android",
+      "version": "12.0.13",
+      "purl": "pkg:pub/permission_handler_android@12.0.13",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/permission_handler_android"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/baseflow/flutter-permission-handler"
+        }
+      ],
+      "description": "Permission plugin for Flutter. This plugin provides the Android API to request and check permissions."
+    },
+    {
+      "bom-ref": "pkg:pub/permission_handler_apple@9.4.10",
+      "type": "library",
+      "name": "permission_handler_apple",
+      "version": "9.4.10",
+      "purl": "pkg:pub/permission_handler_apple@9.4.10",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/permission_handler_apple"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/baseflow/flutter-permission-handler"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/Baseflow/flutter-permission-handler/issues"
+        }
+      ],
+      "description": "Permission plugin for Flutter. This plugin provides the iOS API to request and check permissions."
+    },
+    {
+      "bom-ref": "pkg:pub/permission_handler_html@0.1.3%2B5",
+      "type": "library",
+      "name": "permission_handler_html",
+      "version": "0.1.3+5",
+      "purl": "pkg:pub/permission_handler_html@0.1.3%2B5",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/permission_handler_html"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/baseflow/flutter-permission-handler"
+        }
+      ],
+      "description": "Permission plugin for Flutter. This plugin provides the web API to request and check permissions."
+    },
+    {
+      "bom-ref": "pkg:pub/permission_handler_platform_interface@4.2.3",
+      "type": "library",
+      "name": "permission_handler_platform_interface",
+      "version": "4.2.3",
+      "purl": "pkg:pub/permission_handler_platform_interface@4.2.3",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/permission_handler_platform_interface"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/baseflow/flutter-permission-handler/tree/master/permission_handler_platform_interface"
+        }
+      ],
+      "description": "A common platform interface for the permission_handler plugin."
+    },
+    {
+      "bom-ref": "pkg:pub/permission_handler_windows@0.2.1",
+      "type": "library",
+      "name": "permission_handler_windows",
+      "version": "0.2.1",
+      "purl": "pkg:pub/permission_handler_windows@0.2.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/permission_handler_windows"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/baseflow/flutter-permission-handler"
+        }
+      ],
+      "description": "Permission plugin for Flutter. This plugin provides the Windows API to request and check permissions."
+    },
+    {
+      "bom-ref": "pkg:pub/petitparser@6.0.2",
+      "type": "library",
+      "name": "petitparser",
+      "version": "6.0.2",
+      "purl": "pkg:pub/petitparser@6.0.2",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/petitparser"
+        },
+        {
+          "type": "website",
+          "url": "https://petitparser.github.io"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/petitparser/dart-petitparser"
+        }
+      ],
+      "description": "A dynamic parser framework to build efficient grammars and parsers quickly."
+    },
+    {
+      "bom-ref": "pkg:pub/platform@3.1.6",
+      "type": "library",
+      "name": "platform",
+      "version": "3.1.6",
+      "purl": "pkg:pub/platform@3.1.6",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/platform"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/core/tree/main/pkgs/platform"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/dart-lang/core/issues"
+        }
+      ],
+      "description": "A pluggable, mockable platform information abstraction for Dart."
+    },
+    {
+      "bom-ref": "pkg:pub/plugin_platform_interface@2.1.8",
+      "type": "library",
+      "name": "plugin_platform_interface",
+      "version": "2.1.8",
+      "purl": "pkg:pub/plugin_platform_interface@2.1.8",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/plugin_platform_interface"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/plugin_platform_interface"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+plugin_platform_interface%22"
+        }
+      ],
+      "description": "Reusable base class for platform interfaces of Flutter federated plugins, to help enforce best practices."
+    },
+    {
+      "bom-ref": "pkg:pub/protobuf@3.1.0",
+      "type": "library",
+      "name": "protobuf",
+      "version": "3.1.0",
+      "purl": "pkg:pub/protobuf@3.1.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/protobuf"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/google/protobuf.dart/tree/master/protobuf"
+        }
+      ],
+      "description": "Runtime library for protocol buffers support. Use with package:protoc_plugin to generate dart code for your '.proto' files."
+    },
+    {
+      "bom-ref": "pkg:pub/reactive_ble_mobile@5.4.1",
+      "type": "library",
+      "name": "reactive_ble_mobile",
+      "version": "5.4.1",
+      "purl": "pkg:pub/reactive_ble_mobile@5.4.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/reactive_ble_mobile"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/PhilipsHue/flutter_reactive_ble"
+        }
+      ],
+      "description": "Official Android and iOS implementation for the flutter_reactive_ble plugin."
+    },
+    {
+      "bom-ref": "pkg:pub/reactive_ble_platform_interface@5.4.2",
+      "type": "library",
+      "name": "reactive_ble_platform_interface",
+      "version": "5.4.2",
+      "purl": "pkg:pub/reactive_ble_platform_interface@5.4.2",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "direct overridden"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/reactive_ble_platform_interface"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/PhilipsHue/flutter_reactive_ble"
+        }
+      ],
+      "description": "Platform interface for the flutter_reactive_ble_project"
+    },
+    {
+      "bom-ref": "pkg:pub/shared_preferences_android@2.3.2",
+      "type": "library",
+      "name": "shared_preferences_android",
+      "version": "2.3.2",
+      "purl": "pkg:pub/shared_preferences_android@2.3.2",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/shared_preferences_android"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/shared_preferences/shared_preferences_android"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+shared_preferences%22"
+        }
+      ],
+      "description": "Android implementation of the shared_preferences plugin"
+    },
+    {
+      "bom-ref": "pkg:pub/shared_preferences_foundation@2.5.4",
+      "type": "library",
+      "name": "shared_preferences_foundation",
+      "version": "2.5.4",
+      "purl": "pkg:pub/shared_preferences_foundation@2.5.4",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/shared_preferences_foundation"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/shared_preferences/shared_preferences_foundation"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+shared_preferences%22"
+        }
+      ],
+      "description": "iOS and macOS implementation of the shared_preferences plugin."
+    },
+    {
+      "bom-ref": "pkg:pub/shared_preferences_linux@2.4.1",
+      "type": "library",
+      "name": "shared_preferences_linux",
+      "version": "2.4.1",
+      "purl": "pkg:pub/shared_preferences_linux@2.4.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/shared_preferences_linux"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/shared_preferences/shared_preferences_linux"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+shared_preferences%22"
+        }
+      ],
+      "description": "Linux implementation of the shared_preferences plugin"
+    },
+    {
+      "bom-ref": "pkg:pub/shared_preferences_platform_interface@2.4.1",
+      "type": "library",
+      "name": "shared_preferences_platform_interface",
+      "version": "2.4.1",
+      "purl": "pkg:pub/shared_preferences_platform_interface@2.4.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/shared_preferences_platform_interface"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/shared_preferences/shared_preferences_platform_interface"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+shared_preferences%22"
+        }
+      ],
+      "description": "A common platform interface for the shared_preferences plugin."
+    },
+    {
+      "bom-ref": "pkg:pub/shared_preferences_web@2.4.3",
+      "type": "library",
+      "name": "shared_preferences_web",
+      "version": "2.4.3",
+      "purl": "pkg:pub/shared_preferences_web@2.4.3",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/shared_preferences_web"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/shared_preferences/shared_preferences_web"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+shared_preferences%22"
+        }
+      ],
+      "description": "Web platform implementation of shared_preferences"
+    },
+    {
+      "bom-ref": "pkg:pub/shared_preferences_windows@2.4.1",
+      "type": "library",
+      "name": "shared_preferences_windows",
+      "version": "2.4.1",
+      "purl": "pkg:pub/shared_preferences_windows@2.4.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/shared_preferences_windows"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/shared_preferences/shared_preferences_windows"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+shared_preferences%22"
+        }
+      ],
+      "description": "Windows implementation of shared_preferences"
+    },
+    {
+      "bom-ref": "pkg:pub/source_span@1.10.0",
+      "type": "library",
+      "name": "source_span",
+      "version": "1.10.0",
+      "purl": "pkg:pub/source_span@1.10.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/source_span"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/source_span"
+        }
+      ],
+      "description": "Provides a standard representation for source code locations and spans."
+    },
+    {
+      "bom-ref": "pkg:pub/string_scanner@1.2.0",
+      "type": "library",
+      "name": "string_scanner",
+      "version": "1.2.0",
+      "purl": "pkg:pub/string_scanner@1.2.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/string_scanner"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/string_scanner"
+        }
+      ],
+      "description": "A class for parsing strings using a sequence of patterns."
+    },
+    {
+      "bom-ref": "pkg:pub/term_glyph@1.2.1",
+      "type": "library",
+      "name": "term_glyph",
+      "version": "1.2.1",
+      "purl": "pkg:pub/term_glyph@1.2.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/term_glyph"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/term_glyph"
+        }
+      ],
+      "description": "Useful Unicode glyphs and ASCII substitutes."
+    },
+    {
+      "bom-ref": "pkg:pub/typed_data@1.3.2",
+      "type": "library",
+      "name": "typed_data",
+      "version": "1.3.2",
+      "purl": "pkg:pub/typed_data@1.3.2",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/typed_data"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/typed_data"
+        }
+      ],
+      "description": "Utility functions and classes related to the dart:typed_data library."
+    },
+    {
+      "bom-ref": "pkg:pub/url_launcher_android@6.3.9",
+      "type": "library",
+      "name": "url_launcher_android",
+      "version": "6.3.9",
+      "purl": "pkg:pub/url_launcher_android@6.3.9",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/url_launcher_android"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/url_launcher/url_launcher_android"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+url_launcher%22"
+        }
+      ],
+      "description": "Android implementation of the url_launcher plugin."
+    },
+    {
+      "bom-ref": "pkg:pub/url_launcher_ios@6.3.3",
+      "type": "library",
+      "name": "url_launcher_ios",
+      "version": "6.3.3",
+      "purl": "pkg:pub/url_launcher_ios@6.3.3",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/url_launcher_ios"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/url_launcher/url_launcher_ios"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+url_launcher%22"
+        }
+      ],
+      "description": "iOS implementation of the url_launcher plugin."
+    },
+    {
+      "bom-ref": "pkg:pub/url_launcher_linux@3.2.1",
+      "type": "library",
+      "name": "url_launcher_linux",
+      "version": "3.2.1",
+      "purl": "pkg:pub/url_launcher_linux@3.2.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/url_launcher_linux"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/url_launcher/url_launcher_linux"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+url_launcher%22"
+        }
+      ],
+      "description": "Linux implementation of the url_launcher plugin."
+    },
+    {
+      "bom-ref": "pkg:pub/url_launcher_macos@3.2.2",
+      "type": "library",
+      "name": "url_launcher_macos",
+      "version": "3.2.2",
+      "purl": "pkg:pub/url_launcher_macos@3.2.2",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/url_launcher_macos"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/url_launcher/url_launcher_macos"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+url_launcher%22"
+        }
+      ],
+      "description": "macOS implementation of the url_launcher plugin."
+    },
+    {
+      "bom-ref": "pkg:pub/url_launcher_platform_interface@2.3.2",
+      "type": "library",
+      "name": "url_launcher_platform_interface",
+      "version": "2.3.2",
+      "purl": "pkg:pub/url_launcher_platform_interface@2.3.2",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/url_launcher_platform_interface"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/url_launcher/url_launcher_platform_interface"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+url_launcher%22"
+        }
+      ],
+      "description": "A common platform interface for the url_launcher plugin."
+    },
+    {
+      "bom-ref": "pkg:pub/url_launcher_web@2.3.3",
+      "type": "library",
+      "name": "url_launcher_web",
+      "version": "2.3.3",
+      "purl": "pkg:pub/url_launcher_web@2.3.3",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/url_launcher_web"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/url_launcher/url_launcher_web"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+url_launcher%22"
+        }
+      ],
+      "description": "Web platform implementation of url_launcher"
+    },
+    {
+      "bom-ref": "pkg:pub/url_launcher_windows@3.1.4",
+      "type": "library",
+      "name": "url_launcher_windows",
+      "version": "3.1.4",
+      "purl": "pkg:pub/url_launcher_windows@3.1.4",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/url_launcher_windows"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/url_launcher/url_launcher_windows"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+url_launcher%22"
+        }
+      ],
+      "description": "Windows implementation of the url_launcher plugin."
+    },
+    {
+      "bom-ref": "pkg:pub/uuid@4.6.0",
+      "type": "library",
+      "name": "uuid",
+      "version": "4.6.0",
+      "purl": "pkg:pub/uuid@4.6.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/uuid"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/Daegalus/dart-uuid"
+        },
+        {
+          "type": "documentation",
+          "url": "https://daegalus.github.io/dart-uuid/index.html"
+        }
+      ],
+      "description": "RFC4122 (v1, v4, v5, v6, v7, v8) UUID Generator and Parser for Dart\n"
+    },
+    {
+      "bom-ref": "pkg:pub/vector_math@2.1.4",
+      "type": "library",
+      "name": "vector_math",
+      "version": "2.1.4",
+      "purl": "pkg:pub/vector_math@2.1.4",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/vector_math"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/google/vector_math.dart"
+        }
+      ],
+      "description": "A Vector Math library for 2D and 3D applications."
+    },
+    {
+      "bom-ref": "pkg:pub/wakelock_plus_platform_interface@1.3.0",
+      "type": "library",
+      "name": "wakelock_plus_platform_interface",
+      "version": "1.3.0",
+      "purl": "pkg:pub/wakelock_plus_platform_interface@1.3.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/wakelock_plus_platform_interface"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/fluttercommunity/wakelock_plus/tree/main/wakelock_plus_platform_interface"
+        }
+      ],
+      "description": "A common platform interface for the wakelock_plus plugin used by the different platform implementations."
+    },
+    {
+      "bom-ref": "pkg:pub/web@1.1.1",
+      "type": "library",
+      "name": "web",
+      "version": "1.1.1",
+      "purl": "pkg:pub/web@1.1.1",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/web"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dart-lang/web"
+        }
+      ],
+      "description": "Lightweight browser API bindings built around JS interop."
+    },
+    {
+      "bom-ref": "pkg:pub/win32@5.5.4",
+      "type": "library",
+      "name": "win32",
+      "version": "5.5.4",
+      "purl": "pkg:pub/win32@5.5.4",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/win32"
+        },
+        {
+          "type": "website",
+          "url": "https://win32.pub"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/halildurmus/win32"
+        },
+        {
+          "type": "documentation",
+          "url": "https://win32.pub/docs"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/halildurmus/win32/issues"
+        }
+      ],
+      "description": "Access common Win32 APIs directly from Dart using FFI \u2014 no C required!\n"
+    },
+    {
+      "bom-ref": "pkg:pub/window_to_front@0.0.4",
+      "type": "library",
+      "name": "window_to_front",
+      "version": "0.0.4",
+      "purl": "pkg:pub/window_to_front@0.0.4",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/window_to_front"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/sumitvekariya/window_to_front"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/sumitvekariya/window_to_front/issues"
+        }
+      ],
+      "description": "Brings your Flutter desktop application window back to the front of the window stack on Windows, Linux and macOS."
+    },
+    {
+      "bom-ref": "pkg:pub/xdg_directories@1.1.0",
+      "type": "library",
+      "name": "xdg_directories",
+      "version": "1.1.0",
+      "purl": "pkg:pub/xdg_directories@1.1.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/xdg_directories"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/packages/tree/main/packages/xdg_directories"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+xdg_directories%22"
+        }
+      ],
+      "description": "A Dart package for reading XDG directory configuration information on Linux."
+    },
+    {
+      "bom-ref": "pkg:pub/xml@6.5.0",
+      "type": "library",
+      "name": "xml",
+      "version": "6.5.0",
+      "purl": "pkg:pub/xml@6.5.0",
+      "scope": "required",
+      "properties": [
+        {
+          "name": "pub:source",
+          "value": "hosted"
+        },
+        {
+          "name": "pub:relationship",
+          "value": "transitive"
+        },
+        {
+          "name": "pub:lock_dependency_kind",
+          "value": "transitive"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pub.dev/packages/xml"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/renggli/dart-xml"
+        }
+      ],
+      "description": "A lightweight library for parsing, traversing, querying, transforming and building XML documents."
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:pub/args@2.7.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pub/async@2.11.0",
+      "dependsOn": [
+        "pkg:pub/collection@1.18.0",
+        "pkg:pub/meta@1.12.0"
+      ]
+    },
+    {
+      "ref": "pkg:pub/clock@1.1.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pub/collection@1.18.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pub/crypto@3.0.7",
+      "dependsOn": [
+        "pkg:pub/typed_data@1.3.2"
+      ]
+    },
+    {
+      "ref": "pkg:pub/cupertino_icons@1.0.8",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pub/dbus@0.7.12",
+      "dependsOn": [
+        "pkg:pub/args@2.7.0",
+        "pkg:pub/ffi@2.1.3",
+        "pkg:pub/meta@1.12.0",
+        "pkg:pub/xml@6.5.0"
+      ]
+    },
+    {
+      "ref": "pkg:pub/desktop_webview_window@0.2.3",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/path@1.9.0"
+      ]
+    },
+    {
+      "ref": "pkg:pub/ffi@2.1.3",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pub/file@7.0.1",
+      "dependsOn": [
+        "pkg:pub/meta@1.12.0",
+        "pkg:pub/path@1.9.0"
+      ]
+    },
+    {
+      "ref": "pkg:pub/fit_sdk@0.3.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pub/fixnum@1.1.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pub/flutter@0.0.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pub/flutter_background_service@5.1.0",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/flutter_background_service_android@6.3.1",
+        "pkg:pub/flutter_background_service_ios@5.0.3",
+        "pkg:pub/flutter_background_service_platform_interface@5.1.2"
+      ]
+    },
+    {
+      "ref": "pkg:pub/flutter_background_service_android@6.3.1",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/flutter_background_service_platform_interface@5.1.2"
+      ]
+    },
+    {
+      "ref": "pkg:pub/flutter_background_service_ios@5.0.3",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/flutter_background_service_platform_interface@5.1.2"
+      ]
+    },
+    {
+      "ref": "pkg:pub/flutter_background_service_platform_interface@5.1.2",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/platform@3.1.6",
+        "pkg:pub/plugin_platform_interface@2.1.8"
+      ]
+    },
+    {
+      "ref": "pkg:pub/flutter_reactive_ble@5.4.1",
+      "dependsOn": [
+        "pkg:pub/collection@1.18.0",
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/functional_data@1.2.0",
+        "pkg:pub/meta@1.12.0",
+        "pkg:pub/reactive_ble_mobile@5.4.1",
+        "pkg:pub/reactive_ble_platform_interface@5.4.2"
+      ]
+    },
+    {
+      "ref": "pkg:pub/flutter_secure_storage@10.3.1",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/flutter_secure_storage_darwin@0.3.2",
+        "pkg:pub/flutter_secure_storage_linux@3.0.1",
+        "pkg:pub/flutter_secure_storage_platform_interface@2.0.1",
+        "pkg:pub/flutter_secure_storage_web@2.1.1",
+        "pkg:pub/flutter_secure_storage_windows@4.1.0",
+        "pkg:pub/meta@1.12.0"
+      ]
+    },
+    {
+      "ref": "pkg:pub/flutter_secure_storage_darwin@0.3.2",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/plugin_platform_interface@2.1.8"
+      ]
+    },
+    {
+      "ref": "pkg:pub/flutter_secure_storage_linux@3.0.1",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/flutter_secure_storage_platform_interface@2.0.1"
+      ]
+    },
+    {
+      "ref": "pkg:pub/flutter_secure_storage_platform_interface@2.0.1",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/plugin_platform_interface@2.1.8"
+      ]
+    },
+    {
+      "ref": "pkg:pub/flutter_secure_storage_web@2.1.1",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/flutter_secure_storage_platform_interface@2.0.1",
+        "pkg:pub/flutter_web_plugins@0.0.0",
+        "pkg:pub/web@1.1.1"
+      ]
+    },
+    {
+      "ref": "pkg:pub/flutter_secure_storage_windows@4.1.0",
+      "dependsOn": [
+        "pkg:pub/ffi@2.1.3",
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/flutter_secure_storage_platform_interface@2.0.1",
+        "pkg:pub/path@1.9.0",
+        "pkg:pub/path_provider@2.1.5",
+        "pkg:pub/win32@5.5.4"
+      ]
+    },
+    {
+      "ref": "pkg:pub/flutter_web_auth_2@4.1.0",
+      "dependsOn": [
+        "pkg:pub/desktop_webview_window@0.2.3",
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/flutter_web_auth_2_platform_interface@4.1.0",
+        "pkg:pub/flutter_web_plugins@0.0.0",
+        "pkg:pub/path_provider@2.1.5",
+        "pkg:pub/url_launcher@6.3.1",
+        "pkg:pub/web@1.1.1",
+        "pkg:pub/window_to_front@0.0.4"
+      ]
+    },
+    {
+      "ref": "pkg:pub/flutter_web_auth_2_platform_interface@4.1.0",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/plugin_platform_interface@2.1.8"
+      ]
+    },
+    {
+      "ref": "pkg:pub/flutter_web_plugins@0.0.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pub/functional_data@1.2.0",
+      "dependsOn": [
+        "pkg:pub/collection@1.18.0",
+        "pkg:pub/meta@1.12.0"
+      ]
+    },
+    {
+      "ref": "pkg:pub/geolocator@11.1.0",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/geolocator_android@4.6.1",
+        "pkg:pub/geolocator_apple@2.3.9",
+        "pkg:pub/geolocator_platform_interface@4.2.4",
+        "pkg:pub/geolocator_web@3.0.0",
+        "pkg:pub/geolocator_windows@0.2.3"
+      ]
+    },
+    {
+      "ref": "pkg:pub/geolocator_android@4.6.1",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/geolocator_platform_interface@4.2.4",
+        "pkg:pub/meta@1.12.0",
+        "pkg:pub/uuid@4.6.0"
+      ]
+    },
+    {
+      "ref": "pkg:pub/geolocator_apple@2.3.9",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/geolocator_platform_interface@4.2.4"
+      ]
+    },
+    {
+      "ref": "pkg:pub/geolocator_platform_interface@4.2.4",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/meta@1.12.0",
+        "pkg:pub/plugin_platform_interface@2.1.8",
+        "pkg:pub/vector_math@2.1.4"
+      ]
+    },
+    {
+      "ref": "pkg:pub/geolocator_web@3.0.0",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/flutter_web_plugins@0.0.0",
+        "pkg:pub/geolocator_platform_interface@4.2.4"
+      ]
+    },
+    {
+      "ref": "pkg:pub/geolocator_windows@0.2.3",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/geolocator_platform_interface@4.2.4"
+      ]
+    },
+    {
+      "ref": "pkg:pub/http@1.6.0",
+      "dependsOn": [
+        "pkg:pub/async@2.11.0",
+        "pkg:pub/http_parser@4.0.2",
+        "pkg:pub/meta@1.12.0",
+        "pkg:pub/web@1.1.1"
+      ]
+    },
+    {
+      "ref": "pkg:pub/http_parser@4.0.2",
+      "dependsOn": [
+        "pkg:pub/collection@1.18.0",
+        "pkg:pub/source_span@1.10.0",
+        "pkg:pub/string_scanner@1.2.0",
+        "pkg:pub/typed_data@1.3.2"
+      ]
+    },
+    {
+      "ref": "pkg:pub/meta@1.12.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pub/package_info_plus@8.3.1",
+      "dependsOn": [
+        "pkg:pub/clock@1.1.1",
+        "pkg:pub/ffi@2.1.3",
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/flutter_web_plugins@0.0.0",
+        "pkg:pub/http@1.6.0",
+        "pkg:pub/meta@1.12.0",
+        "pkg:pub/package_info_plus_platform_interface@3.2.1",
+        "pkg:pub/path@1.9.0",
+        "pkg:pub/web@1.1.1",
+        "pkg:pub/win32@5.5.4"
+      ]
+    },
+    {
+      "ref": "pkg:pub/package_info_plus_platform_interface@3.2.1",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/meta@1.12.0",
+        "pkg:pub/plugin_platform_interface@2.1.8"
+      ]
+    },
+    {
+      "ref": "pkg:pub/path@1.9.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pub/path_provider@2.1.5",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/path_provider_android@2.2.10",
+        "pkg:pub/path_provider_foundation@2.4.1",
+        "pkg:pub/path_provider_linux@2.2.1",
+        "pkg:pub/path_provider_platform_interface@2.1.2",
+        "pkg:pub/path_provider_windows@2.3.0"
+      ]
+    },
+    {
+      "ref": "pkg:pub/path_provider_android@2.2.10",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/path_provider_platform_interface@2.1.2"
+      ]
+    },
+    {
+      "ref": "pkg:pub/path_provider_foundation@2.4.1",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/path_provider_platform_interface@2.1.2"
+      ]
+    },
+    {
+      "ref": "pkg:pub/path_provider_linux@2.2.1",
+      "dependsOn": [
+        "pkg:pub/ffi@2.1.3",
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/path@1.9.0",
+        "pkg:pub/path_provider_platform_interface@2.1.2",
+        "pkg:pub/xdg_directories@1.1.0"
+      ]
+    },
+    {
+      "ref": "pkg:pub/path_provider_platform_interface@2.1.2",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/platform@3.1.6",
+        "pkg:pub/plugin_platform_interface@2.1.8"
+      ]
+    },
+    {
+      "ref": "pkg:pub/path_provider_windows@2.3.0",
+      "dependsOn": [
+        "pkg:pub/ffi@2.1.3",
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/path@1.9.0",
+        "pkg:pub/path_provider_platform_interface@2.1.2"
+      ]
+    },
+    {
+      "ref": "pkg:pub/permission_handler@11.3.1",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/meta@1.12.0",
+        "pkg:pub/permission_handler_android@12.0.13",
+        "pkg:pub/permission_handler_apple@9.4.10",
+        "pkg:pub/permission_handler_html@0.1.3%2B5",
+        "pkg:pub/permission_handler_platform_interface@4.2.3",
+        "pkg:pub/permission_handler_windows@0.2.1"
+      ]
+    },
+    {
+      "ref": "pkg:pub/permission_handler_android@12.0.13",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/permission_handler_platform_interface@4.2.3"
+      ]
+    },
+    {
+      "ref": "pkg:pub/permission_handler_apple@9.4.10",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/permission_handler_platform_interface@4.2.3"
+      ]
+    },
+    {
+      "ref": "pkg:pub/permission_handler_html@0.1.3%2B5",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/flutter_web_plugins@0.0.0",
+        "pkg:pub/permission_handler_platform_interface@4.2.3",
+        "pkg:pub/web@1.1.1"
+      ]
+    },
+    {
+      "ref": "pkg:pub/permission_handler_platform_interface@4.2.3",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/meta@1.12.0",
+        "pkg:pub/plugin_platform_interface@2.1.8"
+      ]
+    },
+    {
+      "ref": "pkg:pub/permission_handler_windows@0.2.1",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/permission_handler_platform_interface@4.2.3"
+      ]
+    },
+    {
+      "ref": "pkg:pub/petitparser@6.0.2",
+      "dependsOn": [
+        "pkg:pub/meta@1.12.0"
+      ]
+    },
+    {
+      "ref": "pkg:pub/platform@3.1.6",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pub/plugin_platform_interface@2.1.8",
+      "dependsOn": [
+        "pkg:pub/meta@1.12.0"
+      ]
+    },
+    {
+      "ref": "pkg:pub/protobuf@3.1.0",
+      "dependsOn": [
+        "pkg:pub/collection@1.18.0",
+        "pkg:pub/fixnum@1.1.1",
+        "pkg:pub/meta@1.12.0"
+      ]
+    },
+    {
+      "ref": "pkg:pub/reactive_ble_mobile@5.4.1",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/protobuf@3.1.0",
+        "pkg:pub/reactive_ble_platform_interface@5.4.2"
+      ]
+    },
+    {
+      "ref": "pkg:pub/reactive_ble_platform_interface@5.4.2",
+      "dependsOn": [
+        "pkg:pub/collection@1.18.0",
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/functional_data@1.2.0",
+        "pkg:pub/meta@1.12.0",
+        "pkg:pub/plugin_platform_interface@2.1.8"
+      ]
+    },
+    {
+      "ref": "pkg:pub/shared_preferences@2.3.3",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/shared_preferences_android@2.3.2",
+        "pkg:pub/shared_preferences_foundation@2.5.4",
+        "pkg:pub/shared_preferences_linux@2.4.1",
+        "pkg:pub/shared_preferences_platform_interface@2.4.1",
+        "pkg:pub/shared_preferences_web@2.4.3",
+        "pkg:pub/shared_preferences_windows@2.4.1"
+      ]
+    },
+    {
+      "ref": "pkg:pub/shared_preferences_android@2.3.2",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/shared_preferences_platform_interface@2.4.1"
+      ]
+    },
+    {
+      "ref": "pkg:pub/shared_preferences_foundation@2.5.4",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/shared_preferences_platform_interface@2.4.1"
+      ]
+    },
+    {
+      "ref": "pkg:pub/shared_preferences_linux@2.4.1",
+      "dependsOn": [
+        "pkg:pub/file@7.0.1",
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/path@1.9.0",
+        "pkg:pub/path_provider_linux@2.2.1",
+        "pkg:pub/path_provider_platform_interface@2.1.2",
+        "pkg:pub/shared_preferences_platform_interface@2.4.1"
+      ]
+    },
+    {
+      "ref": "pkg:pub/shared_preferences_platform_interface@2.4.1",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/plugin_platform_interface@2.1.8"
+      ]
+    },
+    {
+      "ref": "pkg:pub/shared_preferences_web@2.4.3",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/flutter_web_plugins@0.0.0",
+        "pkg:pub/shared_preferences_platform_interface@2.4.1",
+        "pkg:pub/web@1.1.1"
+      ]
+    },
+    {
+      "ref": "pkg:pub/shared_preferences_windows@2.4.1",
+      "dependsOn": [
+        "pkg:pub/file@7.0.1",
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/path@1.9.0",
+        "pkg:pub/path_provider_platform_interface@2.1.2",
+        "pkg:pub/path_provider_windows@2.3.0",
+        "pkg:pub/shared_preferences_platform_interface@2.4.1"
+      ]
+    },
+    {
+      "ref": "pkg:pub/simple_bike_display@1.0.0%2B1",
+      "dependsOn": [
+        "pkg:pub/crypto@3.0.7",
+        "pkg:pub/cupertino_icons@1.0.8",
+        "pkg:pub/fit_sdk@0.3.0",
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/flutter_background_service@5.1.0",
+        "pkg:pub/flutter_reactive_ble@5.4.1",
+        "pkg:pub/flutter_secure_storage@10.3.1",
+        "pkg:pub/flutter_web_auth_2@4.1.0",
+        "pkg:pub/geolocator@11.1.0",
+        "pkg:pub/http@1.6.0",
+        "pkg:pub/path_provider@2.1.5",
+        "pkg:pub/permission_handler@11.3.1",
+        "pkg:pub/shared_preferences@2.3.3",
+        "pkg:pub/url_launcher@6.3.1",
+        "pkg:pub/wakelock_plus@1.3.0"
+      ]
+    },
+    {
+      "ref": "pkg:pub/source_span@1.10.0",
+      "dependsOn": [
+        "pkg:pub/collection@1.18.0",
+        "pkg:pub/path@1.9.0",
+        "pkg:pub/term_glyph@1.2.1"
+      ]
+    },
+    {
+      "ref": "pkg:pub/string_scanner@1.2.0",
+      "dependsOn": [
+        "pkg:pub/source_span@1.10.0"
+      ]
+    },
+    {
+      "ref": "pkg:pub/term_glyph@1.2.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pub/typed_data@1.3.2",
+      "dependsOn": [
+        "pkg:pub/collection@1.18.0"
+      ]
+    },
+    {
+      "ref": "pkg:pub/url_launcher@6.3.1",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/url_launcher_android@6.3.9",
+        "pkg:pub/url_launcher_ios@6.3.3",
+        "pkg:pub/url_launcher_linux@3.2.1",
+        "pkg:pub/url_launcher_macos@3.2.2",
+        "pkg:pub/url_launcher_platform_interface@2.3.2",
+        "pkg:pub/url_launcher_web@2.3.3",
+        "pkg:pub/url_launcher_windows@3.1.4"
+      ]
+    },
+    {
+      "ref": "pkg:pub/url_launcher_android@6.3.9",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/url_launcher_platform_interface@2.3.2"
+      ]
+    },
+    {
+      "ref": "pkg:pub/url_launcher_ios@6.3.3",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/url_launcher_platform_interface@2.3.2"
+      ]
+    },
+    {
+      "ref": "pkg:pub/url_launcher_linux@3.2.1",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/url_launcher_platform_interface@2.3.2"
+      ]
+    },
+    {
+      "ref": "pkg:pub/url_launcher_macos@3.2.2",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/url_launcher_platform_interface@2.3.2"
+      ]
+    },
+    {
+      "ref": "pkg:pub/url_launcher_platform_interface@2.3.2",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/plugin_platform_interface@2.1.8"
+      ]
+    },
+    {
+      "ref": "pkg:pub/url_launcher_web@2.3.3",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/flutter_web_plugins@0.0.0",
+        "pkg:pub/url_launcher_platform_interface@2.3.2",
+        "pkg:pub/web@1.1.1"
+      ]
+    },
+    {
+      "ref": "pkg:pub/url_launcher_windows@3.1.4",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/url_launcher_platform_interface@2.3.2"
+      ]
+    },
+    {
+      "ref": "pkg:pub/uuid@4.6.0",
+      "dependsOn": [
+        "pkg:pub/crypto@3.0.7",
+        "pkg:pub/fixnum@1.1.1"
+      ]
+    },
+    {
+      "ref": "pkg:pub/vector_math@2.1.4",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pub/wakelock_plus@1.3.0",
+      "dependsOn": [
+        "pkg:pub/dbus@0.7.12",
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/flutter_web_plugins@0.0.0",
+        "pkg:pub/meta@1.12.0",
+        "pkg:pub/package_info_plus@8.3.1",
+        "pkg:pub/wakelock_plus_platform_interface@1.3.0",
+        "pkg:pub/web@1.1.1",
+        "pkg:pub/win32@5.5.4"
+      ]
+    },
+    {
+      "ref": "pkg:pub/wakelock_plus_platform_interface@1.3.0",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0",
+        "pkg:pub/meta@1.12.0",
+        "pkg:pub/plugin_platform_interface@2.1.8"
+      ]
+    },
+    {
+      "ref": "pkg:pub/web@1.1.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pub/win32@5.5.4",
+      "dependsOn": [
+        "pkg:pub/ffi@2.1.3"
+      ]
+    },
+    {
+      "ref": "pkg:pub/window_to_front@0.0.4",
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0"
+      ]
+    },
+    {
+      "ref": "pkg:pub/xdg_directories@1.1.0",
+      "dependsOn": [
+        "pkg:pub/meta@1.12.0",
+        "pkg:pub/path@1.9.0"
+      ]
+    },
+    {
+      "ref": "pkg:pub/xml@6.5.0",
+      "dependsOn": [
+        "pkg:pub/collection@1.18.0",
+        "pkg:pub/meta@1.12.0",
+        "pkg:pub/petitparser@6.0.2"
+      ]
+    }
+  ]
+}
