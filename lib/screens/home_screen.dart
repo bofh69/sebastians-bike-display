@@ -407,8 +407,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<bool> _ensureRideRecordingLocationPermission() {
+    if (!_rideRecordingRequiresBackgroundLocation) {
+      return _ensureLocationPermission();
+    }
+    return _ensureAndroidRideRecordingLocationPermission();
+  }
+
+  Future<bool> _ensureAndroidRideRecordingLocationPermission() async {
+    var foregroundPermission = await Permission.locationWhenInUse.status;
+    if (!foregroundPermission.isGranted) {
+      foregroundPermission = await Permission.locationWhenInUse.request();
+    }
+    if (!foregroundPermission.isGranted) {
+      return false;
+    }
+
+    var backgroundPermission = await Permission.locationAlways.status;
+    if (!backgroundPermission.isGranted) {
+      backgroundPermission = await Permission.locationAlways.request();
+    }
+    if (!backgroundPermission.isGranted) {
+      return false;
+    }
+
     return _ensureLocationPermission(
-      requiresBackgroundUpdates: _rideRecordingRequiresBackgroundLocation,
+      requiresBackgroundUpdates: true,
+      requestBackgroundPermissionUpgrade: false,
     );
   }
 
