@@ -384,26 +384,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!serviceEnabled) return false;
 
     if (isAndroid) {
-      var foregroundPermission = await Permission.locationWhenInUse.status;
-      if (!foregroundPermission.isGranted) {
-        foregroundPermission = await Permission.locationWhenInUse.request();
-      }
-      var hasAndroidBackgroundLocationPermission = false;
-      var backgroundPermission = await Permission.locationAlways.status;
-      if (requiresBackgroundUpdates &&
-          requestBackgroundPermissionUpgrade &&
-          !backgroundPermission.isGranted) {
-        backgroundPermission = await Permission.locationAlways.request();
-      }
-      hasAndroidBackgroundLocationPermission = backgroundPermission.isGranted;
+      final permissionState = await _resolveAndroidLocationPermissionState(
+        requestBackgroundPermissionUpgrade:
+            requiresBackgroundUpdates && requestBackgroundPermissionUpgrade,
+      );
       return isLocationPermissionSufficientForRideRecording(
-        permission: foregroundPermission.isGranted
+        permission: permissionState.hasForegroundPermission
             ? LocationPermission.whileInUse
             : LocationPermission.denied,
         isAndroid: true,
         requiresBackgroundUpdates: requiresBackgroundUpdates,
         hasAndroidBackgroundLocationPermission:
-            hasAndroidBackgroundLocationPermission,
+            permissionState.hasBackgroundPermission,
       );
     }
 
@@ -432,23 +424,39 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           : RideRecordingLocationAccessFailure.locationPermissionRequired;
     }
 
-    var foregroundPermission = await Permission.locationWhenInUse.status;
-    if (!foregroundPermission.isGranted) {
-      foregroundPermission = await Permission.locationWhenInUse.request();
-    }
-    if (!foregroundPermission.isGranted) {
+    final permissionState = await _resolveAndroidLocationPermissionState(
+      requestBackgroundPermissionUpgrade: true,
+    );
+    if (!permissionState.hasForegroundPermission) {
       return RideRecordingLocationAccessFailure.locationPermissionRequired;
     }
-
-    var backgroundPermission = await Permission.locationAlways.status;
-    if (!backgroundPermission.isGranted) {
-      backgroundPermission = await Permission.locationAlways.request();
-    }
-    if (!backgroundPermission.isGranted) {
+    if (!permissionState.hasBackgroundPermission) {
       return RideRecordingLocationAccessFailure
           .backgroundLocationPermissionRequired;
     }
     return null;
+  }
+
+  Future<({bool hasForegroundPermission, bool hasBackgroundPermission})>
+      _resolveAndroidLocationPermissionState({
+    required bool requestBackgroundPermissionUpgrade,
+  }) async {
+    var foregroundPermission = await Permission.locationWhenInUse.status;
+    if (!foregroundPermission.isGranted) {
+      foregroundPermission = await Permission.locationWhenInUse.request();
+    }
+
+    var backgroundPermission = await Permission.locationAlways.status;
+    if (foregroundPermission.isGranted &&
+        requestBackgroundPermissionUpgrade &&
+        !backgroundPermission.isGranted) {
+      backgroundPermission = await Permission.locationAlways.request();
+    }
+
+    return (
+      hasForegroundPermission: foregroundPermission.isGranted,
+      hasBackgroundPermission: backgroundPermission.isGranted,
+    );
   }
 
   void _applyState(VoidCallback updates) {
