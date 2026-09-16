@@ -385,6 +385,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (isAndroid) {
       final permissionState = await _resolveAndroidLocationPermissionState(
+        requestForegroundPermission: true,
         requestBackgroundPermissionUpgrade:
             requiresBackgroundUpdates && requestBackgroundPermissionUpgrade,
       );
@@ -425,7 +426,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
 
     final permissionState = await _resolveAndroidLocationPermissionState(
-      requestBackgroundPermissionUpgrade: true,
+      requestForegroundPermission: false,
+      requestBackgroundPermissionUpgrade: false,
     );
     if (!permissionState.hasForegroundPermission) {
       return RideRecordingLocationAccessFailure.locationPermissionRequired;
@@ -437,12 +439,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return null;
   }
 
+  Future<bool> _ensureRideRecordingLocationPermission() {
+    return _ensureLocationPermission(
+      requiresBackgroundUpdates: _rideRecordingRequiresBackgroundLocation,
+    );
+  }
+
   Future<({bool hasForegroundPermission, bool hasBackgroundPermission})>
       _resolveAndroidLocationPermissionState({
+    required bool requestForegroundPermission,
     required bool requestBackgroundPermissionUpgrade,
   }) async {
     var foregroundPermission = await Permission.locationWhenInUse.status;
-    if (!foregroundPermission.isGranted) {
+    if (requestForegroundPermission && !foregroundPermission.isGranted) {
       foregroundPermission = await Permission.locationWhenInUse.request();
     }
 
@@ -624,9 +633,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    final permissionFailure = await _rideRecordingLocationAccessFailure();
-    if (permissionFailure != null) {
+    final hasPermission = await _ensureRideRecordingLocationPermission();
+    if (!hasPermission) {
       if (!mounted) return;
+      final permissionFailure = await _rideRecordingLocationAccessFailure() ??
+          RideRecordingLocationAccessFailure.locationPermissionRequired;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
