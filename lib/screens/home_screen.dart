@@ -448,14 +448,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return RideRecordingLocationAccessFailure
           .backgroundLocationPermissionRequired;
     }
-
-    final hasPermission = await _ensureLocationPermission(
-      requiresBackgroundUpdates: true,
-      requestBackgroundPermissionUpgrade: false,
-    );
-    return hasPermission
-        ? null
-        : RideRecordingLocationAccessFailure.locationPermissionRequired;
+    return null;
   }
 
   void _applyState(VoidCallback updates) {
