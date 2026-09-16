@@ -136,10 +136,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
 
   Future<void> _openLink(Uri uri) async {
     try {
-      final launched = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
+      final launched = await launchUrl(uri);
       if (launched) {
         return;
       }
