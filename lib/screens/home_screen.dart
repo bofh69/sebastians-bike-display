@@ -419,8 +419,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
 
     if (!_rideRecordingRequiresBackgroundLocation) {
-      final hasPermission = await _ensureLocationPermission();
-      return hasPermission
+      final permission = await Geolocator.checkPermission();
+      return isLocationPermissionSufficientForRideRecording(
+            permission: permission,
+            isAndroid: false,
+            requiresBackgroundUpdates: false,
+          )
           ? null
           : RideRecordingLocationAccessFailure.locationPermissionRequired;
     }
@@ -450,9 +454,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     required bool requestForegroundPermission,
     required bool requestBackgroundPermissionUpgrade,
   }) async {
-    var foregroundPermission = await Permission.locationWhenInUse.status;
+    var foregroundPermission = await Permission.location.status;
     if (requestForegroundPermission && !foregroundPermission.isGranted) {
-      foregroundPermission = await Permission.locationWhenInUse.request();
+      foregroundPermission = await Permission.location.request();
     }
 
     var backgroundPermission = await Permission.locationAlways.status;
