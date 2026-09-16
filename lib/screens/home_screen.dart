@@ -423,7 +423,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final hasPermission = isLocationPermissionSufficientForRideRecording(
         permission: permission,
         isAndroid: false,
-        requiresBackgroundUpdates: false,
+        requiresBackgroundUpdates: _rideRecordingRequiresBackgroundLocation,
       );
       return hasPermission
           ? null

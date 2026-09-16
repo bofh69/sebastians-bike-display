@@ -95,6 +95,31 @@ void main() {
     );
   });
 
+  test('location permission helper rejects denied permission states', () {
+    for (final permission in <LocationPermission>[
+      LocationPermission.denied,
+      LocationPermission.deniedForever,
+      LocationPermission.unableToDetermine,
+    ]) {
+      expect(
+        isLocationPermissionSufficientForRideRecording(
+          permission: permission,
+          isAndroid: true,
+          requiresBackgroundUpdates: false,
+        ),
+        isFalse,
+      );
+      expect(
+        isLocationPermissionSufficientForRideRecording(
+          permission: permission,
+          isAndroid: false,
+          requiresBackgroundUpdates: false,
+        ),
+        isFalse,
+      );
+    }
+  });
+
   test('ride recording location failures map to clear user messages', () {
     expect(
       rideRecordingLocationAccessFailureMessage(
