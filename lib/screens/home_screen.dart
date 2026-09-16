@@ -388,18 +388,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (!foregroundPermission.isGranted) {
         foregroundPermission = await Permission.locationWhenInUse.request();
       }
-      if (!foregroundPermission.isGranted) {
-        return false;
-      }
-      if (!requiresBackgroundUpdates) {
-        return true;
-      }
-
+      var hasAndroidBackgroundLocationPermission = false;
       var backgroundPermission = await Permission.locationAlways.status;
-      if (requestBackgroundPermissionUpgrade && !backgroundPermission.isGranted) {
+      if (requiresBackgroundUpdates &&
+          requestBackgroundPermissionUpgrade &&
+          !backgroundPermission.isGranted) {
         backgroundPermission = await Permission.locationAlways.request();
       }
-      return backgroundPermission.isGranted;
+      hasAndroidBackgroundLocationPermission = backgroundPermission.isGranted;
+      return isLocationPermissionSufficientForRideRecording(
+        permission: foregroundPermission.isGranted
+            ? LocationPermission.whileInUse
+            : LocationPermission.denied,
+        isAndroid: true,
+        requiresBackgroundUpdates: requiresBackgroundUpdates,
+        hasAndroidBackgroundLocationPermission:
+            hasAndroidBackgroundLocationPermission,
+      );
     }
 
     var permission = await Geolocator.checkPermission();
