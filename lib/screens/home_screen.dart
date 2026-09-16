@@ -321,7 +321,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _startLocationStream() async {
     if (!_isMobileTrackingPlatform) return;
     if (!_isRunning && !_isAppInForeground) return;
-    final hasPermission = await _ensureLocationPermission();
+    final hasPermission = await _ensureLocationPermission(
+      requiresBackgroundUpdates:
+          !kIsWeb && io.Platform.isAndroid && _hasActiveRideRuntime,
+    );
     if (!hasPermission) return;
 
     final LocationSettings settings;
@@ -365,7 +368,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await _startLocationStream();
   }
 
-  Future<bool> _ensureLocationPermission() async {
+  Future<bool> _ensureLocationPermission({
+    bool requiresBackgroundUpdates = false,
+  }) async {
     if (!_isMobileTrackingPlatform) return true;
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return false;
@@ -376,7 +381,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     if (!kIsWeb &&
         io.Platform.isAndroid &&
-        _hasActiveRideRuntime &&
+        requiresBackgroundUpdates &&
         permission == LocationPermission.whileInUse) {
       final backgroundPermission = await Permission.locationAlways.request();
       if (backgroundPermission.isGranted) {
@@ -388,7 +393,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return isLocationPermissionSufficientForRideRecording(
       permission: permission,
       isAndroid: !kIsWeb && io.Platform.isAndroid,
-      requiresBackgroundUpdates: _hasActiveRideRuntime,
+      requiresBackgroundUpdates: requiresBackgroundUpdates,
     );
   }
 
@@ -557,13 +562,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    final hasPermission = await _ensureLocationPermission();
+    final requiresBackgroundLocation = !kIsWeb && io.Platform.isAndroid;
+    final hasPermission = await _ensureLocationPermission(
+      requiresBackgroundUpdates: requiresBackgroundLocation,
+    );
     if (!hasPermission) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            !kIsWeb && io.Platform.isAndroid
+            requiresBackgroundLocation
                 ? 'Allow all the time location permission is required to record rides in the background.'
                 : 'Location permission is required.',
           ),
