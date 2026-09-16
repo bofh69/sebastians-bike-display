@@ -121,7 +121,10 @@ def fetch_package_version(
     cache_key = hashlib.sha256(f'{package_name}@{version}'.encode('utf-8')).hexdigest()
     cache_file = cache_dir / f'{cache_key}.json'
     if cache_file.exists():
-        return json.loads(cache_file.read_text(encoding='utf-8'))
+        try:
+            return json.loads(cache_file.read_text(encoding='utf-8'))
+        except json.JSONDecodeError:
+            cache_file.unlink()
 
     package_data = fetch_json(
         f'{PUB_HOST}/api/packages/{package_name}/versions/{version}',
