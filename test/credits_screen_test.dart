@@ -22,11 +22,12 @@ void main() {
     expect(find.text('1.2.3'), findsOneWidget);
     expect(find.text('Direct dependency'), findsOneWidget);
     expect(find.text('Website'), findsNWidgets(2));
-    expect(find.byType(OutlinedButton), findsNWidgets(6));
     expect(find.text('Source'), findsOneWidget);
     expect(find.text('Docs'), findsOneWidget);
     expect(find.text('Issues'), findsOneWidget);
     expect(find.text('Licenses'), findsOneWidget);
+    expect(find.text('Sebastian\'s Bike Display'), findsOneWidget);
+    expect(find.text('Dependencies (1)'), findsOneWidget);
   });
 
   testWidgets('Credits screen shows an error when a link cannot open', (
