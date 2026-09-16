@@ -105,7 +105,7 @@ class _CreditsScreenState extends State<CreditsScreen> {
                                 );
                               },
                               icon: const Icon(Icons.gavel),
-                              label: const Text('Open bundled licenses page'),
+                              label: const Text('Licenses'),
                             ),
                           ),
                         ],
@@ -254,8 +254,8 @@ class _SbomComponent {
     final links = (json['externalReferences'] as List<dynamic>? ?? const [])
         .whereType<Map>()
         .map((entry) => Map<String, dynamic>.from(entry))
-        .map(_SbomLink.fromJson)
-        .where((link) => link.uri.hasScheme)
+        .map(_SbomLink.tryFromJson)
+        .whereType<_SbomLink>()
         .toList(growable: false);
     final isDirectDependency = properties.any(
       (property) =>
@@ -278,10 +278,14 @@ class _SbomLink {
   final String label;
   final Uri uri;
 
-  factory _SbomLink.fromJson(Map<String, dynamic> json) {
+  static _SbomLink? tryFromJson(Map<String, dynamic> json) {
     final type = json['type'] as String? ?? 'link';
-    final url = json['url'] as String? ?? '';
-    return _SbomLink(label: _labelForType(type), uri: Uri.parse(url));
+    final url = json['url'] as String?;
+    final uri = url == null ? null : Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) {
+      return null;
+    }
+    return _SbomLink(label: _labelForType(type), uri: uri);
   }
 
   static String _labelForType(String type) {
