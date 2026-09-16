@@ -456,12 +456,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     required bool requestBackgroundPermissionUpgrade,
   }) async {
     var foregroundPermission = await Permission.locationWhenInUse.status;
-    final genericLocationPermission = await Permission.location.status;
-    var hasForegroundPermission =
-        foregroundPermission.isGranted || genericLocationPermission.isGranted;
+    var genericLocationPermission = await Permission.location.status;
+    var geolocatorPermission = await Geolocator.checkPermission();
+    var hasForegroundPermission = foregroundPermission.isGranted ||
+        genericLocationPermission.isGranted ||
+        geolocatorPermission == LocationPermission.whileInUse ||
+        geolocatorPermission == LocationPermission.always;
     if (requestForegroundPermission && !hasForegroundPermission) {
       foregroundPermission = await Permission.locationWhenInUse.request();
-      hasForegroundPermission = foregroundPermission.isGranted;
+      genericLocationPermission = await Permission.location.status;
+      geolocatorPermission = await Geolocator.checkPermission();
+      hasForegroundPermission = foregroundPermission.isGranted ||
+          genericLocationPermission.isGranted ||
+          geolocatorPermission == LocationPermission.whileInUse ||
+          geolocatorPermission == LocationPermission.always;
     }
 
     var backgroundPermission = await Permission.locationAlways.status;
@@ -470,10 +478,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         !backgroundPermission.isGranted) {
       backgroundPermission = await Permission.locationAlways.request();
     }
+    geolocatorPermission = await Geolocator.checkPermission();
+    final hasBackgroundPermission = backgroundPermission.isGranted ||
+        geolocatorPermission == LocationPermission.always;
 
     return (
       hasForegroundPermission: hasForegroundPermission,
-      hasBackgroundPermission: backgroundPermission.isGranted,
+      hasBackgroundPermission: hasBackgroundPermission,
     );
   }
 
