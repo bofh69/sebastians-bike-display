@@ -67,7 +67,7 @@ void main() {
     );
   });
 
-  test('foreground ride recording accepts while-in-use location', () {
+  test('foreground-only location use accepts while-in-use permission', () {
     expect(
       isLocationPermissionSufficientForRideRecording(
         permission: LocationPermission.whileInUse,

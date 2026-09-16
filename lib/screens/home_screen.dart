@@ -92,6 +92,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool get _supportsBackgroundRideService => !kIsWeb && io.Platform.isIOS;
   bool get _supportsRideCheckpointing => _isMobileTrackingPlatform;
   bool get _hasActiveRideRuntime => _isRunning || _isFinalizingRecoveredRide;
+  bool get _rideRecordingRequiresBackgroundLocation =>
+      !kIsWeb && io.Platform.isAndroid;
 
   @override
   void initState() {
@@ -562,7 +564,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    final requiresBackgroundLocation = !kIsWeb && io.Platform.isAndroid;
+    final requiresBackgroundLocation = _rideRecordingRequiresBackgroundLocation;
     final hasPermission = await _ensureLocationPermission(
       requiresBackgroundUpdates: requiresBackgroundLocation,
     );
