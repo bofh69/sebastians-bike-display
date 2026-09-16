@@ -59,6 +59,15 @@ void main() {
     );
     expect(
       isLocationPermissionSufficientForRideRecording(
+        permission: LocationPermission.whileInUse,
+        isAndroid: true,
+        requiresBackgroundUpdates: true,
+        hasAndroidBackgroundLocationPermission: true,
+      ),
+      isTrue,
+    );
+    expect(
+      isLocationPermissionSufficientForRideRecording(
         permission: LocationPermission.always,
         isAndroid: true,
         requiresBackgroundUpdates: true,

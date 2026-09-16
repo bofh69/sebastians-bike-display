@@ -374,6 +374,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     bool requiresBackgroundUpdates = false,
   }) async {
     if (!_isMobileTrackingPlatform) return true;
+    final isAndroid = !kIsWeb && io.Platform.isAndroid;
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return false;
 
@@ -381,21 +382,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
-    if (!kIsWeb &&
-        io.Platform.isAndroid &&
+    var hasAndroidBackgroundLocationPermission = false;
+    if (isAndroid &&
         requiresBackgroundUpdates &&
         permission == LocationPermission.whileInUse) {
-      final backgroundPermission = await Permission.locationAlways.request();
-      if (backgroundPermission.isGranted) {
-        permission = LocationPermission.always;
-      } else {
-        permission = await Geolocator.checkPermission();
+      var backgroundPermission = await Permission.locationAlways.status;
+      if (!backgroundPermission.isGranted) {
+        backgroundPermission = await Permission.locationAlways.request();
       }
+      hasAndroidBackgroundLocationPermission = backgroundPermission.isGranted;
     }
     return isLocationPermissionSufficientForRideRecording(
       permission: permission,
-      isAndroid: !kIsWeb && io.Platform.isAndroid,
+      isAndroid: isAndroid,
       requiresBackgroundUpdates: requiresBackgroundUpdates,
+      hasAndroidBackgroundLocationPermission:
+          hasAndroidBackgroundLocationPermission,
     );
   }
 
