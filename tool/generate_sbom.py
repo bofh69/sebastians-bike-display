@@ -144,7 +144,10 @@ def fetch_package_version(
     ) as handle:
         handle.write(json.dumps(package_data, indent=2, sort_keys=True) + '\n')
         temp_path = Path(handle.name)
-    os.replace(temp_path, cache_file)
+    try:
+        os.replace(temp_path, cache_file)
+    finally:
+        temp_path.unlink(missing_ok=True)
     return package_data
 
 

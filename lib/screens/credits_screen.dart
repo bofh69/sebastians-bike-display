@@ -212,9 +212,12 @@ class _DependencyCard extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: component.links.map((link) {
-                    return OutlinedButton(
-                      onPressed: () => onOpenLink(link.uri),
-                      child: Text(link.label),
+                    return Tooltip(
+                      message: '${component.name} ${link.label}',
+                      child: OutlinedButton(
+                        onPressed: () => onOpenLink(link.uri),
+                        child: Text(link.label),
+                      ),
                     );
                   }).toList(),
                 ),
