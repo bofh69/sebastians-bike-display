@@ -95,6 +95,27 @@ void main() {
     );
   });
 
+  test('ride recording location failures map to clear user messages', () {
+    expect(
+      rideRecordingLocationAccessFailureMessage(
+        RideRecordingLocationAccessFailure.locationServicesDisabled,
+      ),
+      'Location services must be enabled.',
+    );
+    expect(
+      rideRecordingLocationAccessFailureMessage(
+        RideRecordingLocationAccessFailure.locationPermissionRequired,
+      ),
+      'Location permission is required.',
+    );
+    expect(
+      rideRecordingLocationAccessFailureMessage(
+        RideRecordingLocationAccessFailure.backgroundLocationPermissionRequired,
+      ),
+      'Android ride recording needs background location access ("Allow all the time").',
+    );
+  });
+
   test('parsePowerBalance decodes half-percent values', () {
     expect(
       parsePowerBalance(flags: 0x0003, rawPedalBalance: 200),

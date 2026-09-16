@@ -362,12 +362,14 @@ extension _HomeScreenRecovery on _HomeScreenState {
     _InterruptedRideCheckpoint checkpoint,
   ) async {
     if (_isRunning) return false;
-    final hasPermission = await _ensureRideRecordingLocationPermission();
-    if (!hasPermission) {
+    final permissionFailure = await _rideRecordingLocationAccessFailure();
+    if (permissionFailure != null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_rideRecordingLocationPermissionRequiredMessage()),
+            content: Text(
+              rideRecordingLocationAccessFailureMessage(permissionFailure),
+            ),
           ),
         );
       }

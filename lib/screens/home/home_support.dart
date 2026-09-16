@@ -59,6 +59,25 @@ bool isLocationPermissionSufficientForRideRecording({
   return true;
 }
 
+enum RideRecordingLocationAccessFailure {
+  locationServicesDisabled,
+  locationPermissionRequired,
+  backgroundLocationPermissionRequired,
+}
+
+String rideRecordingLocationAccessFailureMessage(
+  RideRecordingLocationAccessFailure failure,
+) {
+  switch (failure) {
+    case RideRecordingLocationAccessFailure.locationServicesDisabled:
+      return 'Location services must be enabled.';
+    case RideRecordingLocationAccessFailure.locationPermissionRequired:
+      return 'Location permission is required.';
+    case RideRecordingLocationAccessFailure.backgroundLocationPermissionRequired:
+      return 'Android ride recording needs background location access ("Allow all the time").';
+  }
+}
+
 ({
   double filteredAltitude,
   double climbReferenceAltitude,
