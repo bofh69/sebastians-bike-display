@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import json
 import hashlib
+import os
 import sys
+import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -124,10 +126,15 @@ def fetch_package_version(
     package_data = fetch_json(
         f'{PUB_HOST}/api/packages/{package_name}/versions/{version}',
     )
-    cache_file.write_text(
-        json.dumps(package_data, indent=2, sort_keys=True) + '\n',
+    with tempfile.NamedTemporaryFile(
+        'w',
         encoding='utf-8',
-    )
+        dir=cache_dir,
+        delete=False,
+    ) as handle:
+        handle.write(json.dumps(package_data, indent=2, sort_keys=True) + '\n')
+        temp_path = Path(handle.name)
+    os.replace(temp_path, cache_file)
     return package_data
 
 

@@ -155,8 +155,10 @@ class _CreditsScreenState extends State<CreditsScreen> {
     if (!mounted) {
       return;
     }
+    final message = 'Could not open ${uri.toString()}';
+    SemanticsService.announce(message, Directionality.of(context));
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Could not open ${uri.toString()}')),
+      SnackBar(content: Text(message)),
     );
   }
 }
