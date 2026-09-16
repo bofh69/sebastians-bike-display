@@ -249,10 +249,14 @@ class _SbomComponent {
   final List<_SbomLink> links;
 
   factory _SbomComponent.fromJson(Map<String, dynamic> json) {
-    final properties = (json['properties'] as List<dynamic>? ?? const [])
+    final properties = (json['properties'] is List
+            ? json['properties'] as List<dynamic>
+            : const <dynamic>[])
         .whereType<Map>()
         .map((entry) => Map<String, dynamic>.from(entry));
-    final links = (json['externalReferences'] as List<dynamic>? ?? const [])
+    final links = (json['externalReferences'] is List
+            ? json['externalReferences'] as List<dynamic>
+            : const <dynamic>[])
         .whereType<Map>()
         .map((entry) => Map<String, dynamic>.from(entry))
         .map(_SbomLink.tryFromJson)

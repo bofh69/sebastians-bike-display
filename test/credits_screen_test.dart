@@ -24,6 +24,7 @@ void main() {
     expect(find.text('Direct dependency'), findsOneWidget);
     expect(find.text('Website'), findsNWidgets(2));
     expect(find.text('Source'), findsOneWidget);
+    expect(find.text('Docs'), findsOneWidget);
     expect(find.text('Issues'), findsOneWidget);
     expect(find.text('Licenses'), findsOneWidget);
   });
@@ -155,6 +156,7 @@ const String _validSbomJson = '''
       "externalReferences": [
         {"type": "website", "url": "https://pub.dev/packages/example_dependency"},
         {"type": "vcs", "url": "https://github.com/example/dependency"},
+        {"type": "documentation", "url": "https://example.com/docs"},
         {"type": "issue-tracker", "url": "https://github.com/example/dependency/issues"},
         {"type": "website", "url": "not a valid url"}
       ]

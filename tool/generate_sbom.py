@@ -144,7 +144,12 @@ def load_package_locations(repo_root: Path) -> dict[str, Path]:
             continue
         parsed_uri = urllib.parse.urlparse(root_uri)
         if parsed_uri.scheme == 'file':
-            locations[name] = Path(urllib.request.url2pathname(parsed_uri.path))
+            decoded_path = Path(urllib.request.url2pathname(parsed_uri.path))
+            locations[name] = (
+                decoded_path
+                if decoded_path.is_absolute()
+                else (package_config_path.parent / decoded_path).resolve()
+            )
             continue
         locations[name] = (package_config_path.parent / root_uri).resolve()
     return locations
