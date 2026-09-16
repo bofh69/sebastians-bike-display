@@ -93,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool get _supportsRideCheckpointing => _isMobileTrackingPlatform;
   bool get _hasActiveRideRuntime => _isRunning || _isFinalizingRecoveredRide;
   bool get _rideRecordingRequiresBackgroundLocation =>
-      !kIsWeb && io.Platform.isAndroid;
+      _isMobileTrackingPlatform;
 
   @override
   void initState() {
@@ -420,12 +420,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (!_rideRecordingRequiresBackgroundLocation) {
       final permission = await Geolocator.checkPermission();
-      return isLocationPermissionSufficientForRideRecording(
-            permission: permission,
-            isAndroid: false,
-            requiresBackgroundUpdates: false,
-          )
+      final hasPermission = isLocationPermissionSufficientForRideRecording(
+        permission: permission,
+        isAndroid: false,
+        requiresBackgroundUpdates: false,
+      );
+      return hasPermission
           ? null
+          : RideRecordingLocationAccessFailure.locationPermissionRequired;
+    }
+
+    if (!(!kIsWeb && io.Platform.isAndroid)) {
+      final permission = await Geolocator.checkPermission();
+      final hasPermission = isLocationPermissionSufficientForRideRecording(
+        permission: permission,
+        isAndroid: false,
+        requiresBackgroundUpdates: true,
+      );
+      if (hasPermission) {
+        return null;
+      }
+      return permission == LocationPermission.whileInUse
+          ? RideRecordingLocationAccessFailure
+              .backgroundLocationPermissionRequired
           : RideRecordingLocationAccessFailure.locationPermissionRequired;
     }
 

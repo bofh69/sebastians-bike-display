@@ -112,7 +112,7 @@ void main() {
       rideRecordingLocationAccessFailureMessage(
         RideRecordingLocationAccessFailure.backgroundLocationPermissionRequired,
       ),
-      'Background ride recording on Android needs background location access ("Allow all the time").',
+      'Background ride recording needs location access that stays available in the background (for example, "Allow all the time" on Android).',
     );
   });
 

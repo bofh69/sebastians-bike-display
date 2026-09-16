@@ -74,7 +74,7 @@ String rideRecordingLocationAccessFailureMessage(
     case RideRecordingLocationAccessFailure.locationPermissionRequired:
       return 'Location permission is required.';
     case RideRecordingLocationAccessFailure.backgroundLocationPermissionRequired:
-      return 'Background ride recording on Android needs background location access ("Allow all the time").';
+      return 'Background ride recording needs location access that stays available in the background (for example, "Allow all the time" on Android).';
   }
 }
 
