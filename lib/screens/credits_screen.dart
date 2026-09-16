@@ -6,8 +6,21 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../app_constants.dart';
 
-class CreditsScreen extends StatelessWidget {
+class CreditsScreen extends StatefulWidget {
   const CreditsScreen({super.key});
+
+  @override
+  State<CreditsScreen> createState() => _CreditsScreenState();
+}
+
+class _CreditsScreenState extends State<CreditsScreen> {
+  late final Future<_SbomDocument> _sbomFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _sbomFuture = _loadSbom();
+  }
 
   Future<_SbomDocument> _loadSbom() async {
     final rawJson = await rootBundle.loadString('assets/generated/sbom.json');
@@ -21,7 +34,7 @@ class CreditsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Credits')),
       body: FutureBuilder<_SbomDocument>(
-        future: _loadSbom(),
+        future: _sbomFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
@@ -70,7 +83,7 @@ class CreditsScreen extends StatelessWidget {
                         children: [
                           ...sbom.rootComponent.links.map(
                             (link) => OutlinedButton.icon(
-                              onPressed: () => _openLink(context, link.uri),
+                              onPressed: () => _openLink(link.uri),
                               icon: const Icon(Icons.code),
                               label: Text(link.label),
                             ),
@@ -105,7 +118,7 @@ class CreditsScreen extends StatelessWidget {
               ...sbom.components.map(
                 (component) => _DependencyCard(
                   component: component,
-                  onOpenLink: (uri) => _openLink(context, uri),
+                  onOpenLink: _openLink,
                 ),
               ),
             ],
@@ -115,7 +128,7 @@ class CreditsScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _openLink(BuildContext context, Uri uri) async {
+  Future<void> _openLink(Uri uri) async {
     if (await canLaunchUrl(uri)) {
       final launched = await launchUrl(
         uri,
@@ -125,7 +138,7 @@ class CreditsScreen extends StatelessWidget {
         return;
       }
     }
-    if (!context.mounted) {
+    if (!mounted) {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
@@ -153,19 +166,14 @@ class _DependencyCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    component.name,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                Text(
-                  component.version,
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              ],
+            Text(
+              component.name,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              component.version,
+              style: Theme.of(context).textTheme.labelLarge,
             ),
             const SizedBox(height: 4),
             Text(

@@ -1058,7 +1058,17 @@
           "value": "transitive"
         }
       ],
-      "externalReferences": []
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://flutter.dev"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/flutter/flutter"
+        }
+      ],
+      "description": "Flutter web plugin support"
     },
     {
       "bom-ref": "pkg:pub/functional_data@1.2.0",
@@ -2895,7 +2905,9 @@
     },
     {
       "ref": "pkg:pub/flutter_web_plugins@0.0.0",
-      "dependsOn": []
+      "dependsOn": [
+        "pkg:pub/flutter@0.0.0"
+      ]
     },
     {
       "ref": "pkg:pub/functional_data@1.2.0",

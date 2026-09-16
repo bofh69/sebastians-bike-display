@@ -23,6 +23,25 @@ SDK_COMPONENTS = {
             {'type': 'vcs', 'url': 'https://github.com/flutter/flutter'},
         ],
         'component_type': 'framework',
+        'dependencies': [],
+    },
+    'flutter_web_plugins': {
+        'description': 'Flutter web plugin support',
+        'links': [
+            {'type': 'website', 'url': 'https://flutter.dev'},
+            {'type': 'vcs', 'url': 'https://github.com/flutter/flutter'},
+        ],
+        'component_type': 'framework',
+        'dependencies': ['flutter'],
+    },
+    'sky_engine': {
+        'description': 'Flutter engine Dart UI bindings',
+        'links': [
+            {'type': 'website', 'url': 'https://flutter.dev'},
+            {'type': 'vcs', 'url': 'https://github.com/flutter/flutter'},
+        ],
+        'component_type': 'framework',
+        'dependencies': ['flutter'],
     },
 }
 
@@ -252,7 +271,11 @@ def build_sbom(repo_root: Path) -> dict[str, object]:
             )
         elif source == 'sdk':
             sdk_component = SDK_COMPONENTS.get(package_name, {})
-            dependencies = []
+            dependencies = [
+                name
+                for name in sdk_component.get('dependencies', [])
+                if name in locked_packages
+            ]
             component_cache[package_name] = package_component(
                 package_name,
                 locked_info,
