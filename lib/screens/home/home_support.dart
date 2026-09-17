@@ -42,6 +42,42 @@ bool shouldAccumulatePowerBalanceSample({
       rightBalance != null;
 }
 
+bool isLocationPermissionSufficientForRideRecording({
+  required LocationPermission permission,
+  required bool isAndroid,
+  required bool requiresBackgroundUpdates,
+  bool hasAndroidBackgroundLocationPermission = false,
+}) {
+  if (permission != LocationPermission.always &&
+      permission != LocationPermission.whileInUse) {
+    return false;
+  }
+  if (requiresBackgroundUpdates) {
+    return permission == LocationPermission.always ||
+        (isAndroid && hasAndroidBackgroundLocationPermission);
+  }
+  return true;
+}
+
+enum RideRecordingLocationAccessFailure {
+  locationServicesDisabled,
+  locationPermissionRequired,
+  backgroundLocationPermissionRequired,
+}
+
+String rideRecordingLocationAccessFailureMessage(
+  RideRecordingLocationAccessFailure failure,
+) {
+  switch (failure) {
+    case RideRecordingLocationAccessFailure.locationServicesDisabled:
+      return 'Location services must be enabled.';
+    case RideRecordingLocationAccessFailure.locationPermissionRequired:
+      return 'Location permission is required.';
+    case RideRecordingLocationAccessFailure.backgroundLocationPermissionRequired:
+      return 'Background ride recording needs location access that stays available in the background (for example, "Allow all the time" on Android).';
+  }
+}
+
 ({
   double filteredAltitude,
   double climbReferenceAltitude,

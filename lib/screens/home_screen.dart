@@ -92,6 +92,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool get _supportsBackgroundRideService => !kIsWeb && io.Platform.isIOS;
   bool get _supportsRideCheckpointing => _isMobileTrackingPlatform;
   bool get _hasActiveRideRuntime => _isRunning || _isFinalizingRecoveredRide;
+  bool get _rideRecordingRequiresBackgroundLocation =>
+      _supportsBackgroundRideService || (!kIsWeb && io.Platform.isAndroid);
 
   @override
   void initState() {
@@ -321,7 +323,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _startLocationStream() async {
     if (!_isMobileTrackingPlatform) return;
     if (!_isRunning && !_isAppInForeground) return;
-    final hasPermission = await _ensureLocationPermission();
+    final hasPermission = await _ensureLocationPermission(
+      requiresBackgroundUpdates:
+          !kIsWeb &&
+          io.Platform.isAndroid &&
+          _hasActiveRideRuntime &&
+          !_isAppInForeground,
+      requestBackgroundPermissionUpgrade: false,
+    );
     if (!hasPermission) return;
 
     final LocationSettings settings;
@@ -365,17 +374,130 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await _startLocationStream();
   }
 
-  Future<bool> _ensureLocationPermission() async {
+  Future<bool> _ensureLocationPermission({
+    bool requiresBackgroundUpdates = false,
+    bool requestBackgroundPermissionUpgrade = true,
+  }) async {
     if (!_isMobileTrackingPlatform) return true;
+    final isAndroid = !kIsWeb && io.Platform.isAndroid;
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return false;
+
+    if (isAndroid) {
+      final permissionState = await _resolveAndroidLocationPermissionState(
+        requestForegroundPermission: true,
+        requestBackgroundPermissionUpgrade:
+            requiresBackgroundUpdates && requestBackgroundPermissionUpgrade,
+      );
+      return isLocationPermissionSufficientForRideRecording(
+        permission: permissionState.hasForegroundPermission
+            ? LocationPermission.whileInUse
+            : LocationPermission.denied,
+        isAndroid: true,
+        requiresBackgroundUpdates: requiresBackgroundUpdates,
+        hasAndroidBackgroundLocationPermission:
+            permissionState.hasBackgroundPermission,
+      );
+    }
 
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
-    return permission == LocationPermission.always ||
-        permission == LocationPermission.whileInUse;
+    return isLocationPermissionSufficientForRideRecording(
+      permission: permission,
+      isAndroid: false,
+      requiresBackgroundUpdates: requiresBackgroundUpdates,
+    );
+  }
+
+  Future<RideRecordingLocationAccessFailure?>
+      _rideRecordingLocationAccessFailure() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return RideRecordingLocationAccessFailure.locationServicesDisabled;
+    }
+
+    if (!_rideRecordingRequiresBackgroundLocation) {
+      final permission = await Geolocator.checkPermission();
+      final hasPermission = isLocationPermissionSufficientForRideRecording(
+        permission: permission,
+        isAndroid: false,
+        requiresBackgroundUpdates: _rideRecordingRequiresBackgroundLocation,
+      );
+      return hasPermission
+          ? null
+          : RideRecordingLocationAccessFailure.locationPermissionRequired;
+    }
+
+    if (kIsWeb || !io.Platform.isAndroid) {
+      final permission = await Geolocator.checkPermission();
+      final hasPermission = isLocationPermissionSufficientForRideRecording(
+        permission: permission,
+        isAndroid: false,
+        requiresBackgroundUpdates: true,
+      );
+      if (hasPermission) {
+        return null;
+      }
+      return permission == LocationPermission.whileInUse
+          ? RideRecordingLocationAccessFailure
+              .backgroundLocationPermissionRequired
+          : RideRecordingLocationAccessFailure.locationPermissionRequired;
+    }
+
+    final permissionState = await _resolveAndroidLocationPermissionState(
+      requestForegroundPermission: false,
+      requestBackgroundPermissionUpgrade: false,
+    );
+    if (!permissionState.hasForegroundPermission) {
+      return RideRecordingLocationAccessFailure.locationPermissionRequired;
+    }
+    if (!permissionState.hasBackgroundPermission) {
+      return RideRecordingLocationAccessFailure
+          .backgroundLocationPermissionRequired;
+    }
+    return null;
+  }
+
+  Future<bool> _ensureRideRecordingLocationPermission() {
+    return _ensureLocationPermission(
+      requiresBackgroundUpdates: _rideRecordingRequiresBackgroundLocation,
+    );
+  }
+
+  Future<({bool hasForegroundPermission, bool hasBackgroundPermission})>
+      _resolveAndroidLocationPermissionState({
+    required bool requestForegroundPermission,
+    required bool requestBackgroundPermissionUpgrade,
+  }) async {
+    var foregroundPermission = await Permission.locationWhenInUse.status;
+    var geolocatorPermission = await Geolocator.checkPermission();
+    var hasForegroundPermission = foregroundPermission.isGranted ||
+        geolocatorPermission == LocationPermission.whileInUse ||
+        geolocatorPermission == LocationPermission.always;
+    if (requestForegroundPermission && !hasForegroundPermission) {
+      foregroundPermission = await Permission.locationWhenInUse.request();
+      geolocatorPermission = await Geolocator.checkPermission();
+      hasForegroundPermission = foregroundPermission.isGranted ||
+          geolocatorPermission == LocationPermission.whileInUse ||
+          geolocatorPermission == LocationPermission.always;
+    }
+
+    var backgroundPermission = await Permission.locationAlways.status;
+    if (hasForegroundPermission &&
+        requestBackgroundPermissionUpgrade &&
+        !backgroundPermission.isGranted) {
+      backgroundPermission = await Permission.locationAlways.request();
+    }
+    geolocatorPermission = await Geolocator.checkPermission();
+    final hasBackgroundPermission = backgroundPermission.isGranted ||
+        geolocatorPermission == LocationPermission.always;
+
+    return (
+      hasForegroundPermission: hasForegroundPermission,
+      hasBackgroundPermission: hasBackgroundPermission,
+    );
   }
 
   void _applyState(VoidCallback updates) {
@@ -543,11 +665,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    final hasPermission = await _ensureLocationPermission();
+    final hasPermission = await _ensureRideRecordingLocationPermission();
     if (!hasPermission) {
       if (!mounted) return;
+      final permissionFailure = await _rideRecordingLocationAccessFailure() ??
+          RideRecordingLocationAccessFailure.locationPermissionRequired;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Location permission is required.')),
+        SnackBar(
+          content: Text(
+            rideRecordingLocationAccessFailureMessage(permissionFailure),
+          ),
+        ),
       );
       return;
     }

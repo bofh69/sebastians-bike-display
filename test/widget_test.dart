@@ -1,5 +1,6 @@
 import 'dart:io' as io;
 
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_bike_display/main.dart';
@@ -44,6 +45,118 @@ void main() {
         rightBalance: 55,
       ),
       isFalse,
+    );
+  });
+
+  test('background ride recording on Android requires always location', () {
+    expect(
+      isLocationPermissionSufficientForRideRecording(
+        permission: LocationPermission.whileInUse,
+        isAndroid: true,
+        requiresBackgroundUpdates: true,
+      ),
+      isFalse,
+    );
+    expect(
+      isLocationPermissionSufficientForRideRecording(
+        permission: LocationPermission.whileInUse,
+        isAndroid: true,
+        requiresBackgroundUpdates: true,
+        hasAndroidBackgroundLocationPermission: true,
+      ),
+      isTrue,
+    );
+    expect(
+      isLocationPermissionSufficientForRideRecording(
+        permission: LocationPermission.always,
+        isAndroid: true,
+        requiresBackgroundUpdates: true,
+      ),
+      isTrue,
+    );
+  });
+
+  test('foreground-only location use accepts while-in-use permission', () {
+    expect(
+      isLocationPermissionSufficientForRideRecording(
+        permission: LocationPermission.whileInUse,
+        isAndroid: true,
+        requiresBackgroundUpdates: false,
+      ),
+      isTrue,
+    );
+    expect(
+      isLocationPermissionSufficientForRideRecording(
+        permission: LocationPermission.whileInUse,
+        isAndroid: false,
+        requiresBackgroundUpdates: false,
+      ),
+      isTrue,
+    );
+  });
+
+  test('non-Android background ride recording requires always location', () {
+    expect(
+      isLocationPermissionSufficientForRideRecording(
+        permission: LocationPermission.whileInUse,
+        isAndroid: false,
+        requiresBackgroundUpdates: true,
+      ),
+      isFalse,
+    );
+    expect(
+      isLocationPermissionSufficientForRideRecording(
+        permission: LocationPermission.always,
+        isAndroid: false,
+        requiresBackgroundUpdates: true,
+      ),
+      isTrue,
+    );
+  });
+
+  test('location permission helper rejects denied permission states', () {
+    for (final permission in <LocationPermission>[
+      LocationPermission.denied,
+      LocationPermission.deniedForever,
+      LocationPermission.unableToDetermine,
+    ]) {
+      expect(
+        isLocationPermissionSufficientForRideRecording(
+          permission: permission,
+          isAndroid: true,
+          requiresBackgroundUpdates: false,
+        ),
+        isFalse,
+      );
+      expect(
+        isLocationPermissionSufficientForRideRecording(
+          permission: permission,
+          isAndroid: false,
+          requiresBackgroundUpdates: false,
+        ),
+        isFalse,
+      );
+    }
+  });
+
+  test('ride recording location failures map to clear user messages', () {
+    expect(
+      rideRecordingLocationAccessFailureMessage(
+        RideRecordingLocationAccessFailure.locationServicesDisabled,
+      ),
+      'Location services must be enabled.',
+    );
+    expect(
+      rideRecordingLocationAccessFailureMessage(
+        RideRecordingLocationAccessFailure.locationPermissionRequired,
+      ),
+      'Location permission is required.',
+    );
+    expect(
+      rideRecordingLocationAccessFailureMessage(
+        RideRecordingLocationAccessFailure.backgroundLocationPermissionRequired,
+      ),
+      'Background ride recording needs location access that stays available in the background (for example, "Allow all the time" on Android).',
     );
   });
 
