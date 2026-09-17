@@ -670,6 +670,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       final permissionFailure = await _rideRecordingLocationAccessFailure() ??
           RideRecordingLocationAccessFailure.locationPermissionRequired;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

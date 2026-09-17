@@ -367,6 +367,7 @@ extension _HomeScreenRecovery on _HomeScreenState {
       if (mounted) {
         final permissionFailure = await _rideRecordingLocationAccessFailure() ??
             RideRecordingLocationAccessFailure.locationPermissionRequired;
+        if (!mounted) return false;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
